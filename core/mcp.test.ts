@@ -226,7 +226,7 @@ describe('changing servers', () => {
     expect(calls.find((c) => c.args[1] === 'remove')!.args).toEqual(['mcp', 'remove', '-s', 'project', 'proj'])
     await svc.remove(folder, 'opencode:global:gone')
     expect(Object.keys(JSON.parse(files.get('/h/opencode.jsonc')!).mcp.servers)).toEqual(['stay'])
-    expect(files.get('/h/opencode.jsonc.operant-backup')).toContain('gone')
+    expect(files.get('/h/opencode.jsonc.foreman-backup')).toContain('gone')
   })
 
   it('disables and enables OpenCode and Claude servers in their config', async () => {
@@ -351,7 +351,7 @@ describe('optional integrations', () => {
     const { svc } = setup({ claude: { mcpServers: { 'mcp-git': GIT_ENTRY } } })
     const entries = await svc.optional(folder)
     expect(entries.find((e) => e.id === 'git')).toMatchObject({ status: 'found', foundAs: 'mcp-git', foundIn: 'Claude Code (user)', added: [] })
-    // A plugin's copy is shown as provided by the plugin: Operant neither adds nor removes it.
+    // A plugin's copy is shown as provided by the plugin: Foreman neither adds nor removes it.
     expect(entries.find((e) => e.id === 'playwright')).toMatchObject({
       status: 'found',
       provided: true,
@@ -362,12 +362,12 @@ describe('optional integrations', () => {
     expect(entries.find((e) => e.id === 'git')!.provided).toBe(false)
   })
 
-  it('shows an entry Operant wrote as added, and Remove takes only Operant entries', async () => {
+  it('shows an entry Foreman wrote as added, and Remove takes only Foreman entries', async () => {
     const { svc, calls } = setup({ claude: { mcpServers: { git: GIT_ENTRY, 'by-hand': { type: 'stdio', command: 'x' } } } })
     expect((await svc.optional(folder)).find((e) => e.id === 'git')).toMatchObject({ status: 'added', added: [{ cli: 'claude', scope: 'user' }] })
     await svc.removeOptional(folder, 'git')
     expect(calls.filter((c) => c.args[1] === 'remove').map((c) => c.args)).toEqual([['mcp', 'remove', '-s', 'user', 'git']])
-    await expect(svc.removeOptional(folder, 'playwright')).rejects.toThrow(/was not added by Operant/)
+    await expect(svc.removeOptional(folder, 'playwright')).rejects.toThrow(/was not added by Foreman/)
   })
 
   it('a launch leaves a missing optional server out without a warning, and attaches an installed one under the preset name', async () => {
@@ -405,11 +405,11 @@ describe('optional integrations', () => {
   it('CodeGraph: a user copy under its name is found, and Remove does not touch it', async () => {
     const { svc, calls } = setup()
     expect((await svc.optional(folder)).find((e) => e.id === 'codegraph')).toMatchObject({ status: 'found', foundAs: 'codegraph', foundIn: 'Claude Code (user)', added: [] })
-    await expect(svc.removeOptional(folder, 'codegraph')).rejects.toThrow(/was not added by Operant/)
+    await expect(svc.removeOptional(folder, 'codegraph')).rejects.toThrow(/was not added by Foreman/)
     expect(calls.some((c) => c.args.includes('remove'))).toBe(false)
   })
 
-  it('CodeGraph: an entry Operant wrote is added, and Remove forgets it', async () => {
+  it('CodeGraph: an entry Foreman wrote is added, and Remove forgets it', async () => {
     const entry = { codegraph: { type: 'stdio', command: 'codegraph', args: ['serve', '--mcp'] } }
     const { svc, calls, written } = setup({ claude: { mcpServers: entry }, written: ['claude:user:codegraph'] })
     expect((await svc.optional(folder)).find((e) => e.id === 'codegraph')).toMatchObject({ status: 'added', added: [{ cli: 'claude', scope: 'user' }] })

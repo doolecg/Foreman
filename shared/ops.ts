@@ -17,7 +17,7 @@ export interface AuxStatus {
   features: Record<string, AuxUsage>
   // Why calls are refused now; null when they are not.
   blocked: string | null
-  // 'local limit' when Operant's own budget stopped it, 'provider limit' when the CLI or API reported a rate or quota limit.
+  // 'local limit' when Foreman's own budget stopped it, 'provider limit' when the CLI or API reported a rate or quota limit.
   label: 'local limit' | 'provider limit' | null
   lastError: string
 }
@@ -41,7 +41,7 @@ export interface MemoryExport {
 }
 
 export interface ResetResult {
-  // One line per thing reset: the Hindsight bank and the Operant lessons of each project.
+  // One line per thing reset: the Hindsight bank and the Foreman lessons of each project.
   steps: Array<{ target: string; ok: boolean; error: string }>
 }
 

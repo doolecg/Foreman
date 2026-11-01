@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useMutation, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
-import type { IpcApi, IpcChannel, OperantBridge } from '@shared/ipc'
+import type { IpcApi, IpcChannel, ForemanBridge } from '@shared/ipc'
 import { bridge } from '../bridge'
 
 export const call = <C extends IpcChannel>(channel: C, ...args: Parameters<IpcApi[C]>) => bridge().invoke(channel, ...args)
@@ -33,7 +33,7 @@ export const pickFolder = () => call('app:pickFolder')
 
 // A domain file registers its push-event handlers once, at module load. A handler subscribes with `bridge.on`
 // and returns the unsubscribe functions.
-export type LiveHandler = (bridge: OperantBridge, qc: QueryClient) => Array<() => void>
+export type LiveHandler = (bridge: ForemanBridge, qc: QueryClient) => Array<() => void>
 
 const liveHandlers: LiveHandler[] = []
 

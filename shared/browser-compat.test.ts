@@ -17,8 +17,8 @@ describe('cert host rules', () => {
 
 describe('user agent', () => {
   it('strips Electron and the app name', () => {
-    const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) operant2/3.0.4 Chrome/140.0.0.0 Electron/38.0.0 Safari/537.36'
-    expect(cleanUserAgent(ua, 'operant2')).toBe('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36')
+    const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) foreman/3.0.4 Chrome/140.0.0.0 Electron/38.0.0 Safari/537.36'
+    expect(cleanUserAgent(ua, 'foreman')).toBe('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36')
   })
 })
 

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 // The app opens the project's Git page on Changes when it hears this; `path` is the file whose row was clicked.
-export const OPEN_CHANGES_EVENT = 'operant:open-changes'
+export const OPEN_CHANGES_EVENT = 'foreman:open-changes'
 export interface OpenChangesDetail {
   path?: string
 }

@@ -7,7 +7,7 @@ time. The one rule that matters most: finish and prove one slice before you star
 the next, and never leave the project broken between slices.
 
 ## Use when
-- A slice list exists at `.operant/engineering/<task-name>/slices.html` and the
+- A slice list exists at `.foreman/engineering/<task-name>/slices.html` and the
   user has approved it.
 - The next unticked slice is ready to be coded.
 - The user says to build, implement or continue the task.
@@ -15,7 +15,7 @@ the next, and never leave the project broken between slices.
   one-line fix.
 
 ## Steps
-1. Open `.operant/engineering/<task-name>/slices.html`. Pick the first slice that
+1. Open `.foreman/engineering/<task-name>/slices.html`. Pick the first slice that
    is not ticked. State it in one line: what it adds and how you will know it
    works.
 2. Check the working tree holds only this task's changes. Check you are on the
@@ -30,7 +30,7 @@ the next, and never leave the project broken between slices.
    suite once, on its own. Quote the result.
 7. Tick the slice off in `slices.html`. Add anything you noticed but did not touch
    to the "noticed but not touching" list in
-   `.operant/engineering/<task-name>/notes.html`.
+   `.foreman/engineering/<task-name>/notes.html`.
 8. Make one local commit for the slice with a short plain message, such as "Add
    retry limit to export". No AI attribution line.
 9. Move to the next slice. When all are ticked, report in a few lines: what was

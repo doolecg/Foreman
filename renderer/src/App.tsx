@@ -44,7 +44,7 @@ import { useCloseTile } from '@/components/terminal/useCloseTile'
 import type { Crew } from '@shared/types'
 import type { MainCli } from '@shared/settings'
 
-const LAST_CREW = 'operant.lastCrew'
+const LAST_CREW = 'foreman.lastCrew'
 
 function readLastCrew(): number | null {
   try {
@@ -233,7 +233,7 @@ export function App() {
             <span aria-hidden className="text-[20px] leading-none text-[#d97757]">
               ◈
             </span>
-            {tier < 3 && <span className="text-[14px] font-semibold whitespace-nowrap">Operant</span>}
+            {tier < 3 && <span className="text-[14px] font-semibold whitespace-nowrap">Foreman</span>}
           </div>
         </div>
         <TopNav views={['thread', 'board', 'plans', 'tiles']} view={page === 'dashboard' ? view : null} onChange={(v) => (setView(v), setPage('dashboard'))} />
@@ -422,7 +422,7 @@ function Welcome({ onNewCrew }: { onNewCrew: () => void }) {
         <div aria-hidden className="text-[#d97757] text-5xl leading-none">
           ◈
         </div>
-        <h1 className="text-2xl font-semibold">Welcome to Operant</h1>
+        <h1 className="text-2xl font-semibold">Welcome to Foreman</h1>
         <p className="text-muted-foreground text-sm">
           Add a project folder, open shells and coding agents in it, and keep its lessons, usage and git changes in one place.
         </p>

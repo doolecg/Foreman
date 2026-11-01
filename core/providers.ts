@@ -314,7 +314,7 @@ export class ProviderMonitor {
     return { providers: [this.withEstimate(this.claude), this.zai, this.opencode], alerts: [...this.alerts] }
   }
 
-  // Claude's rows come from what Operant recorded: priced from the table, so an estimate and not a bill.
+  // Claude's rows come from what Foreman recorded: priced from the table, so an estimate and not a bill.
   private withEstimate(s: ProviderStatus): ProviderStatus {
     const since = this.now() - OPENCODE_DAYS * 86_400_000
     const r = this.d.store.db
@@ -335,7 +335,7 @@ export class ProviderMonitor {
   }
 
   // Claude: the five-hour and weekly windows, with the login Claude Code keeps. The token is read into a local
-  // variable for the one request and never stored or logged; Operant never refreshes the login.
+  // variable for the one request and never stored or logged; Foreman never refreshes the login.
   async pollPlan(force = false): Promise<void> {
     const now = this.now()
     const cur = this.claude
@@ -358,7 +358,7 @@ export class ProviderMonitor {
     if (!token || typeof token !== 'string') return set({ state: 'signed-out', windows: [], note: 'Sign in to Claude Code to see your plan limits' })
     try {
       const r = await this.fetchFn('https://api.anthropic.com/api/oauth/usage', {
-        headers: { Authorization: `Bearer ${token}`, 'anthropic-beta': 'oauth-2025-04-20', 'User-Agent': 'Operant2' },
+        headers: { Authorization: `Bearer ${token}`, 'anthropic-beta': 'oauth-2025-04-20', 'User-Agent': 'Foreman' },
       })
       token = undefined
       if (r.status === 401) return set({ state: 'error', note: 'Claude login expired: open Claude Code to refresh it' })

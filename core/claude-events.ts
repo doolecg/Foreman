@@ -1,7 +1,7 @@
 import type { ClaudeSessionStatus } from '../shared/mods'
 import type { ModsSettings } from '../shared/settings'
 
-// The Claude Code hooks and status line Operant adds to the tiles it launches (passed with --settings, layered over the
+// The Claude Code hooks and status line Foreman adds to the tiles it launches (passed with --settings, layered over the
 // user's own settings). scripts/op-event.mjs writes what they receive into the events folder.
 
 export interface ModsPaths {
@@ -13,7 +13,7 @@ export interface ModsPaths {
 
 export interface ClaudeEvent {
   ts: number
-  // The tile that launched the session (OPERANT_TILE_ID), null when the event came from another run.
+  // The tile that launched the session (FOREMAN_TILE_ID), null when the event came from another run.
   tile: number | null
   sessionId: string
   name: string
@@ -38,10 +38,10 @@ export function modsCommand(paths: ModsPaths, mode: 'hook' | 'status' | 'recall'
   return `ELECTRON_RUN_AS_NODE=1 ${node} ${script} ${mode} ${dir}`
 }
 
-// The hooks Operant's sub-agent panel reads: the session phase events and the sub-agent events. Registered only while
+// The hooks Foreman's sub-agent panel reads: the session phase events and the sub-agent events. Registered only while
 // the subagents mod is on. The status line is set while mods are on (the info bar and context card read it).
 // Subagent Factory Mode (`factory`) adds the sub-agent start/stop events and the PreToolUse hook that caps running helpers at 3
-// (op-event.mjs, armed by OPERANT_FACTORY=1), whether or not mods are on; with mods off it sets no status line.
+// (op-event.mjs, armed by FOREMAN_FACTORY=1), whether or not mods are on; with mods off it sets no status line.
 // Null when neither applies or a path cannot be quoted safely: the tile then starts without them.
 export function hooksConfig(
   paths: ModsPaths,
@@ -70,7 +70,7 @@ export function hooksConfig(
   return { hooks, ...(settings.enabled ? { statusLine: { type: 'command' as const, command: status } } : {}) }
 }
 
-// One events-file line; null when it is not a hook event Operant can use.
+// One events-file line; null when it is not a hook event Foreman can use.
 export function parseEventLine(line: string): ClaudeEvent | null {
   let o: unknown
   try {
@@ -86,7 +86,7 @@ export function parseEventLine(line: string): ClaudeEvent | null {
   return { ts: num(payload.ts) ?? 0, tile: tileId, sessionId: payload.session_id, name, payload }
 }
 
-// The status file the status line writes, reduced to the fields Operant shows. Fields the payload lacks stay out.
+// The status file the status line writes, reduced to the fields Foreman shows. Fields the payload lacks stay out.
 export function parseStatusFile(text: string): ClaudeSessionStatus | null {
   let o: unknown
   try {

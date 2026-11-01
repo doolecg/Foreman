@@ -115,7 +115,7 @@ describe('memory admin: export, reset and diagnostics', () => {
   let memDir = ''
   beforeEach(() => {
     store = new Store(':memory:')
-    memDir = mkdtempSync(join(tmpdir(), 'operant-memtest-'))
+    memDir = mkdtempSync(join(tmpdir(), 'foreman-memtest-'))
     crewId = store.createCrew('shop', FOLDER).id
     retained.length = 0
     deleted.length = 0
@@ -162,9 +162,9 @@ describe('memory admin: export, reset and diagnostics', () => {
 
   it('exports the lessons and what Hindsight holds, as one JSON document', async () => {
     const out = await exportMemory(deps())
-    expect(out.filename).toBe('operant-memory-2026-10-09.json')
+    expect(out.filename).toBe('foreman-memory-2026-10-09.json')
     const doc = JSON.parse(out.text)
-    expect(doc.format).toBe('operant-memory')
+    expect(doc.format).toBe('foreman-memory')
     expect(doc.lessons.map((l: { text: string }) => l.text).sort()).toEqual(['Cart totals use cents', 'The owner likes short answers'])
     expect(doc.hindsight.soul).toMatchObject({ ok: true, items: ['entry'] })
     expect(doc.hindsight.projects[0]).toMatchObject({ name: 'shop', ok: true })

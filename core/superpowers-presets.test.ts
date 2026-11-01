@@ -9,7 +9,7 @@ import { Store } from './store'
 
 describe('superpowers detection', () => {
   let claude: string
-  beforeEach(() => (claude = mkdtempSync(join(tmpdir(), 'operant-claude-'))))
+  beforeEach(() => (claude = mkdtempSync(join(tmpdir(), 'foreman-claude-'))))
   afterEach(() => rmSync(claude, { recursive: true, force: true }))
 
   it('reports not installed for an empty Claude folder', () => {
@@ -57,7 +57,7 @@ describe('preset files', () => {
     try {
       const mine = store.createPreset({ name: 'my reviewer', agent: 'claude', model: 'sonnet', permissionMode: 'default', roleText: 'Review hard.' })
       const file = exportPresets([mine])
-      expect(file.filename).toBe('operant-preset-my-reviewer.json')
+      expect(file.filename).toBe('foreman-preset-my-reviewer.json')
       expect(parsePresetFile(file.text, ['other'])).toEqual([expect.objectContaining({ name: 'my reviewer', action: 'add', input: expect.objectContaining({ roleText: 'Review hard.', model: 'sonnet' }) })])
       expect(parsePresetFile(file.text, ['my reviewer'])[0]).toMatchObject({ action: 'skip' })
     } finally {
@@ -66,8 +66,8 @@ describe('preset files', () => {
   })
 
   it('refuses a file that is not a preset file, and an unknown agent', () => {
-    expect(() => parsePresetFile('{"format":"operant-teams","teams":[]}', [])).toThrow(/not an Operant preset file/)
-    const doc = { format: 'operant-presets', version: 1, presets: [{ name: 'x', agent: 'robot' }] }
+    expect(() => parsePresetFile('{"format":"foreman-teams","teams":[]}', [])).toThrow(/not a Foreman preset file/)
+    const doc = { format: 'foreman-presets', version: 1, presets: [{ name: 'x', agent: 'robot' }] }
     expect(parsePresetFile(JSON.stringify(doc), [])[0]).toMatchObject({ action: 'invalid', reason: 'Unknown agent robot' })
   })
 })

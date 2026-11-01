@@ -36,12 +36,12 @@ export async function exportMemory(d: MemoryAdminDeps): Promise<MemoryExport> {
     crews.map(async (c) => ({ crewId: c.id, name: c.name, folder: c.folder, ...(await reading(d.hindsight, bankFor(c.folder), 'lessons learned in this project')) })),
   )
   const stamp = new Date(d.now()).toISOString()
-  const doc = { format: 'operant-memory', version: 1, exportedAt: stamp, lessons, hindsight: { soul, projects } }
-  return { filename: `operant-memory-${stamp.slice(0, 10)}.json`, text: JSON.stringify(doc, null, 2) }
+  const doc = { format: 'foreman-memory', version: 1, exportedAt: stamp, lessons, hindsight: { soul, projects } }
+  return { filename: `foreman-memory-${stamp.slice(0, 10)}.json`, text: JSON.stringify(doc, null, 2) }
 }
 
 // Wipes a bank or everything. Refused without `confirm: true`. Each step reports on its own: a Hindsight bank the
-// server refuses to delete is named as not wiped, and the Operant side still goes on.
+// server refuses to delete is named as not wiped, and the Foreman side still goes on.
 export async function resetMemory(d: MemoryAdminDeps, req: { scope: 'soul' | 'project' | 'all'; crewId?: number; confirm: boolean }): Promise<ResetResult> {
   if (req.confirm !== true) throw new Error('Reset needs confirm: true')
   const steps: ResetResult['steps'] = []

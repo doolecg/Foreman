@@ -35,7 +35,7 @@ This skill turns a fuzzy request into an agreed goal. You look up every fact you
    Done when: <the check that can fail>
    ```
    "Whatever you think" or "sounds good" is not a yes. Offer two concrete options instead.
-8. Write the agreed goal into notes.html in the task folder `.operant/engineering/<task-name>/`, with two short lists.
+8. Write the agreed goal into notes.html in the task folder `.foreman/engineering/<task-name>/`, with two short lists.
    - Assumptions: each one line, each something you chose without asking.
    - Not doing: the things you will leave out, so nobody expects them.
    Then hand over to `spec`.

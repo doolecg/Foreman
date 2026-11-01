@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { resolve } from 'node:path'
-import { HELP, main, parseArgs, render } from './operant'
+import { HELP, main, parseArgs, render } from './foreman'
 
-describe('operant CLI', () => {
+describe('foreman CLI', () => {
   it('sends a shot file as an absolute path and passes kind through', () => {
     const p = parseArgs(['shot', 'out/a.png', '--kind', 'chat'])
     expect(p).toEqual({ kind: 'request', cmd: 'shot', args: { file: resolve('out/a.png'), kind: 'chat' }, json: false, stdin: null })
@@ -16,7 +16,7 @@ describe('operant CLI', () => {
   })
 
   it('lists shot in --help', () => {
-    expect(HELP).toContain('operant shot <file> [--kind K]')
+    expect(HELP).toContain('foreman shot <file> [--kind K]')
   })
 
   it('parses memory recall into the query text', () => {
@@ -36,6 +36,6 @@ describe('operant CLI', () => {
 
   it('prints the answer, or the error with its exit code', () => {
     expect(render({ exit: 0, out: 'ok' }, false)).toEqual({ stdout: 'ok\n', stderr: '', code: 0 })
-    expect(render({ exit: 4, error: 'busy' }, false)).toEqual({ stdout: '', stderr: 'operant: busy\n', code: 4 })
+    expect(render({ exit: 4, error: 'busy' }, false)).toEqual({ stdout: '', stderr: 'foreman: busy\n', code: 4 })
   })
 })

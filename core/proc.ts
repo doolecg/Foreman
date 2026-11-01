@@ -5,7 +5,7 @@ import type { ConsoleSource } from '../shared/console'
 import { consoleLog, LineBuffer } from './console'
 import { hiddenConsoleEnv } from './hideshim'
 
-// Every background process Operant starts goes through here: it never gets a console window (windowsHide), and its
+// Every background process Foreman starts goes through here: it never gets a console window (windowsHide), and its
 // output and lifecycle go to the in-app console. Interactive terminal tiles (node-pty) are separate and stay visible.
 
 export interface HiddenSpawnOptions extends Omit<SpawnOptions, 'windowsHide'> {
@@ -148,7 +148,7 @@ export function killTree(child: { pid?: number; kill: () => unknown }): void {
   else child.kill()
 }
 
-// Quit path: kills the tree of every background process Operant started (jobs, learn calls, MCP checks, the Hindsight
+// Quit path: kills the tree of every background process Foreman started (jobs, learn calls, MCP checks, the Hindsight
 // service), by pid, and waits briefly for the kills so nothing outlives the app holding its pipes open.
 export async function killAllOwn(waitMs = 3000): Promise<void> {
   const waits: Promise<void>[] = []
@@ -169,7 +169,7 @@ export async function killAllOwn(waitMs = 3000): Promise<void> {
   clearTimeout(timer)
 }
 
-// Stops a process Operant started, by pid; any other pid is refused so a stray number can never hit another program.
+// Stops a process Foreman started, by pid; any other pid is refused so a stray number can never hit another program.
 export function stopOwnProcess(pid: number): boolean {
   const child = children.get(pid)
   if (!child || !consoleLog.isOwnProcess(pid)) return false

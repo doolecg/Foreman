@@ -30,7 +30,7 @@ const STATE_VARIANT: Record<McpState, 'default' | 'secondary' | 'destructive' | 
 }
 const CLI_LABEL = { claude: 'Claude Code', opencode: 'OpenCode' } as const
 const NO_PROJECT = 'none'
-const LAST_CREW = 'operant.lastCrew'
+const LAST_CREW = 'foreman.lastCrew'
 
 function lastCrew(): string {
   try {

@@ -13,11 +13,11 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-prj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-prj-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-prj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-prj-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
-const root = mkdtempSync(join(tmpdir(), 'operant-prj-dirs-'))
+const root = mkdtempSync(join(tmpdir(), 'foreman-prj-dirs-'))
 const folders = {}
 for (const n of ['shop', 'blog', 'api']) {
   folders[n] = join(root, n)
@@ -33,17 +33,17 @@ writeFileSync(join(folders.shop, 'extra.txt'), 'new')
 const ideOut = join(root, 'ide-calls.txt')
 
 const env = e2eEnv({ dataDir, claudeDir, extra: { FAKE_IDE_OUT: ideOut } })
-const packaged = process.env.OPERANT_E2E_EXE
+const packaged = process.env.FOREMAN_E2E_EXE
 
 let app = null
 try {
   app = await electron.launch(packaged ? { executablePath: packaged, args: [], env } : { args: ['.'], env })
   const page = await app.firstWindow()
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  await page.getByText('Welcome to Operant').waitFor()
-  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  await page.getByText('Welcome to Foreman').waitFor()
+  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
 
   const crews = {}
   for (const n of ['shop', 'blog', 'api']) crews[n] = await inv('crews:create', { name: n, folder: folders[n] })
@@ -134,7 +134,7 @@ try {
   for (const end = Date.now() + 15_000; !existsSync(ideOut) && Date.now() < end; await page.waitForTimeout(200));
   assert.ok(existsSync(ideOut), 'the fake IDE was started')
   assert.equal(readFileSync(ideOut, 'utf8').trim(), folders.shop)
-  await inv('settings:set', { ide: { custom: 'operant-no-such-ide-command-xyz' } })
+  await inv('settings:set', { ide: { custom: 'foreman-no-such-ide-command-xyz' } })
   await row('shop').hover()
   await page.getByRole('complementary', { name: 'Projects' }).getByRole('button', { name: /^Open shop in/ }).click()
   await page.getByRole('alert').filter({ hasText: /could not start/ }).waitFor({ timeout: 15_000 })
@@ -165,7 +165,7 @@ try {
   assert.equal(tiles.length, 1)
   assert.equal(tiles[0].agent, 'shell')
   assert.equal(tiles[0].cwd, folders.shop)
-  const marker = 'operant-shell-ok'
+  const marker = 'foreman-shell-ok'
   await inv('scratch:write', tiles[0].id, `echo ${marker}\r`)
   let buffer = ''
   for (const end = Date.now() + 20_000; !buffer.includes(marker) && Date.now() < end; await page.waitForTimeout(250)) buffer = await inv('scratch:buffer', tiles[0].id)

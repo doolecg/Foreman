@@ -1,7 +1,7 @@
 // Usage page e2e (R20 to R22): seeded usage rows, the Usage tab (filters, totals, trend, grouping, budgets, export buttons), the provider limits with a stubbed Claude endpoint and a fake OpenCode
 // database, the header badge, and the Import and Export settings page against a fake Operant 2.8.2 data folder.
 // Runs in the background with throwaway data. Usage: node e2e/usage.mjs [outDir]  (default docs/specs/screenshots)
-// Set OPERANT_E2E_EXE to a packaged executable to test a build instead of the dev app.
+// Set FOREMAN_E2E_EXE to a packaged executable to test a build instead of the dev app.
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
@@ -12,11 +12,11 @@ import { shot } from './lib/shot.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const root = mkdtempSync(join(tmpdir(), 'operant-usage-'))
+const root = mkdtempSync(join(tmpdir(), 'foreman-usage-'))
 const dataDir = join(root, 'data')
 const home = join(root, 'home')
 const claudeDir = join(root, 'claude')
-const legacy = join(root, 'Operant')
+const legacy = join(root, 'Foreman')
 const projects = join(root, 'repos')
 for (const d of [dataDir, home, claudeDir, join(legacy, 'store'), join(legacy, 'agent-plugin', 'agents'), join(projects, 'Alpha'), join(projects, 'Legacy One')]) mkdirSync(d, { recursive: true })
 const shop = join(projects, 'Alpha')
@@ -44,23 +44,23 @@ writeFileSync(join(legacy, 'agent-plugin', 'agents', 'explore.md'), '---\nname: 
 
 const env = {
   ...process.env,
-  OPERANT_BACKGROUND: '1', OPERANT_E2E: '1',
-  OPERANT_DATA_DIR: dataDir,
-  OPERANT_USER_DATA: legacy,
+  FOREMAN_BACKGROUND: '1', FOREMAN_E2E: '1',
+  FOREMAN_DATA_DIR: dataDir,
+  FOREMAN_USER_DATA: legacy,
   CLAUDE_CONFIG_DIR: claudeDir,
   HOME: home,
   USERPROFILE: home,
 }
 const pathKey = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
 env[pathKey] = resolve('e2e/fixtures/bin') + delimiter + env[pathKey]
-const packaged = process.env.OPERANT_E2E_EXE
+const packaged = process.env.FOREMAN_E2E_EXE
 
 const consoleNotes = []
 const app = await electron.launch(packaged ? { executablePath: packaged, args: [], env } : { args: ['.'], env })
 const page = await app.firstWindow()
 page.on('console', (m) => m.type() === 'error' && consoleNotes.push(`console.error: ${m.text()}`))
 page.on('pageerror', (e) => consoleNotes.push(`pageerror: ${e.message}`))
-const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 async function until(label, fn, timeout = 30_000) {
   for (const end = Date.now() + timeout; Date.now() < end; await sleep(250)) if (await fn()) return
@@ -69,9 +69,9 @@ async function until(label, fn, timeout = 30_000) {
 
 try {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  await page.getByText('Welcome to Foreman').waitFor()
 
   // The Claude plan endpoint is answered in the main process: 5-hour window at 86%, weekly at 41%.
   await app.evaluate(() => {
@@ -91,7 +91,7 @@ try {
   const other = await inv('crews:create', { name: 'docs', folder: join(projects, 'Legacy One') })
 
   // Seed usage the way the backend stores it: rows per message with a model, CLI and source.
-  const db = new DatabaseSync(join(dataDir, 'operant.db'))
+  const db = new DatabaseSync(join(dataDir, 'foreman.db'))
   db.exec('PRAGMA busy_timeout = 5000')
   const add = db.prepare(
     `INSERT INTO usage (at, model, input_tokens, output_tokens, cache_read, cache_w5m, cache_w1h, cost_usd, crew_id, cli, provider, source, ext_key, legacy)
@@ -229,7 +229,7 @@ try {
   await page.getByRole('button', { name: 'Export all data as JSON' }).waitFor()
   const all = await inv('data:export')
   const bundle = JSON.parse(all.text)
-  assert.equal(bundle.format, 'operant-export')
+  assert.equal(bundle.format, 'foreman-export')
   assert.ok(bundle.usage.length >= 30)
   assert.ok(!/e2e-not-a-real-token/.test(all.text), 'the export holds no keys')
 

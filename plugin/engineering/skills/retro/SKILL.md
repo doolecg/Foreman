@@ -16,7 +16,7 @@ This skill turns a bad run into a better setup. It finds why the work went wrong
 
 ## Steps
 
-1. Read what happened: the task notes in `.operant/engineering/<task-name>/`, the commit list and the checks that failed.
+1. Read what happened: the task notes in `.foreman/engineering/<task-name>/`, the commit list and the checks that failed.
    - Do not rely on memory.
    - Note which step went wrong first, since later errors often follow from it.
 2. Name the mistake class for each problem.

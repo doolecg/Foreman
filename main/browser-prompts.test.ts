@@ -79,7 +79,7 @@ describe('BrowserPrompts AI grants', () => {
 })
 
 describe('BrowserPrompts download records for the AI', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'operant-dl-'))
+  const dir = mkdtempSync(join(tmpdir(), 'foreman-dl-'))
   afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
   // A DownloadItem that saves `body` to the path it was given when finished.

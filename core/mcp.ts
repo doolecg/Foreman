@@ -103,10 +103,10 @@ export function defaultMcpDeps(env: NodeJS.ProcessEnv = process.env): McpDeps {
     claudeConfig: env.CLAUDE_CONFIG_DIR ? join(env.CLAUDE_CONFIG_DIR, '.claude.json') : join(homedir(), '.claude.json'),
     opencodeGlobal: [...(env.OPENCODE_CONFIG ? [env.OPENCODE_CONFIG] : []), join(dot, 'opencode.jsonc'), join(dot, 'opencode.json')],
     runtimeOverride:
-      env.OPERANT_E2E === '1' && env.OPERANT_E2E_RUNTIMES
+      env.FOREMAN_E2E === '1' && env.FOREMAN_E2E_RUNTIMES
         ? () => {
             try {
-              return JSON.parse(readFileSync(env.OPERANT_E2E_RUNTIMES!, 'utf8')) as Record<string, boolean>
+              return JSON.parse(readFileSync(env.FOREMAN_E2E_RUNTIMES!, 'utf8')) as Record<string, boolean>
             } catch {
               return null
             }
@@ -313,7 +313,7 @@ export function parseOpencodeList(out: string): Map<string, Status> {
 // ---- the service ----
 
 const NAME_RE = /^[A-Za-z0-9_.-]{1,64}$/
-const BUILTINS: Record<string, string> = { codegraph: 'codegraph serve --mcp', hindsight: 'Hindsight memory server (managed by Operant)' }
+const BUILTINS: Record<string, string> = { codegraph: 'codegraph serve --mcp', hindsight: 'Hindsight memory server (managed by Foreman)' }
 const LIST_TIMEOUT_MS = 30_000
 const WRITE_TIMEOUT_MS = 30_000
 const CACHE_MS = 60_000
@@ -325,7 +325,7 @@ export interface McpOptions {
   now?: () => number
   // Whether a built-in server that is not in any config works right now.
   builtin?: (name: string) => Promise<{ ok: boolean; error?: string }>
-  // The keys (cli:scope:name) of the entries Operant wrote for optional servers that record them. Kept by the app.
+  // The keys (cli:scope:name) of the entries Foreman wrote for optional servers that record them. Kept by the app.
   written?: { get: () => string[]; set: (keys: string[]) => void }
 }
 
@@ -475,13 +475,13 @@ export class McpService {
     return overview
   }
 
-  // Removes only the entries Operant added (the name and package it writes); a server the user added by hand stays.
+  // Removes only the entries Foreman added (the name and package it writes); a server the user added by hand stays.
   async removeOptional(folder: string | null, id: OptionalMcpId): Promise<McpOverview> {
     const def = optionalMcp(id)
     if (!def) throw new McpError('That is not an optional integration')
     const written = this.written()
     const own = (await this.list(folder)).servers.filter((s) => isAppAdded(def, s, written))
-    if (!own.length) throw new McpError(`${def.name} was not added by Operant`)
+    if (!own.length) throw new McpError(`${def.name} was not added by Foreman`)
     let overview: McpOverview | null = null
     for (const s of own) overview = await this.remove(folder, s.id)
     if (def.recordsWrites) this.setWritten(written.filter((k) => !own.some((s) => writtenKey(s) === k)))
@@ -613,7 +613,7 @@ export class McpService {
     const text = this.d.readFile(file)
     const cfg = parseJsonc(text)
     if (!cfg) throw new McpError(`Could not read ${file}`)
-    if (text != null && this.d.readFile(`${file}.operant-backup`) == null) this.d.writeFile(`${file}.operant-backup`, text)
+    if (text != null && this.d.readFile(`${file}.foreman-backup`) == null) this.d.writeFile(`${file}.foreman-backup`, text)
     const box = opencodeBox(cfg, true)!
     fn(box)
     this.d.writeFile(file, JSON.stringify(cfg, null, 2) + '\n')
@@ -761,7 +761,7 @@ export class McpService {
   }
 
   // What a job launches with: the picked servers as launch config, and which of them are down. An optional server
-  // that the CLI does not have is left out silently: presets only recommend it. CodeGraph is also Operant's built-in,
+  // that the CLI does not have is left out silently: presets only recommend it. CodeGraph is also Foreman's built-in,
   // which a launch runs without any config entry, so it is never left out here.
   async forRun(needs: Array<{ seat: string; servers: string[] }>, cli: McpCli, folder: string | null): Promise<RunMcp> {
     const located = this.locate(folder)

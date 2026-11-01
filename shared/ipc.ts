@@ -36,7 +36,7 @@ import type {
   HindsightStatus,
   HindsightTestResult,
   IpcErrorCode,
-  OperantEvent,
+  ForemanEvent,
   McpOverview,
   McpServerInput,
   Preset,
@@ -267,7 +267,7 @@ export interface IpcApi extends ChatApi {
   'learn:records': (filter?: { crewId?: number; status?: LearnChangeStatus }) => LearnChange[]
   'learn:rollback': (changeId: number) => LearnChange
   'learn:clearRecords': (crewId?: number) => number
-  // Memory: the lessons (Operant's own, editable), a recall with the policy in settings, export, reset and diagnostics.
+  // Memory: the lessons (Foreman's own, editable), a recall with the policy in settings, export, reset and diagnostics.
   'memory:recall': (query: string, crewId?: number) => RecallOutput
   'memory:edit': (id: number, patch: LessonPatch) => Lesson
   'memory:delete': (id: number) => Lesson
@@ -281,7 +281,7 @@ export interface IpcApi extends ChatApi {
   'aux:enhancePrompt': (text: string, commands?: Array<{ name: string; description: string }>, context?: EnhanceContext) => string
   // The small recall and CodeGraph lookups for the tile's project, run in parallel with timeouts (no model call).
   'aux:enhanceContext': (text: string, scratchId: number) => EnhanceContext
-  // A full rebuild of a project's CodeGraph index (discards it first); only a project Operant knows.
+  // A full rebuild of a project's CodeGraph index (discards it first); only a project Foreman knows.
   'codegraph:rebuild': (folder: string) => IndexStatus
   'codegraph:status': (folder: string) => IndexStatus
   'backup:create': (label?: string) => { name: string; path: string; bytes: number }
@@ -289,10 +289,10 @@ export interface IpcApi extends ChatApi {
   'backup:restore': (name: string, confirm: boolean) => BackupPartName[]
   'backup:delete': (name: string) => void
   'superpowers:status': () => SuperpowersStatus
-  // Every tool Operant can use and whether it is installed; 'install:run' installs one (only after the user confirmed its command).
+  // Every tool Foreman can use and whether it is installed; 'install:run' installs one (only after the user confirmed its command).
   'install:status': () => InstallStatusItem[]
   'install:run': (id: InstallId) => InstallResult
-  // Looks for a program in the places its installer uses; when found Operant uses it from there. Returns the row's status after.
+  // Looks for a program in the places its installer uses; when found Foreman uses it from there. Returns the row's status after.
   'tools:find': (id: InstallId) => InstallStatusItem
   // Asks for the program's file (a file picker) and uses it; null when cancelled. Refused when that file does not run as the program.
   'tools:locate': (id: InstallId) => InstallStatusItem | null
@@ -306,10 +306,10 @@ export interface IpcApi extends ChatApi {
   'mcp:remove': (crewId: number | null, serverId: string) => McpOverview
   // Optional integrations: their status for the project's folder; `refresh` re-runs the CLI checks and the runtime probe.
   'mcp:optional': (crewId: number | null, refresh?: boolean) => OptionalMcpEntry[]
-  // Adds the optional server to the chosen CLIs and scopes (the user clicked Add); removes Operant's own entries.
+  // Adds the optional server to the chosen CLIs and scopes (the user clicked Add); removes Foreman's own entries.
   'mcp:optionalAdd': (crewId: number | null, id: OptionalMcpId, targets: OptionalMcpTarget[]) => McpOverview
   'mcp:optionalRemove': (crewId: number | null, id: OptionalMcpId) => McpOverview
-  'events:recent': (limit: number) => OperantEvent[]
+  'events:recent': (limit: number) => ForemanEvent[]
   // Clears the activity feed (every project's events).
   'events:clear': () => void
   // Which Claude Code and OpenCode CLIs are on PATH, their versions, and what each can do. Cached; refresh re-probes.
@@ -346,7 +346,7 @@ export interface IpcApi extends ChatApi {
   'clipboard:hasImage': () => boolean
   'app:info': () => AppInfo
   'app:openExternal': (url: string) => void
-  // Opens the folder with Operant's LICENSE and the third-party notices that ship with it.
+  // Opens the folder with Foreman's LICENSE and the third-party notices that ship with it.
   'app:openLicenses': () => void
   'update:status': () => UpdateStatus
   'update:check': () => UpdateStatus
@@ -523,7 +523,7 @@ export type CoreChannel = Exclude<IpcChannel, MainChannel>
 
 // Push messages: main -> renderer.
 export interface IpcEvents {
-  event: OperantEvent
+  event: ForemanEvent
   'scratch:data': { scratchId: number; data: string }
   // The batched updates of a Chat view tile (see shared/claude-chat.ts).
   'chat:ops': ChatEvents['chat:ops']
@@ -534,7 +534,7 @@ export interface IpcEvents {
   'index:status': { crewId: number; status: IndexStatus }
   // A project's notes changed.
   'notes:changed': { crewId: number }
-  // A file in a project's .operant/engineering folder changed.
+  // A file in a project's .foreman/engineering folder changed.
   'engineering:tasks': { crewId: number }
   // A project went over its warning share of a daily budget.
   // crewId is null for the all-projects cap.
@@ -587,7 +587,7 @@ export interface IpcEvents {
 
 export type IpcEventName = keyof IpcEvents
 
-export interface OperantBridge {
+export interface ForemanBridge {
   invoke<C extends IpcChannel>(channel: C, ...args: Parameters<IpcApi[C]>): Promise<Awaited<ReturnType<IpcApi[C]>>>
   on<E extends IpcEventName>(name: E, listener: (payload: IpcEvents[E]) => void): () => void
   platform: NodeJS.Platform
@@ -856,8 +856,8 @@ export class IpcError extends Error {
   }
 }
 
-const WIRE = 'OPERANT_ERR:'
-const WIRE_RE = /OPERANT_ERR:([A-Z_]+):([\s\S]*)$/
+const WIRE = 'FOREMAN_ERR:'
+const WIRE_RE = /FOREMAN_ERR:([A-Z_]+):([\s\S]*)$/
 
 export const encodeIpcError = (code: IpcErrorCode, message: string): string => `${WIRE}${code}:${message}`
 

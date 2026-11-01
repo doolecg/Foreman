@@ -10,8 +10,8 @@ const ctx: LaunchContext = {
   launchDir: '/tmp/launch',
   rolesDir: '/tmp/roles',
   sessionId: '6f1c0f1e-5a4b-4c3d-8e2f-123456789abc',
-  operantCli: '/app/cli/operant',
-  operantNode: '/app/operant',
+  foremanCli: '/app/cli/foreman',
+  foremanNode: '/app/foreman',
 }
 
 const tile = (over: Partial<ScratchTerminal> = {}): ScratchTerminal => ({
@@ -45,7 +45,7 @@ describe('buildChatLaunch', () => {
     expect(l.args.slice(0, STREAM.length)).toEqual(STREAM)
     expect(l.args.slice(STREAM.length)).toEqual(['--permission-mode', 'auto', '--model', 'claude-sonnet-5-5', '--effort', 'high', '--plugin-dir', '/app/plugin', '--session-id', ctx.sessionId])
     expect(l.args).not.toContain('--allow-dangerously-skip-permissions')
-    expect(l.env.OPERANT_TILE_ID).toBeUndefined()
+    expect(l.env.FOREMAN_TILE_ID).toBeUndefined()
     expect(l.cwd).toBe('/code/shop')
   })
 
@@ -60,14 +60,14 @@ describe('buildChatLaunch', () => {
     expect(l.files.some((f) => f.path.endsWith('scratch-7.json'))).toBe(true)
   })
 
-  it('gives a chat tile the mode preamble, pack plugin dirs, settings hooks file and OPERANT_FACTORY', () => {
+  it('gives a chat tile the mode preamble, pack plugin dirs, settings hooks file and FOREMAN_FACTORY', () => {
     const l = buildChatLaunch(tile(), { ...ctx, mods: { hooks: {} }, modePreamble: 'Subagent Factory Mode is on.', packPlugins: ['/data/engineering/factory'], factory: true })
     expect(l.args.filter((a) => a === '--append-system-prompt-file')).toHaveLength(1)
     expect(l.files.find((f) => f.path.startsWith('/tmp/roles/'))?.content).toBe('Subagent Factory Mode is on.\n')
     expect(l.args).toContain('/data/engineering/factory')
     expect(l.args).toContain('--settings')
-    expect(l.env.OPERANT_FACTORY).toBe('1')
-    expect(buildChatLaunch(tile(), ctx).env).not.toHaveProperty('OPERANT_FACTORY')
+    expect(l.env.FOREMAN_FACTORY).toBe('1')
+    expect(buildChatLaunch(tile(), ctx).env).not.toHaveProperty('FOREMAN_FACTORY')
   })
 
   it('turns on file checkpointing so Edit from here can revert files', () => {

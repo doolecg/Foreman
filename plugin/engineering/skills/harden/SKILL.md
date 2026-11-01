@@ -40,7 +40,7 @@ This skill is a short checklist pass for changes with a way to go wrong badly: b
    - Measure again with the same method.
    - Revert if the gain is inside the noise.
    - Do not add caches or tricks for speed that nobody measured.
-8. Write findings in `.operant/engineering/<task-name>/notes.html` under the three tiers below, then fix what falls under Always.
+8. Write findings in `.foreman/engineering/<task-name>/notes.html` under the three tiers below, then fix what falls under Always.
 
 ## Rules
 

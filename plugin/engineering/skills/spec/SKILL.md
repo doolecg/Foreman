@@ -14,7 +14,7 @@ This skill writes down what is being built so the user and the agent aim at the 
 
 ## Steps
 
-1. Read the code around the change so the spec uses the project's real names. Check for a spec already in `.operant/engineering/<task-name>/`. If one exists for unfinished work, update it. Never overwrite it with a different task's spec.
+1. Read the code around the change so the spec uses the project's real names. Check for a spec already in `.foreman/engineering/<task-name>/`. If one exists for unfinished work, update it. Never overwrite it with a different task's spec.
 2. Find the test seams: the places where behaviour can be checked from outside. Prefer existing seams. Choose the highest one that works. Fewer is better, and one is ideal.
 3. Check the seams with the user in one short question, recommended seam first. Do not finish the spec until they agree.
    ```
@@ -23,7 +23,7 @@ This skill writes down what is being built so the user and the agent aim at the 
    Alternative: <a lower seam, and what it would cost>
    ```
 4. Find the real commands to build, test and typecheck by reading the project files. Do not guess them.
-5. Write the page to `.operant/engineering/<task-name>/spec.html` with these sections, in this order.
+5. Write the page to `.foreman/engineering/<task-name>/spec.html` with these sections, in this order.
    - Objective: what is built and the check that proves it.
    - Who and why: the person who benefits and the reason now.
    - Decisions made: one line each, from the agreed answers.

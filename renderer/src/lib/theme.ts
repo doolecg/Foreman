@@ -4,7 +4,7 @@ import { useSettings } from '@/lib/queries'
 
 // Writes a theme's variables onto <html>, live. The last one is kept in localStorage and applied before the first
 // render, so a reload does not flash the default colours (the window background itself is set by main).
-const STORE_KEY = 'operant.theme'
+const STORE_KEY = 'foreman.theme'
 
 export function applyTheme(d: ThemeDef, accent: string): void {
   const root = document.documentElement

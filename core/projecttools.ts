@@ -130,7 +130,7 @@ export interface LaunchDeps {
 
 export const systemLaunch: LaunchDeps = { probe: systemProbe, spawn: spawnHidden, settleMs: 1500 }
 
-// Starts the IDE on the folder, detached from Operant (off Windows). Rejects with a message fit for a toast when it cannot start.
+// Starts the IDE on the folder, detached from Foreman (off Windows). Rejects with a message fit for a toast when it cannot start.
 export async function openInIde(folder: string, ide: IdeId, custom: string, deps: LaunchDeps = systemLaunch): Promise<void> {
   if (typeof folder !== 'string' || !folder.trim() || /[\0-\x1f\x7f]/.test(folder)) throw new Error('The project folder is not valid')
   let file: string

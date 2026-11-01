@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Crew, OperantEvent } from '@shared/types'
+import type { Crew, ForemanEvent } from '@shared/types'
 import { call, keys, registerLive, useMutate } from './core'
 
 export const useCrews = () => useQuery({ queryKey: keys.crews, queryFn: () => call('crews:list') })
@@ -32,13 +32,13 @@ export function useClearEvents() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => call('events:clear'),
-    onSuccess: () => qc.setQueryData<OperantEvent[]>(keys.events, []),
+    onSuccess: () => qc.setQueryData<ForemanEvent[]>(keys.events, []),
   })
 }
 
 registerLive((b, qc) => [
   b.on('event', (e) => {
-    qc.setQueryData<OperantEvent[]>(keys.events, (old) => [e, ...(old ?? [])].slice(0, 100))
+    qc.setQueryData<ForemanEvent[]>(keys.events, (old) => [e, ...(old ?? [])].slice(0, 100))
     void qc.invalidateQueries({ queryKey: keys.crews })
   }),
   b.on('index:status', ({ crewId, status }) => qc.setQueryData(keys.index(crewId), status)),

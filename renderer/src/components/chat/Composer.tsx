@@ -198,7 +198,7 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
     void addFiles([...e.dataTransfer.files])
   }
 
-  // Rewrites the box with a cheap one-shot model call made by Operant. The result replaces the text (editable, never sent);
+  // Rewrites the box with a cheap one-shot model call made by Foreman. The result replaces the text (editable, never sent);
   // Undo stays until the next message is sent. If the box changed while it ran, the rewrite waits for "Use rewrite".
   const enhance = async () => {
     const original = text

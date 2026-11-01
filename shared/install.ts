@@ -1,4 +1,4 @@
-// The optional (and required) tools Operant can use, how to tell if each is there, and the command that installs it.
+// The optional (and required) tools Foreman can use, how to tell if each is there, and the command that installs it.
 // Pure data and rules; core/install.ts runs the commands and renderer/ shows them.
 
 export const INSTALL_IDS = ['claude', 'opencode', 'uv', 'nodejs', 'hindsight', 'codegraph', 'playwright', 'superpowers', 'dictation'] as const
@@ -12,7 +12,7 @@ export interface InstallStatusItem {
   version?: string
   // Where it is: the program on PATH, the pack folder, the browsers folder.
   path?: string
-  // The owner pointed Operant at this path (Locate, or found in the default places).
+  // The owner pointed Foreman at this path (Locate, or found in the default places).
   custom?: boolean
 }
 
@@ -37,7 +37,7 @@ export interface InstallItem {
 }
 
 export const INSTALL_ITEMS: InstallItem[] = [
-  { id: 'claude', name: 'Claude Code', enables: 'Claude Code terminals and chat; Operant needs it.', optional: false, firstStart: false, runnable: false, note: 'Install route not confirmed.' },
+  { id: 'claude', name: 'Claude Code', enables: 'Claude Code terminals and chat; Foreman needs it.', optional: false, firstStart: false, runnable: false, note: 'Install route not confirmed.' },
   { id: 'opencode', name: 'OpenCode CLI', enables: 'OpenCode terminals and chat.', optional: true, firstStart: true, runnable: true },
   { id: 'uv', name: 'uv', enables: 'The Hindsight memory server and the Git MCP server.', optional: true, firstStart: true, runnable: true },
   { id: 'nodejs', name: 'Node.js', enables: 'npx, which runs the Playwright MCP server.', optional: true, firstStart: false, runnable: true },

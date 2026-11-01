@@ -136,7 +136,7 @@ export function BrowserSection() {
           <Row label="Home page" hint="Where a new browser or tab starts. Must be an http or https address." info="The page a new browser or tab opens on when you have not typed an address. It must start with http or https. The default is DuckDuckGo." htmlFor="browser-home">
             <CommitInput id="browser-home" value={b.homeUrl} className="w-80" spellCheck={false} onCommit={(v) => save.mutate({ browser: { homeUrl: v } })} />
           </Row>
-          <Row label="Search address" hint="Used for text that is not an address. %s stands for what you typed." info="When you type words rather than a web address in the address bar, Operant puts them into this address and loads the result. Write %s where your words should go. The default searches DuckDuckGo." htmlFor="browser-search">
+          <Row label="Search address" hint="Used for text that is not an address. %s stands for what you typed." info="When you type words rather than a web address in the address bar, Foreman puts them into this address and loads the result. Write %s where your words should go. The default searches DuckDuckGo." htmlFor="browser-search">
             <CommitInput id="browser-search" value={b.searchUrl} className="w-80" spellCheck={false} onCommit={(v) => save.mutate({ browser: { searchUrl: v } })} />
           </Row>
           <Row label="AI autonomy" hint="Ask first: the AI asks you before sensitive browser actions. Full: it acts on its own." info="Ask first makes Claude wait for your approval before risky browser actions, such as paying, deleting, downloading, uploading files, running scripts or typing into password and card fields. Full lets it do these without asking. Ask first is the default." htmlFor="browser-autonomy">
@@ -196,7 +196,7 @@ export function BrowserSection() {
               <Row label="Custom request headers" hint="Sent with every request of this project's browser. Stored in plain text." info="Each header is added to every request this project's browser sends, for example an access token a test site expects. Up to 20 headers are kept. They are stored as plain text, so do not paste secrets you want kept private." htmlFor="browser-headers">
                 <HeadersInput value={headersToText(opts)} onCommit={(v) => setOpts({ headers: textToHeaders(v) })} />
               </Row>
-              <Row label="User agent" hint="Empty uses a normal Chrome user agent." info="The user agent is the label a browser sends so sites know what it is. Leave this empty and Operant sends a normal Chrome one, which is the default. Fill it in only if a site needs a different label, such as a mobile phone." htmlFor="browser-ua">
+              <Row label="User agent" hint="Empty uses a normal Chrome user agent." info="The user agent is the label a browser sends so sites know what it is. Leave this empty and Foreman sends a normal Chrome one, which is the default. Fill it in only if a site needs a different label, such as a mobile phone." htmlFor="browser-ua">
                 <CommitInput id="browser-ua" value={opts.userAgent} className="w-80" spellCheck={false} onCommit={(v) => setOpts({ userAgent: v })} />
               </Row>
             </>

@@ -10,7 +10,7 @@ export interface BrowserPopoutOptions {
   // Same webPreferences as the main window (preload, sandbox, context isolation).
   webPreferences: Electron.WebPreferences
   icon?: string
-  // OPERANT_BACKGROUND=1: windows show without taking focus.
+  // FOREMAN_BACKGROUND=1: windows show without taking focus.
   background: boolean
   // The app window's navigation guard, so the pop-out only ever shows the app.
   isAppUrl: (url: string) => boolean

@@ -8,7 +8,7 @@ import { toast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 
 type Mode = 'unified' | 'split'
-const MODE_KEY = 'operant.git.diffMode'
+const MODE_KEY = 'foreman.git.diffMode'
 
 function readMode(): Mode {
   try {

@@ -88,7 +88,7 @@ export function TeamDialog({ team, onClose }: { team: Team | null; onClose: () =
               <Label htmlFor="team-rules" className="text-sm">
                 Rules
               </Label>
-              <InfoTip text="Plain text that describes how this team should work, such as which steps to take and who owns which files. Operant saves and exports it but does not send it to a tile on its own, so copy it into a prompt or brief when you want an agent to follow it." label="Rules" />
+              <InfoTip text="Plain text that describes how this team should work, such as which steps to take and who owns which files. Foreman saves and exports it but does not send it to a tile on its own, so copy it into a prompt or brief when you want an agent to follow it." label="Rules" />
             </div>
             <Textarea id="team-rules" className="min-h-24 text-sm" value={form.rules} onChange={(e) => set({ rules: e.target.value })} />
             <p className="text-muted-foreground text-xs">Plain text guidance for this team.</p>

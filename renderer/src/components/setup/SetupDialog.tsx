@@ -42,13 +42,13 @@ export function SetupDialog() {
         <DialogHeader>
           <DialogTitle>Set up optional tools</DialogTitle>
           <DialogDescription>
-            Operant works without these. Pick the ones you want and Operant installs them for you. You can do this later from Settings, Install.
+            Foreman works without these. Pick the ones you want and Foreman installs them for you. You can do this later from Settings, Install.
           </DialogDescription>
         </DialogHeader>
         {claudeMissing && (
           <div className="mx-6 space-y-0.5 rounded-md border p-3 text-sm" role="note" aria-label="Claude Code was not found">
             <p className="font-medium">Claude Code was not found</p>
-            <p className="text-muted-foreground text-xs">Operant needs it for Claude chats. Look in its default places, or point Operant at the program if you installed it somewhere else.</p>
+            <p className="text-muted-foreground text-xs">Foreman needs it for Claude chats. Look in its default places, or point Foreman at the program if you installed it somewhere else.</p>
             <LocateActions item={claudeMissing} />
           </div>
         )}
@@ -100,16 +100,16 @@ export function SetupDialog() {
             )
           })}
         </ul>
-        <div className="text-muted-foreground mx-6 space-y-1 rounded-md bg-muted p-3 text-xs" role="note" aria-label="What Operant runs">
-          <p>Most installs run a package manager command (npm, winget or pip) that installs the tool on this computer, outside Operant. The dictation model downloads into Operant itself.</p>
+        <div className="text-muted-foreground mx-6 space-y-1 rounded-md bg-muted p-3 text-xs" role="note" aria-label="What Foreman runs">
+          <p>Most installs run a package manager command (npm, winget or pip) that installs the tool on this computer, outside Foreman. The dictation model downloads into Foreman itself.</p>
           {platform === 'win32' && (
             <p>
-              On Windows Operant also runs its own bundled PowerShell scripts with <code>-ExecutionPolicy Bypass</code>, for media controls and updates.
+              On Windows Foreman also runs its own bundled PowerShell scripts with <code>-ExecutionPolicy Bypass</code>, for media controls and updates.
               This applies only to those scripts and does not change your execution policy.
             </p>
           )}
           <p>
-            These tools have their own licenses and terms. Operant is provided as is under the MIT License, without warranty and, to the extent permitted by law, without liability for loss
+            These tools have their own licenses and terms. Foreman is provided as is under the MIT License, without warranty and, to the extent permitted by law, without liability for loss
             or damage. Back up your work. See Settings, General, License.
           </p>
         </div>

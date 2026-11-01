@@ -5,11 +5,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { listTasks, readTask, readTaskPlan, readTaskStages, watchTasks } from './task-stage'
 
 let folder = ''
-beforeEach(() => void (folder = mkdtempSync(join(tmpdir(), 'operant-stage-'))))
+beforeEach(() => void (folder = mkdtempSync(join(tmpdir(), 'foreman-stage-'))))
 afterEach(() => rmSync(folder, { recursive: true, force: true }))
 
 const task = (name: string, files: Record<string, string>, at?: number) => {
-  const dir = join(folder, '.operant', 'engineering', name)
+  const dir = join(folder, '.foreman', 'engineering', name)
   mkdirSync(dir, { recursive: true })
   for (const [f, text] of Object.entries(files)) {
     writeFileSync(join(dir, f), text)
@@ -24,7 +24,7 @@ describe('readTaskStages', () => {
   })
 
   it('is null when the Engineering folder holds no task', () => {
-    mkdirSync(join(folder, '.operant', 'engineering'), { recursive: true })
+    mkdirSync(join(folder, '.foreman', 'engineering'), { recursive: true })
     expect(readTaskStages(folder)).toBeNull()
   })
 
@@ -92,7 +92,7 @@ describe('readTaskPlan', () => {
       name: 'a',
       gate: 'approved',
       specTitle: 'Toggles',
-      specPath: '.operant/engineering/a/spec.html',
+      specPath: '.foreman/engineering/a/spec.html',
       slices: [
         { label: '1. One', done: true, current: false },
         { label: '2. Two', done: false, current: true },

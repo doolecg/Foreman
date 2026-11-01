@@ -4,11 +4,11 @@
 import { createHash } from 'node:crypto'
 import { createReadStream, lstatSync } from 'node:fs'
 
-export const UPDATE_REPO = 'doolecg/Operant'
-export const APP_BUNDLE = 'Operant 3.app'
+export const UPDATE_REPO = 'doolecg/Foreman'
+export const APP_BUNDLE = 'Foreman.app'
 // Copies installed before the rename keep the old bundle and folder names until an update replaces them.
-export const APP_BUNDLES = [APP_BUNDLE, 'Operant 2.app']
-export const DEB_DIRS = ['/opt/Operant 3/', '/opt/Operant 2/']
+export const APP_BUNDLES = [APP_BUNDLE, 'Operant 3.app', 'Operant 2.app']
+export const DEB_DIRS = ['/opt/Foreman/', '/opt/Operant 3/', '/opt/Operant 2/']
 export const DEFAULT_CHECK_HOURS = 3
 
 export type InstallKind = 'msi' | 'dmg' | 'appimage' | 'deb'
@@ -130,11 +130,11 @@ export const shQuote = (s: string) => `'${String(s).replace(/'/g, `'\\''`)}'`
 const workerHead = (pid: number, log: string) => [
   `exec >>${shQuote(log)} 2>&1`,
   `say() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*"; }`,
-  `say "waiting for Operant (pid ${Number(pid)}) to exit"`,
+  `say "waiting for Foreman (pid ${Number(pid)}) to exit"`,
   `n=0`,
   `while kill -0 ${Number(pid)} 2>/dev/null; do`,
   `  n=$((n+1))`,
-  `  if [ "$n" -gt 60 ]; then say "Operant is still running, leaving the update for the next quit"; exit 1; fi`,
+  `  if [ "$n" -gt 60 ]; then say "Foreman is still running, leaving the update for the next quit"; exit 1; fi`,
   `  sleep 1`,
   `done`,
 ]
@@ -197,9 +197,9 @@ export function debInstallScript(o: { pid: number; deb: string; exe: string; log
 
 // Windows: while an install runs, the worker's pid sits in this file in the temp folder, so a copy of the app
 // started meanwhile (from the Start menu) closes again instead of holding files the installer is replacing.
-export const UPDATE_LOCK = 'Operant3-update.lock'
+export const UPDATE_LOCK = 'Foreman-update.lock'
 // The worker writes "<version> <exit code>" here, so the next start can say why an update did not install.
-export const UPDATE_RESULT = 'Operant3-update-result.txt'
+export const UPDATE_RESULT = 'Foreman-update-result.txt'
 // Longer than the worker can take (two 60 s waits, 40 tries 15 s apart, the install itself).
 const LOCK_MAX_AGE_MS = 45 * 60_000
 
@@ -220,7 +220,7 @@ export function updateFailureMessage(text: string, currentVersion: string, log: 
   const code = Number(raw)
   if (MSI_OK.has(code) || !newer(version, currentVersion)) return null
   if (code === 1223) return `The update to ${version} was cancelled at the Windows admin prompt`
-  if (code === -2) return `The update to ${version} did not install because Operant was still running`
+  if (code === -2) return `The update to ${version} did not install because Foreman was still running`
   if (code === 1618) return `The update to ${version} did not install because another install was running`
   return `The update to ${version} did not install (Windows Installer code ${String(code)}). Details: ${log}`
 }

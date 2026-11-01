@@ -54,7 +54,7 @@ const num = (n: number): number => (Number.isFinite(n) ? Math.round(n * 100) / 1
 // Shared by both scripts: one host element per kind, a closed shadow root so page CSS cannot reach it, fixed and
 // pointer-events none so layout and clicks are untouched. State lives on the isolated world's own global.
 const HOST = `
-var G = globalThis, S = G.__operantOverlay || (G.__operantOverlay = {});
+var G = globalThis, S = G.__foremanOverlay || (G.__foremanOverlay = {});
 function mount(kind) {
   var old = S[kind];
   if (old) { clearTimeout(old.timer); try { old.host.remove(); } catch (e) {} S[kind] = null; }

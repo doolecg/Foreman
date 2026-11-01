@@ -20,7 +20,7 @@ This skill checks finished work before it ships. The reviewer must not share the
 1. Pin the fixed point: the commit the task started from. Ask the user if it is not in the task notes.
    - Check that the point resolves and that the diff is not empty.
    - Read the full diff and the commit list since that point.
-2. Find the spec at `.operant/engineering/<task-name>/spec.html`. If there is none, say so and skip the Spec axis.
+2. Find the spec at `.foreman/engineering/<task-name>/spec.html`. If there is none, say so and skip the Spec axis.
 3. Collect the repo's own written rules: the project instructions file, contributing notes, lint and type settings.
    - Anything a tool already enforces is not worth a finding.
    - Run the project's own check command once and note the result.

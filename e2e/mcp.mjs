@@ -11,9 +11,9 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-mcp-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-mcp-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-mcp-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-mcp-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-mcp-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-mcp-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 const ocFile = join(dataDir, 'opencode.json')
@@ -32,29 +32,29 @@ writeFileSync(
 writeFileSync(ocFile, JSON.stringify({ mcp: { servers: { 'oc-good': { type: 'local', command: ['node', 'srv.js'] } } } }))
 
 // Which runtimes count as installed for the optional integrations: uvx missing, npx and codegraph present to start. The app reads this
-// file (OPERANT_E2E_RUNTIMES) instead of probing the machine, and the Check again button re-reads it.
+// file (FOREMAN_E2E_RUNTIMES) instead of probing the machine, and the Check again button re-reads it.
 const runtimesFile = join(dataDir, 'runtimes.json')
 const setRuntimes = (runtimes) => writeFileSync(runtimesFile, JSON.stringify(runtimes))
 setRuntimes({ uvx: false, npx: true, codegraph: true })
 
-const env = e2eEnv({ dataDir, claudeDir, extra: { OPERANT_E2E_RUNTIMES: runtimesFile, OPENCODE_CONFIG: ocFile } })
-const packaged = process.env.OPERANT_E2E_EXE
+const env = e2eEnv({ dataDir, claudeDir, extra: { FOREMAN_E2E_RUNTIMES: runtimesFile, OPENCODE_CONFIG: ocFile } })
+const packaged = process.env.FOREMAN_E2E_EXE
 
 let app = null
 let page = null
-const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
 const row = (name) => page.locator('tr', { has: page.getByText(name, { exact: true }) })
 
 try {
   app = await electron.launch(packaged ? { executablePath: packaged, args: [], env } : { args: ['.'], env })
   page = await app.firstWindow()
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  await page.getByText('Welcome to Foreman').waitFor()
 
   const ids = await page.evaluate(async (folder) => {
-    const o = window.operant
+    const o = window.foreman
     const crew = await o.invoke('crews:create', { name: 'mcp-demo', folder })
     return { crew: crew.id }
   }, project)
@@ -125,10 +125,10 @@ try {
   await shot(page, 'mcp-optional')
   await page.getByRole('button', { name: 'Add Playwright MCP' }).click()
   await page.getByRole('button', { name: 'Write to the chosen CLIs' }).click()
-  await page.getByText('Added by Operant', { exact: true }).waitFor()
+  await page.getByText('Added by Foreman', { exact: true }).waitFor()
   await row('playwright').getByText('Connected').waitFor()
   assert.deepEqual(JSON.parse(readFileSync(join(claudeDir, '.claude.json'), 'utf8')).mcpServers.playwright.args, ['@playwright/mcp@latest'])
-  await page.getByRole('button', { name: 'Remove Playwright MCP added by Operant' }).click()
+  await page.getByRole('button', { name: 'Remove Playwright MCP added by Foreman' }).click()
   await row('playwright').waitFor({ state: 'detached' })
   assert.ok(!('playwright' in JSON.parse(readFileSync(join(claudeDir, '.claude.json'), 'utf8')).mcpServers))
   await page.getByText('Not added', { exact: true }).nth(1).waitFor()
@@ -149,7 +149,7 @@ try {
   await row('git').getByText('Connected').waitFor()
   const gitArgs = JSON.parse(readFileSync(join(claudeDir, '.claude.json'), 'utf8')).mcpServers.git.args
   assert.deepEqual(gitArgs.slice(0, 2), ['mcp-server-git', '--repository'], 'Git was not written with its package and folder')
-  await page.getByRole('button', { name: 'Remove Git MCP added by Operant' }).click()
+  await page.getByRole('button', { name: 'Remove Git MCP added by Foreman' }).click()
   await row('git').waitFor({ state: 'detached' })
 
   // CodeGraph: codegraph is present and not in the config, so Add writes it and Remove takes it back. A missing codegraph
@@ -165,9 +165,9 @@ try {
   await cgCard.getByText(/codegraph is not installed/).waitFor({ state: 'detached' })
   await page.getByRole('button', { name: 'Add CodeGraph MCP' }).click()
   await page.getByRole('button', { name: 'Write to the chosen CLIs' }).click()
-  await cgCard.getByText('Added by Operant', { exact: true }).waitFor()
+  await cgCard.getByText('Added by Foreman', { exact: true }).waitFor()
   assert.deepEqual(JSON.parse(readFileSync(join(claudeDir, '.claude.json'), 'utf8')).mcpServers.codegraph, { type: 'stdio', command: 'codegraph', args: ['serve', '--mcp'] })
-  await page.getByRole('button', { name: 'Remove CodeGraph MCP added by Operant' }).click()
+  await page.getByRole('button', { name: 'Remove CodeGraph MCP added by Foreman' }).click()
   await cgCard.getByText('Not added', { exact: true }).waitFor()
   assert.ok(!('codegraph' in JSON.parse(readFileSync(join(claudeDir, '.claude.json'), 'utf8')).mcpServers), 'Remove must take the CodeGraph entry back')
 
@@ -176,7 +176,7 @@ try {
   writeFileSync(join(claudeDir, '.claude.json'), JSON.stringify(cfg))
   await page.getByRole('button', { name: 'Check optional integrations again' }).click()
   await cgCard.getByText(/Found in your config as codegraph/).waitFor()
-  assert.ok(await page.getByRole('button', { name: 'Remove CodeGraph MCP added by Operant' }).count() === 0, 'a hand-made copy must not show Remove')
+  assert.ok(await page.getByRole('button', { name: 'Remove CodeGraph MCP added by Foreman' }).count() === 0, 'a hand-made copy must not show Remove')
 
   console.log('mcp e2e passed; screenshots in', outDir)
 } catch (err) {

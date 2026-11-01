@@ -564,9 +564,9 @@ describe('keep-warm ping turn', () => {
 describe('Learn row', () => {
   it('adds a running Learn tool row, then finishes it with the result, without touching the turn', () => {
     const m = mapper()
-    const start = m.noteLearnStart('learn:1', 'Operant')
+    const start = m.noteLearnStart('learn:1', 'Foreman')
     expect(start).toHaveLength(1)
-    expect(start[0]).toMatchObject({ op: 'upsert', item: { kind: 'tool', id: 'learn:1', name: 'Learn', summary: 'Operant', status: 'running' } })
+    expect(start[0]).toMatchObject({ op: 'upsert', item: { kind: 'tool', id: 'learn:1', name: 'Learn', summary: 'Foreman', status: 'running' } })
     expect(m.state.turn.phase).toBe('idle')
     expect(m.state.items.some((i) => i.kind === 'user')).toBe(false)
 
@@ -577,7 +577,7 @@ describe('Learn row', () => {
 
   it('marks the row failed and ignores unknown ids', () => {
     const m = mapper()
-    m.noteLearnStart('learn:2', 'Operant')
+    m.noteLearnStart('learn:2', 'Foreman')
     expect(m.noteLearnEnd('learn:2', 'Could not extract lessons: x', true)[0]).toMatchObject({ item: { status: 'failed' } })
     expect(m.noteLearnEnd('nope', 'x', false)).toEqual([])
   })

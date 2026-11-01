@@ -10,7 +10,7 @@ const FIVE_HOUR = /5[\s-]?h|five|hour|session/i
 const WEEK = /week|7[\s-]?day/i
 const TEXT: Record<PixelBarTone, string> = { primary: 'text-primary', success: 'text-success', warning: 'text-warning', destructive: 'text-destructive', muted: 'text-muted-foreground' }
 
-// The 5-hour and 7-day plan usage in percent: the provider poll Operant already runs (the sidebar badge shares it), else
+// The 5-hour and 7-day plan usage in percent: the provider poll Foreman already runs (the sidebar badge shares it), else
 // the rate-limit event of this chat (a fraction, only reported once it is high).
 function usePlanUsage(state: ChatState): { fiveHour: number | null; sevenDay: number | null } {
   const providers = useProviders().data?.providers

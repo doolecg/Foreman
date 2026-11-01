@@ -1,6 +1,6 @@
 type Obj = Record<string, unknown>
 
-// Token-shaped text removed from anything Operant shows or keeps: named secrets and any token-looking string.
+// Token-shaped text removed from anything Foreman shows or keeps: named secrets and any token-looking string.
 export function scrubSecrets(text: string, ...secrets: Array<string | null | undefined>): string {
   let out = text
   for (const s of secrets) if (s) out = out.split(s).join('[token]')

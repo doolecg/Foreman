@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { DrawerResizeHandle } from '@/components/ui/resize-handle'
 import { cn } from '@/lib/utils'
 
-const HEIGHT = 'operant.console.height'
+const HEIGHT = 'foreman.console.height'
 const MIN = 15
 const MAX = 80
 
@@ -29,7 +29,7 @@ interface Props {
   onClose: () => void
 }
 
-// Bottom drawer with the output of the background processes Operant runs. Its height is a percentage of the window.
+// Bottom drawer with the output of the background processes Foreman runs. Its height is a percentage of the window.
 export function ConsoleDrawer({ lines, processes, onClear, onStop, onClose }: Props) {
   const [height, setHeight] = useState(readHeight)
   const [source, setSource] = useState<ConsoleSource | 'all'>('all')

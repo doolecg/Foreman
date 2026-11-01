@@ -106,10 +106,10 @@ export class AuxBudget {
     const cfg = this.d.settings()
     if (s.providerLimit) return { label: 'provider limit', message: `The provider reported a limit today: ${s.providerLimit}` }
     if (cfg.maxCallsPerDay > 0 && s.total.calls >= cfg.maxCallsPerDay) {
-      return { label: 'local limit', message: `Operant's daily limit of ${cfg.maxCallsPerDay} model calls is reached` }
+      return { label: 'local limit', message: `Foreman's daily limit of ${cfg.maxCallsPerDay} model calls is reached` }
     }
     if (cfg.maxUsdPerDay > 0 && s.total.usd >= cfg.maxUsdPerDay) {
-      return { label: 'local limit', message: `Operant's daily spend limit of $${cfg.maxUsdPerDay} is reached` }
+      return { label: 'local limit', message: `Foreman's daily spend limit of $${cfg.maxUsdPerDay} is reached` }
     }
     return null
   }

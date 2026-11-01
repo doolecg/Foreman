@@ -86,7 +86,7 @@ export class Installer {
   // Runs the install for one tool. Only ever called from the confirm flow. Never throws: the result says what went wrong.
   async run(id: InstallId): Promise<InstallResult> {
     const attempts = installAttempts(id, this.d.platform)
-    if (attempts.length === 0) return { id, ok: false, error: 'Operant does not run an install for this one' }
+    if (attempts.length === 0) return { id, ok: false, error: 'Foreman does not run an install for this one' }
     if (this.running.has(id)) return { id, ok: false, error: 'An install for this is already running' }
     this.running.add(id)
     try {

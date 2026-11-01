@@ -1,4 +1,4 @@
-// Keep-warm for a Chat tile: the owner turns it on with /keepwarm; while the tile is idle Operant sends one tiny message
+// Keep-warm for a Chat tile: the owner turns it on with /keepwarm; while the tile is idle Foreman sends one tiny message
 // shortly before Claude's prompt cache would expire, so the next real message still reads the cache. Everything here is
 // pure (the command parser, the scheduler decision, the status text) so the process layer and the renderer share it.
 
@@ -31,7 +31,7 @@ export function parseWindow(raw: string): number | null {
   return (Number(m[1] ?? 0) * 24 + Number(m[2] ?? 0)) * 3_600_000 + Number(m[3] ?? 0) * 60_000
 }
 
-// null when the text is not a /keepwarm command. The command is Operant's own: it is never sent to Claude.
+// null when the text is not a /keepwarm command. The command is Foreman's own: it is never sent to Claude.
 export function parseKeepWarm(text: string): KeepWarmCommand | null {
   const m = /^\/keepwarm(?:\s+(.*))?$/i.exec(text.trim())
   if (!m) return null

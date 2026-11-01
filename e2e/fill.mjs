@@ -10,9 +10,9 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-fill-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-fill-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-fill-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-fill-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-fill-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-fill-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 writeFileSync(join(project, 'app.ts'), 'export const a = 1\n')
@@ -25,9 +25,9 @@ const autoScale = (w, h) => Math.round(Math.min(1.75, Math.max(1, Math.min(w / 1
 const app = await electron.launch({ args: ['.'], env })
 try {
   const page = await app.firstWindow()
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
   const win = (op, size) =>
     app.evaluate(({ BrowserWindow }, [o, s]) => {
       const w = BrowserWindow.getAllWindows()[0]
@@ -105,7 +105,7 @@ try {
     throw new Error(`${label}: ${last}`)
   }
 
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
   await inv('crews:create', { name: 'fill', folder: project })
   await inv('settings:set', { mainCli: 'claude' })
   await page.locator('[data-crew-row]').getByText('fill', { exact: true }).click({ position: { x: 4, y: 4 } })

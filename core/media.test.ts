@@ -9,14 +9,14 @@ import { helperArgs, MediaService } from './media'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const fake = join(here, '..', 'e2e', 'fixtures', 'fake-media-helper.mjs')
-const dir = mkdtempSync(join(tmpdir(), 'operant-media-'))
+const dir = mkdtempSync(join(tmpdir(), 'foreman-media-'))
 const logFile = join(dir, 'commands.log')
 afterEach(() => {
   rmSync(logFile, { force: true })
 })
 
 const launch = () =>
-  spawn(process.execPath, [fake], { env: { ...process.env, OPERANT_FAKE_MEDIA_LOG: logFile }, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+  spawn(process.execPath, [fake], { env: { ...process.env, FOREMAN_FAKE_MEDIA_LOG: logFile }, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
 
 async function until(cond: () => boolean, ms = 5000) {
   for (const end = Date.now() + ms; Date.now() < end; await new Promise((r) => setTimeout(r, 20))) if (cond()) return

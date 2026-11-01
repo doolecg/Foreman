@@ -32,6 +32,6 @@ describe('tile pop-out', () => {
     expect(isTileOut([1, 5], 5)).toBe(true)
     expect(isTileOut([1, 5], 2)).toBe(false)
     expect(isTileOut(undefined, 2)).toBe(false)
-    expect(tilePopoutWindowTitle('Shell: Demo')).toBe('Shell: Demo - Operant')
+    expect(tilePopoutWindowTitle('Shell: Demo')).toBe('Shell: Demo - Foreman')
   })
 })

@@ -22,9 +22,9 @@ export function CloseAppDialog() {
     <ConfirmDialog
       open={counts != null}
       testId="close-app-dialog"
-      title="Close Operant?"
+      title="Close Foreman?"
       description={counts ? appCloseLines(counts).join('\n') : ''}
-      confirmLabel="Close Operant"
+      confirmLabel="Close Foreman"
       dontAskLabel="Don't ask again"
       danger
       onConfirm={(dontAsk) => {

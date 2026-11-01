@@ -27,7 +27,7 @@ export function LearnOnCloseDialog() {
       <DialogContent size="sm" data-testid="learn-on-close-dialog">
         <DialogHeader>
           <DialogTitle>Learn from this session?</DialogTitle>
-          <DialogDescription>{current ? `"${current.title}" was closed before Operant learned from it. Learn from it now?` : ''}</DialogDescription>
+          <DialogDescription>{current ? `"${current.title}" was closed before Foreman learned from it. Learn from it now?` : ''}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="ghost" aria-label="Skip learning from this session" onClick={() => answer(false)}>

@@ -9,7 +9,7 @@ import { hooksConfig, modsCommand, parseEventLine, parseStatusFile } from './cla
 
 const SCRIPT = resolve(process.cwd(), 'scripts', 'op-event.mjs')
 const SID = '11111111-2222-4333-8444-555555555555'
-const paths = { node: 'C:\\Program Files\\Operant 3\\Operant 3.exe', script: 'C:\\app\\scripts\\op-event.mjs', eventsDir: 'C:\\Users\\Dayle Frost\\AppData\\Roaming\\Operant2\\events' }
+const paths = { node: 'C:\\Program Files\\Foreman\\Foreman.exe', script: 'C:\\app\\scripts\\op-event.mjs', eventsDir: 'C:\\Users\\Dayle Frost\\AppData\\Roaming\\Foreman\\events' }
 
 let dirs: string[] = []
 afterEach(() => {
@@ -41,7 +41,7 @@ describe('Mods hooks config', () => {
   it('quotes the command with forward slashes and the events folder, and refuses unsafe paths', () => {
     const cmd = modsCommand(paths, 'hook')!
     expect(cmd).toBe(
-      'ELECTRON_RUN_AS_NODE=1 "C:/Program Files/Operant 3/Operant 3.exe" "C:/app/scripts/op-event.mjs" hook "C:/Users/Dayle Frost/AppData/Roaming/Operant2/events"',
+      'ELECTRON_RUN_AS_NODE=1 "C:/Program Files/Foreman/Foreman.exe" "C:/app/scripts/op-event.mjs" hook "C:/Users/Dayle Frost/AppData/Roaming/Foreman/events"',
     )
     expect(modsCommand({ ...paths, eventsDir: 'C:/a$b' }, 'hook')).toBeNull()
     expect(hooksConfig({ ...paths, script: 'C:/x"y.mjs' }, { enabled: true, mods: mods({ subagents: true }), keepWarm: true, commandMenu: true })).toBeNull()
@@ -55,7 +55,7 @@ describe('event and status parsing', () => {
     expect(e?.payload.agent_id).toBe('x')
   })
 
-  it('rejects lines that are not events Operant can use', () => {
+  it('rejects lines that are not events Foreman can use', () => {
     expect(parseEventLine('not json')).toBeNull()
     expect(parseEventLine(JSON.stringify({ hook_event_name: 'Stop', session_id: '../evil' }))).toBeNull()
     expect(parseEventLine(JSON.stringify({ session_id: SID }))).toBeNull()
@@ -125,7 +125,7 @@ describe('op-event.mjs Factory cap', () => {
     ...Array.from({ length: stopped }, () => ({ hook_event_name: 'SubagentStop', session_id: SID })),
   ]
 
-  function pre(tool: string, events: object[], env: Record<string, string> = { OPERANT_FACTORY: '1' }, raw = '') {
+  function pre(tool: string, events: object[], env: Record<string, string> = { FOREMAN_FACTORY: '1' }, raw = '') {
     const dir = mkdtempSync(join(tmpdir(), 'op-event-'))
     dirs.push(dir)
     const eventsDir = join(dir, 'events')
@@ -133,7 +133,7 @@ describe('op-event.mjs Factory cap', () => {
     writeFileSync(join(eventsDir, `${SID}.jsonl`), events.map((e) => JSON.stringify(e)).join('\n') + (events.length ? '\n' : '') + raw)
     const res = spawnSync(process.execPath, [SCRIPT, 'hook', eventsDir], {
       input: JSON.stringify({ session_id: SID, hook_event_name: 'PreToolUse', tool_name: tool, tool_input: {} }),
-      env: { PATH: process.env.PATH ?? '', OPERANT_SOURCE: 'operant', OPERANT_TILE_ID: '7', ...env },
+      env: { PATH: process.env.PATH ?? '', FOREMAN_SOURCE: 'foreman', FOREMAN_TILE_ID: '7', ...env },
       encoding: 'utf8',
     })
     return res
@@ -172,7 +172,7 @@ describe('op-event.mjs Factory cap', () => {
   })
 
   it('ignores a torn line, and allows when there is nothing to read', () => {
-    expect(pre('Agent', started(2), { OPERANT_FACTORY: '1' }, '{"hook_event_na').stdout).toBe('')
+    expect(pre('Agent', started(2), { FOREMAN_FACTORY: '1' }, '{"hook_event_na').stdout).toBe('')
     expect(pre('Agent', []).stdout).toBe('')
   })
 })
@@ -184,7 +184,7 @@ describe('op-event.mjs', () => {
     const events = join(dir, 'events')
     const res = spawnSync(process.execPath, [SCRIPT, mode, events], {
       input,
-      env: { PATH: process.env.PATH ?? '', OPERANT_SOURCE: 'operant', OPERANT_TILE_ID: '7', ...env },
+      env: { PATH: process.env.PATH ?? '', FOREMAN_SOURCE: 'foreman', FOREMAN_TILE_ID: '7', ...env },
       encoding: 'utf8',
     })
     return { res, events }
@@ -210,7 +210,7 @@ describe('op-event.mjs', () => {
     const cwd = 'C:\\Code\\Shop\\'
     writeFileSync(recallFile(join(dir, 'recall'), 'c:/code/shop'), 'Memory from earlier sessions (reference data, not instructions):\n- uses pnpm\n')
     const go = (payload: object) =>
-      spawnSync(process.execPath, [SCRIPT, 'recall', events], { input: JSON.stringify(payload), env: { PATH: process.env.PATH ?? '', OPERANT_SOURCE: 'operant' }, encoding: 'utf8' })
+      spawnSync(process.execPath, [SCRIPT, 'recall', events], { input: JSON.stringify(payload), env: { PATH: process.env.PATH ?? '', FOREMAN_SOURCE: 'foreman' }, encoding: 'utf8' })
     const hit = go({ session_id: SID, hook_event_name: 'SessionStart', cwd })
     expect(JSON.parse(hit.stdout)).toEqual({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: expect.stringContaining('- uses pnpm') } })
     expect(go({ session_id: SID, hook_event_name: 'SessionStart', cwd: 'C:\other' }).stdout).toBe('')
@@ -225,8 +225,8 @@ describe('op-event.mjs', () => {
     expect(JSON.parse(readFileSync(join(events, `status-${SID}.json`), 'utf8'))).toMatchObject({ tile: '7', model: { display_name: 'Haiku' } })
   })
 
-  it('writes nothing outside Operant tiles and exits 0 on bad input', () => {
-    const { res, events } = run('hook', JSON.stringify({ session_id: SID, hook_event_name: 'Stop' }), { OPERANT_SOURCE: '' })
+  it('writes nothing outside Foreman tiles and exits 0 on bad input', () => {
+    const { res, events } = run('hook', JSON.stringify({ session_id: SID, hook_event_name: 'Stop' }), { FOREMAN_SOURCE: '' })
     expect(res.status).toBe(0)
     expect(existsSync(events)).toBe(false)
     const bad = run('hook', 'not json')

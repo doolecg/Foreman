@@ -100,7 +100,7 @@ export function AuxSection() {
           <CardDescription>Every auxiliary call counts against these limits, per day.</CardDescription>
         </CardHeader>
         <CardContent className="divide-y">
-          <Row label="Calls per day" info="Caps how many background AI requests Operant makes each day." hint="0 means no limit." htmlFor="aux-calls">
+          <Row label="Calls per day" info="Caps how many background AI requests Foreman makes each day." hint="0 means no limit." htmlFor="aux-calls">
             <NumberField id="aux-calls" value={a.maxCallsPerDay} min={0} max={100000} onCommit={(n) => setAux({ maxCallsPerDay: n })} />
           </Row>
           <Row info="Stops background AI requests for the day once this amount is spent." label={`Spend per day (${symbol})`} hint="0 means no limit." htmlFor="aux-usd">

@@ -1,9 +1,9 @@
-import type { OperantBridge } from '@shared/ipc'
+import type { ForemanBridge } from '@shared/ipc'
 
 declare global {
   interface Window {
-    operant: OperantBridge
+    foreman: ForemanBridge
   }
 }
 
-export const bridge = (): OperantBridge => window.operant
+export const bridge = (): ForemanBridge => window.foreman

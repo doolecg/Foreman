@@ -12,11 +12,11 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-git-data-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-git-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-git-data-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-git-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
-const root = mkdtempSync(join(tmpdir(), 'operant-git-repo-'))
+const root = mkdtempSync(join(tmpdir(), 'foreman-git-repo-'))
 const repo = join(root, 'shop')
 mkdirSync(repo)
 const sh = (...a) => execFileSync('git', ['-c', 'user.name=Tester', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', ...a], { cwd: repo, encoding: 'utf8', windowsHide: true })
@@ -35,17 +35,17 @@ writeFileSync(join(repo, 'app.ts'), lines.join('\n') + '\n')
 rmSync(join(repo, 'gone.txt'))
 writeFileSync(join(repo, 'dé mo.txt'), 'first line\nsecond line\n')
 
-const env = { ...process.env, OPERANT_BACKGROUND: '1', OPERANT_E2E: '1', OPERANT_DATA_DIR: dataDir, CLAUDE_CONFIG_DIR: claudeDir }
-const packaged = process.env.OPERANT_E2E_EXE
+const env = { ...process.env, FOREMAN_BACKGROUND: '1', FOREMAN_E2E: '1', FOREMAN_DATA_DIR: dataDir, CLAUDE_CONFIG_DIR: claudeDir }
+const packaged = process.env.FOREMAN_E2E_EXE
 let app = null
 try {
   app = await electron.launch(packaged ? { executablePath: packaged, args: [], env } : { args: ['.'], env })
   const page = await app.firstWindow()
   await page.setViewportSize({ width: 1920, height: 1080 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  await page.getByText('Welcome to Operant').waitFor()
-  await page.evaluate((folder) => window.operant.invoke('crews:create', { name: 'shop', folder }), repo)
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  await page.getByText('Welcome to Foreman').waitFor()
+  await page.evaluate((folder) => window.foreman.invoke('crews:create', { name: 'shop', folder }), repo)
   await page.locator('[data-crew-row]').getByText('shop', { exact: true }).click({ position: { x: 4, y: 4 } })
 
   // The chip shows the branch; clicking it opens the Git popout.

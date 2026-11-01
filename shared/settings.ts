@@ -47,12 +47,12 @@ export type TileLayout = 'dwindle' | 'master'
 export type MainCli = 'claude' | 'opencode'
 export type TileStrip = 'compact' | 'normal' | 'hide'
 
-// Mods: `enabled` is the master switch (Operant's status line and the hooks the enabled mods need);
+// Mods: `enabled` is the master switch (Foreman's status line and the hooks the enabled mods need);
 // `mods` switches each mod on or off. Unknown ids are dropped.
 export interface ModsSettings {
   enabled: boolean
   mods: Record<ModId, boolean>
-  // /keepwarm in the Chat view (an Operant feature, not a Claude Code mod). It only ever pings after the owner runs /keepwarm.
+  // /keepwarm in the Chat view (a Foreman feature, not a Claude Code mod). It only ever pings after the owner runs /keepwarm.
   keepWarm: boolean
   // The commands menu in the Chat view (the Commands button and / commands that run only on Claude Code's own screen).
   commandMenu: boolean
@@ -78,8 +78,8 @@ export interface Settings {
   weeklyBudgetUsd: number
   // A Hindsight memory server hosted elsewhere (http/https URL); empty runs the local one through uvx.
   hindsightUrl: string
-  // How the Hindsight memory server is hosted: local (127.0.0.1, Operant runs it), lan (Operant runs it bound to
-  // bindHost so other machines can connect) or remote (url; Operant never starts or stops it). API keys live in the
+  // How the Hindsight memory server is hosted: local (127.0.0.1, Foreman runs it), lan (Foreman runs it bound to
+  // bindHost so other machines can connect) or remote (url; Foreman never starts or stops it). API keys live in the
   // encrypted secret store, never here. openBind records that the user confirmed a non-loopback bind with no key.
   hindsight: { mode: HindsightMode; bindHost: string; port: number; url: string; openBind: boolean }
   // The Claude Code default model (older key, still read for new presets and terminals).
@@ -113,13 +113,13 @@ export interface Settings {
   terminal: { copyOnSelect: boolean; fontSize: number; scrollback: number; fileLinks: boolean; dropPaths: boolean; rightClickPaste: boolean; softPrompt: boolean }
   // The tiles surface: layout kind, gap in px and the strip's size.
   tiles: { layout: TileLayout; gaps: number; strip: TileStrip }
-  // Mods: Operant's hooks and status line for Claude Code tiles (sub-agent state, context and cost), the sub-agent panel and the Chat view features.
+  // Mods: Foreman's hooks and status line for Claude Code tiles (sub-agent state, context and cost), the sub-agent panel and the Chat view features.
   mods: ModsSettings
   // The top bar: Windows media controls and the clock and date pill. All apply live.
   topBar: TopBarSettings
   // The embedded browser: AI control (the debugging port needs a restart to turn on), home page and search URL.
   browser: BrowserSettings
-  // Ask before closing a terminal tile or Operant itself (a "Don't ask again" turns the ask off here).
+  // Ask before closing a terminal tile or Foreman itself (a "Don't ask again" turns the ask off here).
   confirm: { closeTile: boolean; closeApp: boolean }
   // Windows notifications for a Claude turn that finished and for Claude waiting on the owner.
   notify: { finished: boolean; needs: boolean }

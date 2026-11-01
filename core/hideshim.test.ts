@@ -5,7 +5,7 @@ import { delimiter, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { hiddenConsoleEnv } from './hideshim'
 
-const dir = () => join(mkdtempSync(join(tmpdir(), 'operant-shim-test-')), 'with space')
+const dir = () => join(mkdtempSync(join(tmpdir(), 'foreman-shim-test-')), 'with space')
 const slashed = (p: string) => p.replaceAll(String.fromCharCode(92), '/')
 
 describe('hiddenConsoleEnv', () => {
@@ -32,7 +32,7 @@ describe('hiddenConsoleEnv', () => {
 
   // A detached child must stay detached (it outlives its parent), and what it starts in turn must be hidden.
   it.runIf(process.platform === 'win32')('keeps a detached node child detached and hides what that child starts', async () => {
-    const work = mkdtempSync(join(tmpdir(), 'operant-shim-run-'))
+    const work = mkdtempSync(join(tmpdir(), 'foreman-shim-run-'))
     const out = join(work, 'out.json')
     const inner = join(work, 'inner.cjs')
     const outer = join(work, 'outer.cjs')

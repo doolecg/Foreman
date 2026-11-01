@@ -9,7 +9,7 @@ const assistant = (id: string, usage: object, model = 'claude-opus-5-5') =>
 
 describe('transcripts', () => {
   it('encodes a project folder the way Claude Code does', () => {
-    expect(encodeProjectDir('F:\\PROGRAMMING\\REPOS\\Operant2')).toBe('F--PROGRAMMING-REPOS-Operant2')
+    expect(encodeProjectDir('F:\\PROGRAMMING\\REPOS\\Foreman')).toBe('F--PROGRAMMING-REPOS-Foreman')
     expect(encodeProjectDir('/home/u/my.app')).toBe('-home-u-my-app')
     expect(transcriptPath('/code/shop', 'abc', { platform: 'linux', home: '/h', env: {} })).toBe(
       join('/h', '.claude', 'projects', '-code-shop', 'abc.jsonl'),
@@ -17,7 +17,7 @@ describe('transcripts', () => {
   })
 
   it('resolves the real folder path before encoding it', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'operant-real-'))
+    const dir = mkdtempSync(join(tmpdir(), 'foreman-real-'))
     try {
       const env = { platform: process.platform, home: '/h', env: {} }
       expect(transcriptPath(dir, 's', env)).toBe(
@@ -94,7 +94,7 @@ describe('transcripts', () => {
     afterEach(() => dir && rmSync(dir, { recursive: true, force: true }))
 
     it('returns only new complete lines and holds back a partial one', () => {
-      dir = mkdtempSync(join(tmpdir(), 'operant-tail-'))
+      dir = mkdtempSync(join(tmpdir(), 'foreman-tail-'))
       const file = join(dir, 't.jsonl')
       const tail = new JsonlTail(file)
       expect(tail.read()).toEqual([])
@@ -106,7 +106,7 @@ describe('transcripts', () => {
     })
 
     it('starts over when the file is truncated', () => {
-      dir = mkdtempSync(join(tmpdir(), 'operant-tail-'))
+      dir = mkdtempSync(join(tmpdir(), 'foreman-tail-'))
       const file = join(dir, 't.jsonl')
       const tail = new JsonlTail(file)
       writeFileSync(file, 'one\ntwo\n')
@@ -119,7 +119,7 @@ describe('transcripts', () => {
 
 describe('transcriptProjectDir short paths', () => {
   it('uses the folder named after the path as given when only that one exists', () => {
-    const root = mkdtempSync(join(tmpdir(), 'operant-tp-'))
+    const root = mkdtempSync(join(tmpdir(), 'foreman-tp-'))
     try {
       const real = join(root, 'real')
       const cwd = join(root, 'link')

@@ -20,11 +20,11 @@ export function claudeProjectsDir(e: PathEnv = currentEnv()): string {
   return join(claudeDir(e), 'projects')
 }
 
-// The folder name is pinned to 'Operant2', not derived from the product name, so renaming the app (Operant 3)
-// keeps reading and writing the existing data folder.
+// The folder name is pinned to 'Foreman', not derived from the product name, so a later product rename
+// keeps reading and writing the same data folder.
 // Mirrors Electron's app.getPath('appData') so core/ can resolve it without Electron.
-export function appDataDir(e: PathEnv = currentEnv(), appName = 'Operant2'): string {
-  if (e.env.OPERANT_DATA_DIR) return e.env.OPERANT_DATA_DIR
+export function appDataDir(e: PathEnv = currentEnv(), appName = 'Foreman'): string {
+  if (e.env.FOREMAN_DATA_DIR) return e.env.FOREMAN_DATA_DIR
   switch (e.platform) {
     case 'win32':
       return join(e.env.APPDATA || join(e.home, 'AppData', 'Roaming'), appName)

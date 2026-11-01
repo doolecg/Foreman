@@ -14,7 +14,8 @@ import { CrewIndexes, globalCodegraph } from '../core/codegraph'
 import { consoleLog } from '../core/console'
 import { syncPack } from '../core/engineering'
 import { FileSecretStore } from '../core/secrets'
-import { Operant } from '../core/operant'
+import { Foreman } from '../core/foreman'
+import { copyLegacyData, legacyDataDir } from '../core/legacy-data'
 import { appDataDir } from '../core/paths'
 import { SessionManager } from '../core/sessions'
 import { Store } from '../core/store'
@@ -40,7 +41,16 @@ loadEnv({ dir: envDir, log: (line) => console.log(line) })
 // Started by the installer after an update, the app gets the system PATH only; add the user's entries back.
 refreshUserPath()
 
-// Keep data apart from Operant 1, which owns the plain "Operant" folder.
+// Operant 1 owned the plain "Operant" folder; Foreman keeps its own, apart from it.
+// First start after the rename: copy the old Operant data across once. The old folder is left as it was.
+if (!process.env.FOREMAN_DATA_DIR) {
+  const env = { platform: process.platform, home: app.getPath('home'), env: process.env }
+  try {
+    if (copyLegacyData(legacyDataDir(env), appDataDir()) === 'copied') console.log('[foreman] copied your Operant data into the Foreman folder')
+  } catch (e) {
+    console.error('[foreman] could not copy Operant data:', e)
+  }
+}
 app.setPath('userData', appDataDir())
 
 // The embedded browser is driven over CDP through a filtering proxy. Chromium picks a free port on 127.0.0.1 and writes
@@ -56,15 +66,15 @@ function devToolsUpstream(): string {
   return `ws://127.0.0.1:${port.trim()}${path.trim()}`
 }
 
-// Test runs set OPERANT_BACKGROUND=1 so the window opens behind others without taking focus.
-const background = process.env.OPERANT_BACKGROUND === '1'
+// Test runs set FOREMAN_BACKGROUND=1 so the window opens behind others without taking focus.
+const background = process.env.FOREMAN_BACKGROUND === '1'
 const devUrl = process.env.VITE_DEV_URL
 
-// The Operant plugin (its memory skill) ships next to the app: in the repo during dev, in resources/ when packaged.
+// The Foreman plugin (its memory skill) ships next to the app: in the repo during dev, in resources/ when packaged.
 const pluginDir = app.isPackaged ? join(process.resourcesPath, 'plugin') : join(app.getAppPath(), 'plugin')
 
-// The `operant` wrappers that tiles run: resources/cli when packaged, cli/bin in the repo (the wrapper
-// finds out/cli/operant.cjs from there).
+// The `foreman` wrappers that tiles run: resources/cli when packaged, cli/bin in the repo (the wrapper
+// finds out/cli/foreman.cjs from there).
 const cliDir = app.isPackaged ? join(process.resourcesPath, 'cli') : join(app.getAppPath(), 'cli', 'bin')
 
 // The window and taskbar icon: resources/icon.png when packaged, build/icon.png in the repo.
@@ -75,7 +85,7 @@ const appOrigin: AppOrigin = { devUrl, indexFile: join(__dirname, '../renderer/i
 let win: BrowserWindow | null = null
 let store: Store | null = null
 let sessions: SessionManager | null = null
-let operant: Operant | null = null
+let foreman: Foreman | null = null
 let quitting = false
 // The OS is shutting down or logging off: the window closes without a question.
 let ending = false
@@ -91,7 +101,7 @@ let browserProxy: CdpProxy | null = null
 let browserMcp: McpHost | null = null
 let browserExtras: Extras | null = null
 let browserMcpUrl: string | null = null
-const browserOut = join(tmpdir(), `operant-browser-${process.pid}`)
+const browserOut = join(tmpdir(), `foreman-browser-${process.pid}`)
 let installing = (): boolean => false
 
 // A notification was clicked: bring the window forward and show its Claude tile.
@@ -105,7 +115,7 @@ function openFromNotice(scratchId: number, crewId: number): void {
 
 // The browser panels, the hub, the CDP proxy and the MCP host. Panels and hub exist at once; the two servers listen
 // a moment later, and tiles launched before that simply get no browser.
-function startBrowser(core: Operant): void {
+function startBrowser(core: Foreman): void {
   const hub: BrowserHub = new BrowserHub({
     host: {
       ensureOpen: (id) => panels.ensureOpen(id),
@@ -221,8 +231,8 @@ function createWindow(): void {
     minWidth: 1000,
     minHeight: 640,
     show: false,
-    backgroundColor: windowBackground(operant?.currentSettings.appearance ?? DEFAULT_APPEARANCE, nativeTheme.shouldUseDarkColors),
-    title: 'Operant',
+    backgroundColor: windowBackground(foreman?.currentSettings.appearance ?? DEFAULT_APPEARANCE, nativeTheme.shouldUseDarkColors),
+    title: 'Foreman',
     icon: iconFile,
     autoHideMenuBar: true,
     webPreferences: windowWebPreferences(),
@@ -269,10 +279,10 @@ function createWindow(): void {
     ending = true
   })
 
-  if (operant && turns) {
-    const core = operant
+  if (foreman && turns) {
+    const core = foreman
     const tw = turns
-    guard = attachCloseGuard(win, { operant: core, turns: tw, skip: () => quitting || ending || installing() })
+    guard = attachCloseGuard(win, { foreman: core, turns: tw, skip: () => quitting || ending || installing() })
   }
 
   win.on('closed', () => {
@@ -287,11 +297,11 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Started while an update installs (the old copy quit for it): holding its files would make the install fail.
   if (process.platform === 'win32' && app.isPackaged && updateInstalling()) {
-    dialog.showMessageBoxSync({ type: 'info', title: 'Operant', message: 'Operant is installing an update', detail: 'It opens again by itself when the update is done.' })
+    dialog.showMessageBoxSync({ type: 'info', title: 'Foreman', message: 'Foreman is installing an update', detail: 'It opens again by itself when the update is done.' })
     app.quit()
     return
   }
-  store = new Store(join(app.getPath('userData'), 'operant.db'), undefined, join(app.getPath('userData'), 'backups'))
+  store = new Store(join(app.getPath('userData'), 'foreman.db'), undefined, join(app.getPath('userData'), 'backups'))
   const playground = store.ensurePlayground(join(app.getPath('userData'), 'Playground'))
   mkdirSync(playground.folder, { recursive: true })
   consoleLog.setScrubber(scrubLogLine)
@@ -304,7 +314,7 @@ app.whenReady().then(() => {
   }
   sessions = new SessionManager((file, args, opts) => spawnPty(file, args, { name: 'xterm-256color', ...opts }))
   const indexes = new CrewIndexes(app.isPackaged ? globalCodegraph() : undefined)
-  const core = new Operant({
+  const core = new Foreman({
     store,
     sessions,
     indexes,
@@ -318,9 +328,9 @@ app.whenReady().then(() => {
       rolesDir: join(app.getPath('userData'), 'roles'),
       cliDir,
       // The wrapper runs the CLI with the app binary as Node (ELECTRON_RUN_AS_NODE is set by the wrapper only).
-      operantNode: process.execPath,
+      foremanNode: process.execPath,
     },
-    // Claude Code tiles get Operant's hooks and status line from this script (run as Node by the app binary).
+    // Claude Code tiles get Foreman's hooks and status line from this script (run as Node by the app binary).
     hooks: {
       node: process.execPath,
       script: app.isPackaged ? join(process.resourcesPath, 'claude-mods', 'op-event.mjs') : join(app.getAppPath(), 'scripts', 'op-event.mjs'),
@@ -361,7 +371,7 @@ app.whenReady().then(() => {
       decrypt: (blob) => safeStorage.decryptString(blob),
     }),
   })
-  operant = core
+  foreman = core
   turns = watchClaudeTurns(core, {
     isWindowFocused: () => !!win && !win.isDestroyed() && win.isFocused(),
     open: openFromNotice,
@@ -413,10 +423,10 @@ app.on('window-all-closed', () => {
 
 // Revoke every token and close the CLI socket before the app exits.
 app.on('before-quit', (e) => {
-  if (quitting || !operant) return
+  if (quitting || !foreman) return
   e.preventDefault()
   quitting = true
-  operant
+  foreman
     .shutdown()
     .catch(() => {})
     .finally(() => app.quit())

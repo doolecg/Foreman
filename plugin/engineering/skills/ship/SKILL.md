@@ -37,7 +37,7 @@ This skill closes a task. It proves the work is done, writes a short summary and
    - If data or files change on disk, say where the backup is.
    - If undoing is not possible, say so plainly.
 7. Tell the user what is waiting for their go: push, tag, publish or release. Say that nothing was sent anywhere.
-8. Tick the checklist in `.operant/engineering/<task-name>/slices.html`, then give the final report.
+8. Tick the checklist in `.foreman/engineering/<task-name>/slices.html`, then give the final report.
 
 ## Rules
 

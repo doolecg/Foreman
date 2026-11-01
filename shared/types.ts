@@ -98,7 +98,7 @@ export interface Usage {
   legacy: boolean
 }
 
-export interface OperantEvent {
+export interface ForemanEvent {
   id: number
   crewId: number | null
   kind: string
@@ -120,7 +120,7 @@ export interface HindsightStatus {
   state: 'running' | 'stopped' | 'no-uv' | 'error'
   url: string
   detail: string
-  // True when Operant starts and stops the server itself (no remote URL set).
+  // True when Foreman starts and stops the server itself (no remote URL set).
   managed: boolean
   // How it is hosted: local, lan (shared from this PC) or remote.
   mode?: 'local' | 'lan' | 'remote'
@@ -142,7 +142,7 @@ export interface HindsightAdapter {
   address: string
   label: string
   tailscale: boolean
-  // 0.0.0.0: every adapter, including ones Operant does not list.
+  // 0.0.0.0: every adapter, including ones Foreman does not list.
   all: boolean
   loopback: boolean
 }
@@ -211,7 +211,7 @@ export interface Team {
   id: number
   name: string
   rules: string
-  // Stable key of a team shipped with Operant; null for a team the user made.
+  // Stable key of a team shipped with Foreman; null for a team the user made.
   builtin: string | null
   description: string
   // A built-in the user has edited; Reset restores it.
@@ -316,7 +316,7 @@ export interface McpOverview {
   checkedAt: number
 }
 
-// Optional integrations (Git MCP, Playwright MCP): never installed by Operant unless the user clicks Add.
+// Optional integrations (Git MCP, Playwright MCP): never installed by Foreman unless the user clicks Add.
 export const OPTIONAL_MCP_IDS = ['git', 'playwright', 'codegraph'] as const
 export type OptionalMcpId = (typeof OPTIONAL_MCP_IDS)[number]
 export interface OptionalMcpTarget {
@@ -328,14 +328,14 @@ export interface OptionalMcpEntry {
   name: string
   description: string
   enables: string
-  // The server name Operant writes into a CLI's config.
+  // The server name Foreman writes into a CLI's config.
   server: string
-  // not-added: nothing; added: Operant's own entries; found: the same server under another name or added by hand.
+  // not-added: nothing; added: Foreman's own entries; found: the same server under another name or added by hand.
   status: 'not-added' | 'added' | 'found'
   added: OptionalMcpTarget[]
   foundAs?: string
   foundIn?: string
-  // The found copy comes from a Claude plugin or connector: shown, never added or removed by Operant.
+  // The found copy comes from a Claude plugin or connector: shown, never added or removed by Foreman.
   provided: boolean
   runtime: { command: string; ok: boolean; error?: string }
   needsProject: boolean
@@ -495,7 +495,7 @@ export interface SkippedRow {
 }
 
 export interface ImportPreview {
-  format: 'operant-2.8.2' | 'operant-export'
+  format: 'foreman-2.8.2' | 'foreman-export'
   found: boolean
   location: string
   projects: ImportCounts

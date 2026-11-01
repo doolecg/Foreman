@@ -16,7 +16,7 @@ export interface RunningCounts {
   midTurn: boolean
 }
 
-// Closing Operant asks only when something is running and the owner has not turned the ask off.
+// Closing Foreman asks only when something is running and the owner has not turned the ask off.
 export function shouldConfirmAppClose(askEnabled: boolean, counts: RunningCounts): boolean {
   return askEnabled && counts.claude + counts.opencode + counts.shell > 0
 }

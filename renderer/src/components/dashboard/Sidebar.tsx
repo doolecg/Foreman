@@ -691,7 +691,7 @@ export function Sidebar({ crews: allCrews, selected, onSelect, onNewCrew, action
       <div className="surface-line space-y-2 border-t p-2">
         {update.data?.state === 'ready' && (
           <div className="surface-line space-y-2 rounded-xl border p-2.5">
-            <p className="text-xs">Operant {update.data.version} is ready.</p>
+            <p className="text-xs">Foreman {update.data.version} is ready.</p>
             <Button size="sm" className="h-7 w-full" onClick={() => void bridge().invoke('update:install')}>
               <Download className="size-3.5" /> Restart to update
             </Button>

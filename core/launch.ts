@@ -31,8 +31,8 @@ export interface LaunchResult {
 }
 
 // Step 4 replaces these in the session env before the PTY starts.
-export const SOCKET_PLACEHOLDER = '@@OPERANT_SOCKET@@'
-export const TOKEN_PLACEHOLDER = '@@OPERANT_TOKEN@@'
+export const SOCKET_PLACEHOLDER = '@@FOREMAN_SOCKET@@'
+export const TOKEN_PLACEHOLDER = '@@FOREMAN_TOKEN@@'
 
 export const CLAUDE_FLAGS = [
   '--model',
@@ -78,18 +78,18 @@ export interface LaunchContext {
   sessionId: string
   // Flags this install's `claude --help` lists; unlisted ones are left out. Default: all of CLAUDE_FLAGS.
   supported?: ReadonlySet<string>
-  operantCli?: string
-  operantNode?: string
+  foremanCli?: string
+  foremanNode?: string
   // Claude Code hooks and status line (claude-events.ts), written into a Claude tile's settings file next to its permissions.
   mods?: Record<string, unknown>
   // The plugin folders of the enabled native mods (plugin/mods/<id>), one --plugin-dir each.
   modPlugins?: string[]
   // Engineering Mode / Subagent Factory Mode (set per project, Claude tiles only): the text appended to the tile's
-  // system prompt, the skill pack folders (one --plugin-dir each), and whether Factory is on (OPERANT_FACTORY=1 arms the subagent cap hook).
+  // system prompt, the skill pack folders (one --plugin-dir each), and whether Factory is on (FOREMAN_FACTORY=1 arms the subagent cap hook).
   modePreamble?: string
   packPlugins?: string[]
   factory?: boolean
-  // The embedded browser's MCP endpoint. The config file holds no secret: Claude expands ${OPERANT_TOKEN} from the tile's env.
+  // The embedded browser's MCP endpoint. The config file holds no secret: Claude expands ${FOREMAN_TOKEN} from the tile's env.
   browserMcp?: { url: string }
   // The CodeGraph MCP server for this session (Settings, Memory, Use CodeGraph, with the codegraph command installed). Passed as
   // a launch file, so no config of the user's is written or changed.
@@ -208,7 +208,7 @@ export const E2E_CLAUDE_MODEL = 'claude-haiku-5-5'
 
 // e2e runs use the real Claude CLI, always on Haiku 5.5 (cheap); anywhere else the model is unchanged.
 export function e2eClaudeModel<T extends string | undefined>(model: T, env: NodeJS.ProcessEnv = process.env): T | typeof E2E_CLAUDE_MODEL {
-  return env.OPERANT_E2E ? E2E_CLAUDE_MODEL : model
+  return env.FOREMAN_E2E ? E2E_CLAUDE_MODEL : model
 }
 
 export const shellOf = (ctx: Pick<LaunchContext, 'shell' | 'platform'>): ShellKind => ctx.shell ?? (ctx.platform === 'win32' ? 'powershell' : 'sh')
@@ -249,10 +249,10 @@ function guidanceFile(key: string, text: string, ctx: LaunchContext, p: typeof p
   return { path: p.join(ctx.rolesDir, `${key}-${hash}.md`), content }
 }
 
-function operantEnv(ctx: LaunchContext): Record<string, string> {
-  const env: Record<string, string> = { OPERANT_SOCKET: SOCKET_PLACEHOLDER, OPERANT_TOKEN: TOKEN_PLACEHOLDER }
-  if (ctx.operantCli) env.OPERANT_CLI = checkPath('operantCli', ctx.operantCli)
-  if (ctx.operantNode) env.OPERANT_NODE = checkPath('operantNode', ctx.operantNode)
+function foremanEnv(ctx: LaunchContext): Record<string, string> {
+  const env: Record<string, string> = { FOREMAN_SOCKET: SOCKET_PLACEHOLDER, FOREMAN_TOKEN: TOKEN_PLACEHOLDER }
+  if (ctx.foremanCli) env.FOREMAN_CLI = checkPath('foremanCli', ctx.foremanCli)
+  if (ctx.foremanNode) env.FOREMAN_NODE = checkPath('foremanNode', ctx.foremanNode)
   return env
 }
 
@@ -264,8 +264,8 @@ interface ClaudeParts {
   cwd: string
 }
 
-// A Claude Code tile: its settings file, its guidance (a preset's text), the Operant plugin dir (memory skill)
-// and the CLI socket and token for `operant memory.*`.
+// A Claude Code tile: its settings file, its guidance (a preset's text), the Foreman plugin dir (memory skill)
+// and the CLI socket and token for `foreman memory.*`.
 function claudeCore(parts: ClaudeParts, ctx: LaunchContext): LaunchResult {
   assertShell(ctx)
   const p = pathOf(ctx)
@@ -310,7 +310,7 @@ function claudeCore(parts: ClaudeParts, ctx: LaunchContext): LaunchResult {
     const url = checkPath('browserMcp', ctx.browserMcp.url)
     const f: LaunchFile = {
       path: p.join(ctx.launchDir, 'browser-mcp.json'),
-      content: stable({ mcpServers: { 'operant-browser': { type: 'http', url, headers: { Authorization: 'Bearer ${OPERANT_TOKEN}' } } } }),
+      content: stable({ mcpServers: { 'foreman-browser': { type: 'http', url, headers: { Authorization: 'Bearer ${FOREMAN_TOKEN}' } } } }),
     }
     files.push(f)
     add('--mcp-config', f.path)
@@ -336,8 +336,8 @@ function claudeCore(parts: ClaudeParts, ctx: LaunchContext): LaunchResult {
   if (subagentTtl !== 'auto') env.CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL = subagentTtl
   if (cap) env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = capFlag(cap)
   if (ctx.pinClaudeVersion !== false) env.DISABLE_AUTOUPDATER = '1'
-  if (ctx.factory) env.OPERANT_FACTORY = '1'
-  Object.assign(env, operantEnv(ctx))
+  if (ctx.factory) env.FOREMAN_FACTORY = '1'
+  Object.assign(env, foremanEnv(ctx))
   return { file: 'claude', args, env, files, cwd }
 }
 
@@ -354,9 +354,9 @@ export function buildScratchLaunch(scratch: ScratchTerminal, ctx: LaunchContext,
   const cwd = checkPath('cwd', scratch.cwd)
   if (scratch.agent === 'shell') return { file: null, args: [], env: {}, files: [], cwd }
   assertShell(ctx)
-  if (scratch.agent === 'codex') return { file: 'codex', args: ['-m', checkModel(scratch.model)], env: operantEnv(ctx), files: [], cwd }
+  if (scratch.agent === 'codex') return { file: 'codex', args: ['-m', checkModel(scratch.model)], env: foremanEnv(ctx), files: [], cwd }
   if (scratch.agent === 'opencode') {
-    const env: Record<string, string> = { ...operantEnv(ctx), OPENCODE_CLI_CONFIG_CONTENT: OPENCODE_CLI_OVERLAY }
+    const env: Record<string, string> = { ...foremanEnv(ctx), OPENCODE_CLI_CONFIG_CONTENT: OPENCODE_CLI_OVERLAY }
     const config = opencodeConfigContent(ctx)
     if (config) env.OPENCODE_CONFIG_CONTENT = config
     return { file: 'opencode', args: [], env, files: [], cwd }
@@ -387,7 +387,7 @@ export function buildScratchLaunch(scratch: ScratchTerminal, ctx: LaunchContext,
 const OPENCODE_CLI_OVERLAY = JSON.stringify({ tabs: { mode: 'off' } })
 
 // OpenCode's config overlay (OPENCODE_CONFIG_CONTENT): the embedded browser as a remote MCP server. The token never reaches
-// disk or this string: OpenCode expands {env:OPERANT_TOKEN} from the tile's env. `base` is an existing overlay to merge into.
+// disk or this string: OpenCode expands {env:FOREMAN_TOKEN} from the tile's env. `base` is an existing overlay to merge into.
 export function opencodeConfigContent(ctx: Pick<LaunchContext, 'browserMcp' | 'recallFile' | 'codegraphMcp'>, base?: string): string | null {
   if (!ctx.browserMcp && !ctx.recallFile && !ctx.codegraphMcp) return base ?? null
   const url = ctx.browserMcp ? checkPath('browserMcp', ctx.browserMcp.url) : null
@@ -404,7 +404,7 @@ export function opencodeConfigContent(ctx: Pick<LaunchContext, 'browserMcp' | 'r
   const mcp = cfg.mcp && typeof cfg.mcp === 'object' && !Array.isArray(cfg.mcp) ? (cfg.mcp as Record<string, unknown>) : {}
   const servers = mcp.servers && typeof mcp.servers === 'object' && !Array.isArray(mcp.servers) ? (mcp.servers as Record<string, unknown>) : {}
   const added: Record<string, unknown> = {}
-  if (url) added['operant-browser'] = { type: 'remote', url, headers: { Authorization: 'Bearer {env:OPERANT_TOKEN}' }, disabled: false }
+  if (url) added['foreman-browser'] = { type: 'remote', url, headers: { Authorization: 'Bearer {env:FOREMAN_TOKEN}' }, disabled: false }
   if (ctx.codegraphMcp) added.codegraph = { type: 'local', command: ['codegraph', 'serve', '--mcp'] }
   const out: Record<string, unknown> = { ...cfg }
   if (Object.keys(added).length) out.mcp = { ...mcp, servers: { ...servers, ...added } }

@@ -36,7 +36,7 @@ describe('PowerShell', () => {
   })
   it('defines the prompt with exit colour, duration and git logic, ASCII only', () => {
     expect(script).toContain('function global:prompt')
-    expect(script.startsWith('# Operant soft prompt')).toBe(true)
+    expect(script.startsWith('# Foreman soft prompt')).toBe(true)
     expect(script.indexOf('$ok = $?')).toBeLessThan(script.indexOf('Get-History'))
     expect(script).toContain('-ForegroundColor Green } else { Write-Host $chev -NoNewline -ForegroundColor Red')
     expect(script).toContain('-ge 3)')
@@ -76,7 +76,7 @@ describe('bash', () => {
 
 describe('zsh', () => {
   const r = buildSoftPrompt({ ...base, shell: { file: '/bin/zsh', args: ['-l'] } })
-  it('points ZDOTDIR at Operant stubs that load the user files first', () => {
+  it('points ZDOTDIR at Foreman stubs that load the user files first', () => {
     expect(r?.spec).toEqual({ file: '/bin/zsh', args: ['-l'] })
     expect(r?.env.ZDOTDIR).toBe(join(base.dataDir, 'shell', 'zsh'))
     expect(file(r, '.zshenv')).toContain(`ZDOTDIR='/home/me'`)

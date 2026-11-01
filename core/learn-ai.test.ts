@@ -117,9 +117,9 @@ describe('learn model per CLI', () => {
   })
 
   it('an e2e run may start the real claude and opencode, and unit tests start neither', () => {
-    expect(() => assertFakeClaude({ OPERANT_E2E: '1' }, 'claude')).not.toThrow()
-    expect(() => assertFakeClaude({ OPERANT_E2E: '1' }, 'opencode')).not.toThrow()
-    expect(() => assertFakeClaude({ VITEST: 'true', OPERANT_E2E: '1' }, 'claude')).toThrow('A test tried to start the real claude')
+    expect(() => assertFakeClaude({ FOREMAN_E2E: '1' }, 'claude')).not.toThrow()
+    expect(() => assertFakeClaude({ FOREMAN_E2E: '1' }, 'opencode')).not.toThrow()
+    expect(() => assertFakeClaude({ VITEST: 'true', FOREMAN_E2E: '1' }, 'claude')).toThrow('A test tried to start the real claude')
     expect(() => assertFakeClaude({ VITEST: 'true' }, 'opencode')).toThrow('A test tried to start the real opencode')
     expect(() => assertFakeClaude({}, 'claude')).not.toThrow()
   })

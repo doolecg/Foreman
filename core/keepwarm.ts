@@ -196,7 +196,7 @@ export class KeepWarm {
 
   private ping(): void {
     const blocked = this.d.budgetBlocked()
-    if (blocked) return this.stop(`Operant's budget: ${blocked}`)
+    if (blocked) return this.stop(`Foreman's budget: ${blocked}`)
     if (!this.d.isRunning()) return this.halt('The tile is closed')
     this.lastPingAt = this.d.now()
     this.inFlight = true

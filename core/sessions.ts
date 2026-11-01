@@ -49,13 +49,13 @@ const OUTER_CLAUDE_SESSION = new Set([
   'CLAUDE_PID',
 ])
 
-// What a session inherits from Operant's own environment: never an outer instance's token or socket, nor the
-// flag that makes Electron act as Node, nor the markers of an outer Claude Code session Operant was started from.
+// What a session inherits from Foreman's own environment: never an outer instance's token or socket, nor the
+// flag that makes Electron act as Node, nor the markers of an outer Claude Code session Foreman was started from.
 export function inheritedEnv(source: NodeJS.ProcessEnv = process.env): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(source)) {
     const name = k.toUpperCase()
-    if (v === undefined || name.startsWith('OPERANT_') || name === 'ELECTRON_RUN_AS_NODE' || OUTER_CLAUDE_SESSION.has(name)) continue
+    if (v === undefined || name.startsWith('FOREMAN_') || name === 'ELECTRON_RUN_AS_NODE' || OUTER_CLAUDE_SESSION.has(name)) continue
     out[k] = v
   }
   return out
@@ -91,7 +91,7 @@ export class SessionManager extends EventEmitter<SessionEvents> {
     this.shellOverride = spec
   }
 
-  // Operant's data folder turns the soft two-line prompt on for plain default-shell terminals started from now on; null turns it off.
+  // Foreman's data folder turns the soft two-line prompt on for plain default-shell terminals started from now on; null turns it off.
   setSoftPrompt(dataDir: string | null): void {
     this.softPromptDir = dataDir
   }

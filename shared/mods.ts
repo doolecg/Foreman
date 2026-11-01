@@ -1,7 +1,7 @@
 import type { ContextUsage } from './claude-chat'
 
 // What the renderer gets for Claude Code tiles and the CLI capability check. Values are only set when the
-// evidence exists: an omitted field means Operant could not observe it, never a guess.
+// evidence exists: an omitted field means Foreman could not observe it, never a guess.
 
 export type CapabilityTerminal = 'claude' | 'opencode'
 
@@ -17,9 +17,9 @@ export interface TerminalCapabilities {
   version: string | null
   // Why the terminal is not usable (not on PATH, timed out, failed): set only when not installed.
   error?: string
-  // Operant's Claude hooks (SessionStart, Stop, sub-agent events) can run.
+  // Foreman's Claude hooks (SessionStart, Stop, sub-agent events) can run.
   hooks: boolean
-  // Operant's status line (model, context, cost) can run.
+  // Foreman's status line (model, context, cost) can run.
   statusLine: boolean
   // SubagentStart / SubagentStop and Agent tool events arrive.
   subagentEvents: boolean
@@ -60,7 +60,7 @@ export interface ClaudeSubagent {
   costEstimated?: true
 }
 
-// The Claude Code status line payload, reduced to what Operant shows. Each field is omitted when absent.
+// The Claude Code status line payload, reduced to what Foreman shows. Each field is omitted when absent.
 export interface ClaudeSessionStatus {
   model?: string
   contextWindowSize?: number
@@ -108,8 +108,8 @@ export function tileStatusLabel(
   return null
 }
 
-// The mods. `subagents` is Operant's own panel (it reads Operant's hook events); every other mod is a native Claude
-// Code mod, a plugin under plugin/mods/<id> that Operant passes to Claude Code with --plugin-dir while it is enabled.
+// The mods. `subagents` is Foreman's own panel (it reads Foreman's hook events); every other mod is a native Claude
+// Code mod, a plugin under plugin/mods/<id> that Foreman passes to Claude Code with --plugin-dir while it is enabled.
 export const MOD_IDS = ['subagents', 'promptEnhancer', 'ideaShelf', 'folderTracker', 'plainEnglish'] as const
 export type ModId = (typeof MOD_IDS)[number]
 // The sub-agent panel is on for new installs.
@@ -118,7 +118,7 @@ export const isModId = (v: unknown): v is ModId => typeof v === 'string' && (MOD
 // The mods switched on in a settings map, in registry order.
 export const enabledMods = (mods: Record<ModId, boolean>): ModId[] => MOD_IDS.filter((id) => mods[id])
 
-// Every toggle on the Mods page: the mods above plus the Operant features that have their own setting (the info bar, and the Chat view's Keep warm and Commands menu).
+// Every toggle on the Mods page: the mods above plus the Foreman features that have their own setting (the info bar, and the Chat view's Keep warm and Commands menu).
 export const MOD_ROW_IDS = ['subagents', 'infoBar', 'keepWarm', 'commandMenu', 'promptEnhancer', 'ideaShelf', 'folderTracker', 'plainEnglish'] as const
 export type ModRowId = (typeof MOD_ROW_IDS)[number]
 

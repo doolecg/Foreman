@@ -34,13 +34,13 @@ export function tokensSuffix(n: number | null | undefined, approx = false): stri
   return ` · ${approx ? '~' : ''}${kTokens(n)} tokens`
 }
 
-// "operant-image-20261011-142305-2.png" from the image's media type, when it was sent and its place in the message.
+// "foreman-image-20261011-142305-2.png" from the image's media type, when it was sent and its place in the message.
 export function imageFileName(mediaType: string, at: Date, index = 0): string {
   const sub = (mediaType.split('/')[1] ?? '').toLowerCase().replace(/\+.*$/, '')
   const ext = sub === 'jpeg' ? 'jpg' : /^[a-z0-9]{2,5}$/.test(sub) ? sub : 'png'
   const p = (v: number) => String(v).padStart(2, '0')
   const stamp = `${at.getFullYear()}${p(at.getMonth() + 1)}${p(at.getDate())}-${p(at.getHours())}${p(at.getMinutes())}${p(at.getSeconds())}`
-  return `operant-image-${stamp}${index > 0 ? `-${index + 1}` : ''}.${ext}`
+  return `foreman-image-${stamp}${index > 0 ? `-${index + 1}` : ''}.${ext}`
 }
 
 export const capitalize = (s: string): string => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
@@ -133,7 +133,7 @@ export function applySuggestion(text: string, trigger: Trigger, caret: number, i
   return { text: head + word + tail, caret: head.length + word.length }
 }
 
-// Commands Operant handles itself (never sent to Claude), listed with Claude's own in the "/" suggestions.
+// Commands Foreman handles itself (never sent to Claude), listed with Claude's own in the "/" suggestions.
 export const LOCAL_COMMANDS: ChatCommand[] = [
   { name: 'clear', description: 'Start a fresh conversation in this thread: clears the chat and the context', argumentHint: '', source: 'built-in', terminalOnly: false },
   { name: 'keepwarm', description: 'Keep the prompt cache warm: bare for 6h, a window such as 90m, always, off, or status', argumentHint: '[6h|90m|always|off|status]', source: 'built-in', terminalOnly: false },

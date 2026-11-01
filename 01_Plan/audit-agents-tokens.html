@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Foreman audit and plan</title>
+<style>
+:root{--bg:#1f1c1a;--fg:#ece6df;--mut:#a39a90;--acc:#da7756;--card:#2a2623;--line:#3a3430}
+@media (prefers-color-scheme:light){:root{--bg:#faf7f3;--fg:#241f1b;--mut:#6b625a;--card:#fff;--line:#e3dbd1}}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem}h2{font-size:1.2rem;margin-top:2rem;color:var(--acc)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.mut{color:var(--mut)}li{margin:.4rem 0}
+</style>
+</head>
+<body><main>
+<h1>Foreman: what the audit found and what we do next</h1>
+<p class="mut">1 November 2026. I only read the code. Nothing was run or changed.</p>
+
+<div class="box"><strong>Read this first</strong>
+<ol>
+<li>A normal chat starts with everything you have installed loaded. That is a lot of tokens before you type anything.</li>
+<li>Helpers start light, but only by accident.</li>
+<li>The "13k tokens" claim in the README is not measured anywhere.</li>
+<li>You can switch tools on and off per project for only three things. Skills and plugins have no switch.</li>
+<li>The plan is four steps: audit (done), rename, native project setup, then tidy the token handling.</li>
+</ol></div>
+
+<h2>1. What the audit found</h2>
+<ul>
+<li><strong>Normal chats load everything.</strong> When you open a chat, Foreman starts Claude Code and adds a few extras on top. Claude Code still loads all your own plugins, hooks, settings and tools.</li>
+<li><strong>Helpers are light by accident.</strong> A helper skips your plugins and hooks only if it has a list of allowed tools. Nobody chose that on purpose. A helper with an empty list would load everything.</li>
+<li><strong>The 13k number is a guess.</strong> The README says helpers start near 13k tokens instead of over 100k. The code has no measurement for that. It might be right, but nothing proves it.</li>
+<li><strong>Switching tools per project barely exists.</strong> Only three tools can be turned on or off for a project: git, the browser and code search. Skills and plugins cannot be switched per project at all.</li>
+<li><strong>The code for this is messy.</strong> The same tool settings are stored four different ways and kept in step by hand. The list of tools is typed out in three separate places. The browser, code search and memory tools are each wired in by hand, and then wired in again, differently, for OpenCode.</li>
+<li><strong>Small things.</strong> Two different methods are used to switch off hooks for the same purpose. Orchestrator Mode's limits (three helpers at once, no helpers inside helpers) are only written as instructions to Claude, backed by one small hook.</li>
+<li><strong>What already works.</strong> There are daily limits on the app's own model calls, a cap on how big a chat can get, cache settings, and usage tracking against your plan limits. These stay.</li>
+</ul>
+
+<h2>2. The plan</h2>
+<ol>
+<li><strong>Audit.</strong> Done. This page.</li>
+<li><strong>Rename.</strong> Operant becomes Foreman in the code, the screens and the installers. People who already use Operant keep their chats and settings.</li>
+<li><strong>Native project setup.</strong>
+ <ul>
+ <li>A "Start new project" button, and a command that does the same.</li>
+ <li>You type what the project is. Foreman tidies up your prompt, looks around the folder and what it knows, and works out what the project needs.</li>
+ <li>It then turns on only those agents, tools, skills and plugins for that project, and writes the project files. It never touches your global setup and never deletes anything.</li>
+ <li>The list of what is available (the catalog) is installed into your <code>.claude</code> folder the first time. You can point Foreman at a different folder if you prefer.</li>
+ </ul></li>
+<li><strong>Tidy the tokens.</strong>
+ <ul>
+ <li>One catalog replaces the three typed-out lists and the four overlapping settings. Each entry says what it is, when it is needed and roughly what it costs.</li>
+ <li>One place decides what each chat or helper loads for a given project. The launch code just follows that decision.</li>
+ <li>Being light becomes a clear setting: full, project only, or strict. It no longer depends on whether a tools list exists.</li>
+ <li>Plugins get picked per project instead of all or nothing.</li>
+ <li>Foreman measures the real startup tokens for each setup and shows the cost per project. That either proves the 13k claim or corrects it.</li>
+ </ul></li>
+</ol>
+<p>I would do them in this order because steps 3 and 4 use the same catalog.</p>
+
+<h2>3. What I did not check</h2>
+<p>The helper that read the code only skimmed two of the chat files and did not follow every call. The line numbers it gave could be slightly off, so I will confirm each one before changing anything. I did not run the app.</p>
+</main></body></html>

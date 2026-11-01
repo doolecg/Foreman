@@ -39,7 +39,7 @@ export class Ops {
 
   private crewFor(folder: string): { id: number; name: string; folder: string } {
     const c = this.d.store.listCrews().find((x) => x.folder === folder)
-    if (!c) throw bad('That folder is not a project Operant knows')
+    if (!c) throw bad('That folder is not a project Foreman knows')
     return c
   }
 
@@ -79,7 +79,7 @@ export class Ops {
     return this.d.aux.status()
   }
 
-  // CodeGraph: only the folder of a project Operant knows is indexed.
+  // CodeGraph: only the folder of a project Foreman knows is indexed.
 
   codegraphStatus(folder: string): IndexStatus {
     return this.d.indexes.status(this.crewFor(folder).folder)

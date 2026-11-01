@@ -4,7 +4,7 @@ import { consoleLog, isConsoleSource } from '../core/console'
 import { stopOwnProcess } from '../core/proc'
 import { previewOf, readDefaultBrowserCookies } from '../core/browser-cookies'
 import { importCookiesToCrews } from './browser-cookies-import'
-import { ipcErrorOf, type Operant } from '../core/operant'
+import { ipcErrorOf, type Foreman } from '../core/foreman'
 import { CORE_CHANNELS, encodeIpcError, type IpcApi, type IpcEventName, type IpcEvents, type MainChannel } from '../shared/ipc'
 import type { BrowserHub } from '../core/browser/hub'
 import type { BrowserPanels } from './browser'
@@ -19,7 +19,7 @@ import type { createUpdater } from './updater'
 type MainHandlers = { [C in MainChannel]: (...a: Parameters<IpcApi[C]>) => ReturnType<IpcApi[C]> | Promise<ReturnType<IpcApi[C]>> }
 
 export function registerIpc(
-  operant: Operant,
+  foreman: Foreman,
   updater: ReturnType<typeof createUpdater>,
   getWindow: () => BrowserWindow | null,
   origin: AppOrigin,
@@ -35,7 +35,7 @@ export function registerIpc(
     tiles.webContentsIds().some((id) => isTrustedSender(e, id, origin))
   const refuse = () => new Error(encodeIpcError('FORBIDDEN', 'Not allowed from this page'))
   for (const channel of CORE_CHANNELS) {
-    const handler = operant.handlers[channel] as (...a: unknown[]) => unknown
+    const handler = foreman.handlers[channel] as (...a: unknown[]) => unknown
     // Electron passes only an error's message to the renderer, so the code travels inside it.
     ipcMain.handle(channel, async (e, ...args: unknown[]) => {
       if (!trusted(e)) throw refuse()
@@ -51,7 +51,7 @@ export function registerIpc(
     })
   }
 
-  const media = createMedia(operant)
+  const media = createMedia(foreman)
   const mainHandlers: MainHandlers = {
     'app:pickFolder': async () => {
       const win = getWindow()
@@ -60,13 +60,13 @@ export function registerIpc(
       return res.canceled ? null : (res.filePaths[0] ?? null)
     },
     'shell:openFolder': async (crewId) => {
-      const crew = (await operant.handlers['crews:list']()).find((c) => c.id === crewId)
+      const crew = (await foreman.handlers['crews:list']()).find((c) => c.id === crewId)
       if (!crew) throw new Error(encodeIpcError('NOT_FOUND', `Project ${String(crewId)} not found`))
       const failure = await shell.openPath(crew.folder)
       if (failure) throw new Error(encodeIpcError('BAD_ARGS', failure))
     },
     'shell:openPath': async (crewId, path) => {
-      const crew = (await operant.handlers['crews:list']()).find((c) => c.id === crewId)
+      const crew = (await foreman.handlers['crews:list']()).find((c) => c.id === crewId)
       if (!crew) throw new Error(encodeIpcError('NOT_FOUND', `Project ${String(crewId)} not found`))
       const target = typeof path === 'string' ? resolveAllowedPath(crew.folder, path) : null
       if (!target) throw new Error(encodeIpcError('FORBIDDEN', 'That path is outside the project folder, or missing'))
@@ -158,7 +158,7 @@ export function registerIpc(
       const result = await readDefaultBrowserCookies()
       if (!result.supported) throw new Error(encodeIpcError('BAD_ARGS', result.reason ?? 'Importing from your default browser is not supported.'))
       if (result.needsClose) throw new Error(encodeIpcError('BAD_ARGS', result.reason ?? 'Close your browser and try again.'))
-      const crewIds = (await operant.handlers['crews:list']()).filter((c) => c.kind !== 'playground').map((c) => c.id)
+      const crewIds = (await foreman.handlers['crews:list']()).filter((c) => c.kind !== 'playground').map((c) => c.id)
       const { imported, rejected } = await importCookiesToCrews(result.cookies, crewIds)
       return { browser: result.browser, imported, rejected, locked: result.locked }
     },
@@ -193,9 +193,9 @@ export function registerIpc(
     for (const w of tiles.windows()) push(w, name, payload)
   }
   const forward = <E extends IpcEventName>(name: E) =>
-    operant.on(name as Exclude<E, 'update'>, ((payload: IpcEvents[E]) => pushTiles(name, payload)) as never)
+    foreman.on(name as Exclude<E, 'update'>, ((payload: IpcEvents[E]) => pushTiles(name, payload)) as never)
   // A popped-out terminal that ended (not a Chat/Terminal switch) closes its window.
-  operant.on('scratch:exit', (e) => {
+  foreman.on('scratch:exit', (e) => {
     if (!e.switching) tiles.close(e.scratchId)
   })
   forward('event')

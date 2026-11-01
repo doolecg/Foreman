@@ -32,7 +32,7 @@ export function useHindsightAct() {
 }
 
 // The mode, port and keys decide the status, the health badges and the Memory page. A server stopped or started outside
-// Operant is not pushed, so the window gaining focus reads the status again.
+// Foreman is not pushed, so the window gaining focus reads the status again.
 registerLive((b, qc) => {
   const refresh = () => void qc.invalidateQueries({ queryKey: ['hindsight', 'status'] })
   window.addEventListener('focus', refresh)

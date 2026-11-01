@@ -1,9 +1,9 @@
 {
-  "name": "operant",
+  "name": "foreman",
   "version": "2.0.0",
-  "description": "Guidance for agents running as operators in an Operant project.",
+  "description": "Guidance for agents running as operators in a Foreman project.",
   "author": {
     "name": "doolecg"
   },
-  "homepage": "https://github.com/doolecg/operant2"
+  "homepage": "https://github.com/doolecg/foreman"
 }

@@ -34,7 +34,7 @@ function UpdateRow({ status }: { status?: UpdateStatus }) {
         idle: 'Not checked yet',
         unsupported: s.message ?? 'Updates are unavailable',
         checking: 'Checking for updates…',
-        current: s.message ?? 'Operant is up to date',
+        current: s.message ?? 'Foreman is up to date',
         downloading: `Downloading ${s.version}…`,
         ready: `Version ${s.version} is ready to install`,
         installing: `Installing ${s.version}…`,
@@ -154,7 +154,7 @@ export function GeneralSection() {
           <Row label="UI scale" info="Zooms the whole app between 80% and 200%. Automatic starts from 100% and grows the interface on larger windows, up to 175%, so a maximised big screen is not tiny. A fixed percentage stays put whatever the window size." htmlFor="ui-scale">
             <UiScaleSelect id="ui-scale" className="w-36" />
           </Row>
-          <Row label="Currency" info="Changes the currency symbol and amounts on costs, spend and budgets. Operant works out everything in US dollars underneath, so this only changes how the numbers are shown. Choose from ten currencies; the default is US dollars." hint="Costs, spend and budgets are shown in this currency. Amounts are kept in US dollars; there is no online lookup, so type the rate yourself." htmlFor="currency">
+          <Row label="Currency" info="Changes the currency symbol and amounts on costs, spend and budgets. Foreman works out everything in US dollars underneath, so this only changes how the numbers are shown. Choose from ten currencies; the default is US dollars." hint="Costs, spend and budgets are shown in this currency. Amounts are kept in US dollars; there is no online lookup, so type the rate yourself." htmlFor="currency">
             <Select value={s.currency.code} onValueChange={(v) => save.mutate({ currency: { code: v as CurrencyCode } })}>
               <SelectTrigger id="currency" className="w-48">
                 <SelectValue />
@@ -194,7 +194,7 @@ export function GeneralSection() {
               </SelectContent>
             </Select>
           </Row>
-          <Row label="Check for updates" info="How often Operant asks GitHub whether a newer version exists. It also checks a few seconds after the app starts. A found update downloads in the background. Only at startup turns off the repeat checks. The default is every 3 hours." htmlFor="interval">
+          <Row label="Check for updates" info="How often Foreman asks GitHub whether a newer version exists. It also checks a few seconds after the app starts. A found update downloads in the background. Only at startup turns off the repeat checks. The default is every 3 hours." htmlFor="interval">
             <Select value={String(s.updates.checkHours)} onValueChange={(v) => save.mutate({ updates: { checkHours: Number(v) } })}>
               <SelectTrigger id="interval" className="w-36">
                 <SelectValue />
@@ -209,7 +209,7 @@ export function GeneralSection() {
               </SelectContent>
             </Select>
           </Row>
-          <Row label="Install downloaded updates when Operant quits" info="When an update has finished downloading and is waiting, closing Operant installs it automatically. Off means you choose when to install it from the update row above. This is on by default and does not apply to Linux .deb installs." htmlFor="on-quit">
+          <Row label="Install downloaded updates when Foreman quits" info="When an update has finished downloading and is waiting, closing Foreman installs it automatically. Off means you choose when to install it from the update row above. This is on by default and does not apply to Linux .deb installs." htmlFor="on-quit">
             <Switch
               id="on-quit"
               checked={s.updates.installOnQuit}
@@ -222,13 +222,13 @@ export function GeneralSection() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Closing</CardTitle>
-          <CardDescription>Closing a terminal or Operant asks first when something would stop. "Don't ask again" in those dialogs turns the question off here.</CardDescription>
+          <CardDescription>Closing a terminal or Foreman asks first when something would stop. "Don't ask again" in those dialogs turns the question off here.</CardDescription>
         </CardHeader>
         <CardContent className="divide-y">
           <Row label="Ask before closing a terminal" info="Asks you to confirm before a terminal tile is closed, and says whether Claude is still working and will be stopped. Terminals whose process has already ended close without asking. On by default." htmlFor="confirm-tile">
             <Switch id="confirm-tile" checked={s.confirm.closeTile} onCheckedChange={(v) => save.mutate({ confirm: { closeTile: v } })} />
           </Row>
-          <Row label="Ask before closing Operant" info="Asks you to confirm before Operant quits, but only when Claude, OpenCode or shell terminals are running. It lists what will be stopped. With nothing running, it closes straight away. On by default." htmlFor="confirm-app">
+          <Row label="Ask before closing Foreman" info="Asks you to confirm before Foreman quits, but only when Claude, OpenCode or shell terminals are running. It lists what will be stopped. With nothing running, it closes straight away. On by default." htmlFor="confirm-app">
             <Switch id="confirm-app" checked={s.confirm.closeApp} onCheckedChange={(v) => save.mutate({ confirm: { closeApp: v } })} />
           </Row>
         </CardContent>
@@ -254,22 +254,22 @@ export function GeneralSection() {
       <Card data-testid="settings-license">
         <CardHeader>
           <CardTitle className="text-base">License</CardTitle>
-          <CardDescription>Operant is free software under the MIT License. Copyright © 2026 doolecg.</CardDescription>
+          <CardDescription>Foreman is free software under the MIT License. Copyright © 2026 doolecg.</CardDescription>
         </CardHeader>
         <CardContent className="text-muted-foreground space-y-2 text-xs">
           <p>
-            Operant is provided "as is", without warranty of any kind. To the extent permitted by law, the authors are not liable for any claim, damages
+            Foreman is provided "as is", without warranty of any kind. To the extent permitted by law, the authors are not liable for any claim, damages
             or other liability arising from its use, including anything an AI agent does from a terminal you start in it. Back up your work.
           </p>
           <p>
-            Claude Code, OpenCode and the other tools Operant starts or installs are separate software under their own licenses and terms.
-            Operant is not made by or affiliated with Anthropic or the makers of those tools.
+            Claude Code, OpenCode and the other tools Foreman starts or installs are separate software under their own licenses and terms.
+            Foreman is not made by or affiliated with Anthropic or the makers of those tools.
           </p>
           <div className="flex gap-2 pt-1">
             <Button variant="outline" size="sm" onClick={() => void bridge().invoke('app:openLicenses')}>
               Open license files
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => void bridge().invoke('app:openExternal', 'https://github.com/doolecg/Operant/blob/main/LICENSE')}>
+            <Button variant="ghost" size="sm" onClick={() => void bridge().invoke('app:openExternal', 'https://github.com/doolecg/Foreman/blob/main/LICENSE')}>
               License on GitHub
             </Button>
           </div>

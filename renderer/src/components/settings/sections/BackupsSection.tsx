@@ -58,7 +58,7 @@ export function BackupsSection() {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Backups</CardTitle>
-        <CardDescription>Snapshots of your settings, presets, teams and lessons. Operant also takes one before each update.</CardDescription>
+        <CardDescription>Snapshots of your settings, presets, teams and lessons. Foreman also takes one before each update.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">

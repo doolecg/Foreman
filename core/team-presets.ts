@@ -1,7 +1,7 @@
 import type { ExportText, Team, TeamImportEntry, TeamInput } from '../shared/types'
 import type { Store } from './store'
 
-// Teams that ship with Operant: plain guidance text (a name, a description and rules), no runner.
+// Teams that ship with Foreman: plain guidance text (a name, a description and rules), no runner.
 export interface ShippedTeam {
   builtin: string
   name: string
@@ -45,7 +45,7 @@ export const RETIRED_TEAMS = ['research', 'quality-pass', 'build-review-opencode
 
 // Team files
 
-const FORMAT = 'operant-teams'
+const FORMAT = 'foreman-teams'
 const FILE_MAX = 1_000_000
 const TEAMS_MAX = 200
 const NAME_MAX = 80
@@ -61,7 +61,7 @@ export function exportTeams(_store: Store, teams: Team[]): ExportText {
     rules: t.rules,
   }))
   const one = teams.length === 1 ? teams[0]!.name.replace(/[^\w-]+/g, '-').toLowerCase() : 'teams'
-  return { filename: `operant-${one}.json`, mime: 'application/json', text: JSON.stringify({ format: FORMAT, version: 1, teams: out }, null, 2) }
+  return { filename: `foreman-${one}.json`, mime: 'application/json', text: JSON.stringify({ format: FORMAT, version: 1, teams: out }, null, 2) }
 }
 
 export interface TeamImportItem {
@@ -80,7 +80,7 @@ export function parseTeamFile(store: Store, text: string): TeamImportItem[] {
     throw new Error('That file is not valid JSON')
   }
   const d = doc as { format?: unknown; teams?: unknown }
-  if (!d || d.format !== FORMAT || !Array.isArray(d.teams)) throw new Error('That is not an Operant team file')
+  if (!d || (d.format !== FORMAT && d.format !== 'operant-teams') || !Array.isArray(d.teams)) throw new Error('That is not a Foreman team file')
   if (d.teams.length > TEAMS_MAX) throw new Error(`A team file holds at most ${TEAMS_MAX} teams`)
   const existing = store.listTeams()
   const seen = new Set<string>()

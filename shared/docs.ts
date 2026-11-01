@@ -1,4 +1,4 @@
-// Which files Operant opens in the project's browser tile by itself. Pure; no Electron, no file system.
+// Which files Foreman opens in the project's browser tile by itself. Pure; no Electron, no file system.
 
 // A document the browser tile shows: HTML or Markdown.
 export const isDocFile = (path: string): boolean => /\.(?:html?|md)$/i.test(path)

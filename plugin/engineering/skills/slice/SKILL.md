@@ -15,7 +15,7 @@ This skill breaks the spec into small steps that each work on their own. A slice
 ## Steps
 
 1. Read the spec and the code it touches. Note the existing patterns, the risky parts and the unknowns.
-2. Check `.operant/engineering/<task-name>/slices.html`. If it has unticked items for the same work, update it in place. If it holds a different unfinished plan, stop and ask. Never overwrite it.
+2. Check `.foreman/engineering/<task-name>/slices.html`. If it has unticked items for the same work, update it in place. If it holds a different unfinished plan, stop and ask. Never overwrite it.
 3. If the code is in the way, make the first slice a small prefactor: change the structure with no change in behaviour, so the real change is easy.
    - Keep it small. A prefactor that grows is a sign to stop and ask.
    - Its proof is that the existing checks still pass.
@@ -32,7 +32,7 @@ This skill breaks the spec into small steps that each work on their own. A slice
        Done when: <criterion that can fail> / <criterion>
        Proof: <the command or visible result that shows it>
    ```
-7. Write the checklist to `.operant/engineering/<task-name>/slices.html` with a tick box per slice and per criterion. Add a check-in line after every two or three slices.
+7. Write the checklist to `.foreman/engineering/<task-name>/slices.html` with a tick box per slice and per criterion. Add a check-in line after every two or three slices.
 8. Show the user the plan and wait for a clear OK. Fix what they change and show it again.
    - The spec in three lines.
    - The slices in order, one line each, with sizes and blockers.

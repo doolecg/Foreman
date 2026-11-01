@@ -9,7 +9,7 @@ describe('CodeGraph full rebuild', () => {
   afterEach(() => dir && rmSync(dir, { recursive: true, force: true }))
 
   it('discards the index and indexes every file again on request', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'operant-cg-rebuild-'))
+    dir = mkdtempSync(join(tmpdir(), 'foreman-cg-rebuild-'))
     writeFileSync(join(dir, 'a.ts'), 'export function greet(n: string) { return n }\n')
     writeFileSync(join(dir, 'b.ts'), 'export const b = 1\n')
     const idx = new CrewIndexes()

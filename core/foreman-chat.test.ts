@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CrewIndexes, IndexStatus } from './codegraph'
 import type { ChatChild } from './claude-chat'
 import type { LearnService } from './learn'
-import { Operant, type CliAccess, type Scheduler } from './operant'
+import { Foreman, type CliAccess, type Scheduler } from './foreman'
 import { SessionManager, type Pty, type PtyFactory } from './sessions'
 import { Store } from './store'
 import type { CliTarget } from './cli-server'
@@ -58,9 +58,9 @@ const scheduler: Scheduler = { every: () => ({}), cancel: () => undefined }
 const idle: IndexStatus = { initialized: false, indexing: false, files: 0, symbols: 0, edges: 0 }
 const indexes = { status: () => idle, index: async () => idle } as unknown as CrewIndexes
 
-describe('Operant: Chat view tiles', () => {
+describe('Foreman: Chat view tiles', () => {
   let store: Store
-  let op: Operant
+  let op: Foreman
   let ptys: FakePty[]
   let children: Array<{ spawn: { file: string; args: string[]; env: Record<string, string>; shell: boolean }; child: FakeChatChild }>
   let bin: string
@@ -71,7 +71,7 @@ describe('Operant: Chat view tiles', () => {
   let target: CliTarget
 
   beforeEach(() => {
-    bin = mkdtempSync(join(tmpdir(), 'operant-bin-'))
+    bin = mkdtempSync(join(tmpdir(), 'foreman-bin-'))
     mkdirSync(bin, { recursive: true })
     writeFileSync(join(bin, 'claude'), '')
     store = new Store(':memory:')
@@ -86,7 +86,7 @@ describe('Operant: Chat view tiles', () => {
       ptys.push(p)
       return p
     }
-    op = new Operant({
+    op = new Foreman({
       store,
       sessions: new SessionManager(spawn),
       indexes,
@@ -103,7 +103,7 @@ describe('Operant: Chat view tiles', () => {
         consolidateNow: async (crewId: number) => (consolidated.push(crewId), { merged: 2, improved: 0, proposed: 1, failed: 0, skipped: '' }),
         lessonLookup: () => ({ isLive: () => true, related: () => [] }),
       } as unknown as LearnService,
-      launch: { platform: 'linux', launchDir: '/data/launch', rolesDir: '/data/roles', cliDir: '/app/cli', operantNode: '/app/operant', baseEnv: { PATH: bin }, writer: { mkdir: () => {}, writeFile: () => {} } },
+      launch: { platform: 'linux', launchDir: '/data/launch', rolesDir: '/data/roles', cliDir: '/app/cli', foremanNode: '/app/foreman', baseEnv: { PATH: bin }, writer: { mkdir: () => {}, writeFile: () => {} } },
       chatSpawn: (spec) => {
         const child = new FakeChatChild()
         children.push({ spawn: spec, child })
@@ -124,8 +124,8 @@ describe('Operant: Chat view tiles', () => {
   }
   const lastChild = () => children.at(-1)!
 
-  it('operant shot saves the file and shows a shot notice with the image in the tile chat', async () => {
-    const folder = mkdtempSync(join(tmpdir(), 'operant-shot-proj-'))
+  it('foreman shot saves the file and shows a shot notice with the image in the tile chat', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'foreman-shot-proj-'))
     try {
       const crew = store.createCrew('shots', folder)
       const t = op.handlers['scratch:create']({ crewId: crew.id, title: 'work', agent: 'claude', model: 'claude-sonnet-5-5' }) as { id: number }
@@ -147,14 +147,14 @@ describe('Operant: Chat view tiles', () => {
     }
   })
 
-  it('a project with Engineering and Factory on starts its Chat tile with the preamble, both pack folders and OPERANT_FACTORY; a plain project does not', () => {
+  it('a project with Engineering and Factory on starts its Chat tile with the preamble, both pack folders and FOREMAN_FACTORY; a plain project does not', () => {
     const plain = store.createCrew('plain', '/code/plain')
     const t0 = op.handlers['scratch:create']({ crewId: plain.id, title: 'a', agent: 'claude', model: 'claude-sonnet-5-5' }) as { id: number }
     op.startScratch(t0.id)
     const off = lastChild().spawn
     expect(off.args).not.toContain('--append-system-prompt-file')
     expect(off.args.filter((a) => a === '--plugin-dir')).toHaveLength(1)
-    expect(off.env.OPERANT_FACTORY).toBeUndefined()
+    expect(off.env.FOREMAN_FACTORY).toBeUndefined()
 
     const crew = store.createCrew('modes', '/code/modes')
     expect(crew).toMatchObject({ engineering: false, factory: false })
@@ -165,7 +165,7 @@ describe('Operant: Chat view tiles', () => {
     const on = lastChild().spawn
     expect(on.args.filter((a) => a === '--append-system-prompt-file')).toHaveLength(1)
     expect(on.args).toEqual(expect.arrayContaining([join('/data/engineering', 'engineering'), join('/data/engineering', 'factory')]))
-    expect(on.env.OPERANT_FACTORY).toBe('1')
+    expect(on.env.FOREMAN_FACTORY).toBe('1')
   })
 
   it('opens new Claude tiles in the Chat view, other tiles in the Terminal view', () => {
@@ -183,8 +183,8 @@ describe('Operant: Chat view tiles', () => {
     expect(spawn.shell).toBe(false)
     expect(spawn.args.slice(0, 5)).toEqual(['-p', '--input-format', 'stream-json', '--output-format', 'stream-json'])
     expect(spawn.args).toContain('--session-id')
-    expect(spawn.env.OPERANT_SOCKET).toBe('/tmp/op.sock')
-    expect(spawn.env.OPERANT_TOKEN).toBe(`t${t.id}`)
+    expect(spawn.env.FOREMAN_SOCKET).toBe('/tmp/op.sock')
+    expect(spawn.env.FOREMAN_TOKEN).toBe(`t${t.id}`)
     expect(child.written[0]).toMatchObject({ request: { subtype: 'initialize' } })
     expect(op.handlers['chat:snapshot'](t.id)).toMatchObject({ scratchId: t.id, process: 'starting' })
     // already running: left alone

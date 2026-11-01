@@ -5,7 +5,7 @@ import { ResizeHandle } from '@/components/ui/resize-handle'
 import { BrowserTile } from './BrowserTile'
 import { useBrowserActions, useBrowserState } from './useBrowser'
 
-const WIDTH = 'operant.browser.width'
+const WIDTH = 'foreman.browser.width'
 const DEFAULT = 480
 const MIN = 320
 const MAX = 1000

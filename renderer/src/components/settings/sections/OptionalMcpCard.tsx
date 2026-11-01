@@ -30,7 +30,7 @@ const INSTALL_HINT: Record<string, string> = { uvx: 'install uv', npx: 'install 
 const HIDE_WITHOUT_RUNTIME: OptionalMcpId[] = ['git', 'playwright']
 export const STATUS_LABEL: Record<OptionalMcpEntry['status'], string> = {
   'not-added': 'Not added',
-  added: 'Added by Operant',
+  added: 'Added by Foreman',
   found: 'Found in your config',
 }
 
@@ -81,8 +81,8 @@ export function OptionalMcpPanel({ crewId, e, row }: { crewId: number | null; e:
   const foundText =
     e.status === 'found' && e.foundAs
       ? e.provided
-        ? `${e.foundIn}: ${e.foundAs}. Operant does not add or remove it.`
-        : `Found in your config as ${e.foundAs} (${e.foundIn}). Operant did not add it.`
+        ? `${e.foundIn}: ${e.foundAs}. Foreman does not add or remove it.`
+        : `Found in your config as ${e.foundAs} (${e.foundIn}). Foreman did not add it.`
       : null
   const blockedText = e.blocked && e.status !== 'added' ? `Cannot add now: ${e.blocked}` : null
   const detail = [runtimeText, foundText, blockedText].filter(Boolean).join(' ')
@@ -138,7 +138,7 @@ export function OptionalMcpPanel({ crewId, e, row }: { crewId: number | null; e:
     ) : null
   const removeButton =
     e.status === 'added' ? (
-      <Button size="sm" variant="outline" disabled={busy} aria-label={`Remove ${e.name} added by Operant`} onClick={() => void drop(e.id)}>
+      <Button size="sm" variant="outline" disabled={busy} aria-label={`Remove ${e.name} added by Foreman`} onClick={() => void drop(e.id)}>
         <Trash2 /> Remove
       </Button>
     ) : null
@@ -184,7 +184,7 @@ export function OptionalMcpPanel({ crewId, e, row }: { crewId: number | null; e:
   )
 }
 
-// The optional servers Operant can add. Nothing is added here until the user clicks Add.
+// The optional servers Foreman can add. Nothing is added here until the user clicks Add.
 // all: list every server even when its runtime is missing.
 export function OptionalMcpCard({ crewId, all = false }: { crewId: number | null; all?: boolean }) {
   const entries = useOptionalMcp(crewId)
@@ -206,7 +206,7 @@ export function OptionalMcpCard({ crewId, all = false }: { crewId: number | null
       <CardHeader>
         <CardTitle>Optional integrations</CardTitle>
         <CardDescription>
-          Operant works without these. Nothing is added until you click Add.
+          Foreman works without these. Nothing is added until you click Add.
         </CardDescription>
         <CardAction>
           <Button variant="outline" size="sm" disabled={busy} aria-label="Check optional integrations again" onClick={() => void check()}>

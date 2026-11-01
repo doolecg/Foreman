@@ -13,9 +13,9 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-panels-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-panels-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-panels-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-panels-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-panels-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-panels-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 writeFileSync(join(project, 'app.ts'), 'export const a = 1\n')
@@ -34,10 +34,10 @@ async function launch() {
   app = await electron.launch({ args: ['.'], env })
   page = await app.firstWindow()
   await page.setViewportSize({ width: 1920, height: 1080 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
 }
-const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
 const poll = async (label, fn, timeout = 10_000) => {
   for (const end = Date.now() + timeout; Date.now() < end; await page.waitForTimeout(150)) if (await fn()) return
   throw new Error(`timed out waiting for ${label}`)
@@ -52,7 +52,7 @@ const gitModal = () => page.getByRole('dialog', { name: 'Git' })
 
 try {
   await launch()
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
   const crew = await inv('crews:create', { name: 'shell', folder: project })
   await inv('settings:set', { tiles: { layout: 'dwindle', gaps: 6 } })
 

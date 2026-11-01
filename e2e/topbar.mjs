@@ -10,8 +10,8 @@ import { _electron as electron } from 'playwright-core'
 
 const outDir = resolve(process.argv[2] ?? 'out/e2e')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-e2e-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-proj-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-e2e-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-proj-'))
 const git = (...a) => execFileSync('git', a, { cwd: project })
 git('init', '-q', '-b', 'feature/topbar')
 writeFileSync(join(project, 'a.txt'), '1')
@@ -19,14 +19,14 @@ git('add', '.')
 git('-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'first')
 writeFileSync(join(project, 'a.txt'), '2')
 writeFileSync(join(project, 'b.txt'), '2')
-const logFile = join(mkdtempSync(join(tmpdir(), 'operant-media-')), 'commands.log')
+const logFile = join(mkdtempSync(join(tmpdir(), 'foreman-media-')), 'commands.log')
 
 const env = {
   ...process.env,
-  OPERANT_BACKGROUND: '1', OPERANT_E2E: '1',
-  OPERANT_DATA_DIR: dataDir,
-  OPERANT_E2E_MEDIA_HELPER: resolve('e2e/fixtures/fake-media-helper.mjs'),
-  OPERANT_FAKE_MEDIA_LOG: logFile,
+  FOREMAN_BACKGROUND: '1', FOREMAN_E2E: '1',
+  FOREMAN_DATA_DIR: dataDir,
+  FOREMAN_E2E_MEDIA_HELPER: resolve('e2e/fixtures/fake-media-helper.mjs'),
+  FOREMAN_FAKE_MEDIA_LOG: logFile,
 }
 const app = await electron.launch({ args: ['.'], env })
 const sent = () => (existsSync(logFile) ? readFileSync(logFile, 'utf8').trim().split('\n') : [])
@@ -42,22 +42,22 @@ try {
     await page.waitForTimeout(400)
   }
   await resize(1920)
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
   await page.evaluate(async (folder) => {
-    const o = window.operant
+    const o = window.foreman
     await o.invoke('crews:create', { name: 'shop', folder })
   }, project)
   await page.locator('[data-crew-row]').getByText('shop', { exact: true }).click({ position: { x: 4, y: 4 } })
   await page.getByRole('heading', { name: 'shop' }).waitFor({ state: 'attached' })
 
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true, uiScale: 1, topBar: { mediaSize: 'compact' } }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true, uiScale: 1, topBar: { mediaSize: 'compact' } }))
   const bar = page.getByRole('group', { name: 'Media controls' })
   await bar.waitFor()
   await bar.getByText('Midnight City').waitFor()
-  assert.equal((await page.evaluate(() => window.operant.invoke('media:state'))).title.startsWith('Midnight City'), true)
+  assert.equal((await page.evaluate(() => window.foreman.invoke('media:state'))).title.startsWith('Midnight City'), true)
 
   // Settings that make the screenshots predictable: 24 hour, with the date.
-  await page.evaluate(() => window.operant.invoke('settings:set', { topBar: { clockFormat: '24', clockSeconds: false, clockDate: true } }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { topBar: { clockFormat: '24', clockSeconds: false, clockDate: true } }))
   const clock = page.getByTestId('clock-time')
   await poll('24h clock', async () => /^\d{2}:\d{2}$/.test((await clock.textContent()) ?? ''))
 
@@ -87,7 +87,7 @@ try {
   const before = await bar.getByRole('progressbar').getAttribute('aria-valuenow').catch(() => null)
 
   // Unlisted commands never get through.
-  assert.equal(await page.evaluate(() => window.operant.invoke('media:command', 'quit')), false)
+  assert.equal(await page.evaluate(() => window.foreman.invoke('media:command', 'quit')), false)
 
   // The month calendar after a short hover, and the click copy.
   await page.getByRole('button', { name: /^Clock / }).hover()
@@ -106,7 +106,7 @@ try {
     writeFileSync(join(outDir, name), Buffer.from(png, 'base64'))
   }
   for (const scale of [1, 2]) {
-    await page.evaluate((s) => window.operant.invoke('settings:set', { uiScale: s }), scale)
+    await page.evaluate((s) => window.foreman.invoke('settings:set', { uiScale: s }), scale)
     for (const w of [1000, 1280, 1920, 2560]) {
       await win((win, n) => win.setContentSize(n, 700), w)
       await page.waitForTimeout(1200)
@@ -135,7 +135,7 @@ try {
       if (scale === 1) await shot(`top-bar-${w}.png`)
     }
   }
-  await page.evaluate(() => window.operant.invoke('settings:set', { uiScale: 1 }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { uiScale: 1 }))
   await win((w) => w.setContentSize(1100, 700))
   await page.waitForTimeout(800)
   await win((w) => w.setContentSize(1280, 700))
@@ -166,27 +166,27 @@ try {
   await page.screenshot({ path: join(outDir, 'sidebar-footer.png'), clip: { x: 0, y: 600, width: 260, height: 100 } })
 
   // At the narrowest tier the usage and branch chips stay in the sidebar footer.
-  await page.evaluate(() => window.operant.invoke('settings:set', { uiScale: 2 }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { uiScale: 2 }))
   await page.waitForTimeout(800)
   await foot.getByRole('button', { name: /^Git: / }).waitFor()
   await foot.getByRole('button', { name: /^Provider limits: / }).click()
   await page.getByRole('dialog', { name: 'Usage' }).waitFor()
   await page.keyboard.press('Escape')
   await page.getByRole('dialog', { name: 'Usage' }).waitFor({ state: 'detached' })
-  await page.evaluate(() => window.operant.invoke('settings:set', { uiScale: 1 }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { uiScale: 1 }))
   await page.waitForTimeout(800)
 
   // Live settings: seconds, 12 hour, compact media, and the media bar off.
-  await page.evaluate(() => window.operant.invoke('settings:set', { topBar: { clockSeconds: true, clockFormat: '12' } }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { topBar: { clockSeconds: true, clockFormat: '12' } }))
   await poll('12h with seconds', async () => /^\d{2}:\d{2}:\d{2}\s?(am|pm)$/i.test((await clock.textContent()) ?? ''))
   await resize(1920)
-  await page.evaluate(() => window.operant.invoke('settings:set', { topBar: { mediaSize: 'full' } }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { topBar: { mediaSize: 'full' } }))
   await poll('full', async () => (await bar.getByRole('slider', { name: 'Volume' }).count()) === 1)
-  await page.evaluate(() => window.operant.invoke('settings:set', { topBar: { mediaSize: 'compact' } }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { topBar: { mediaSize: 'compact' } }))
   await poll('compact', async () => (await bar.getByText('Midnight City').count()) === 1)
-  await page.evaluate(() => window.operant.invoke('settings:set', { topBar: { mediaControls: false } }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { topBar: { mediaControls: false } }))
   await poll('media off', async () => (await bar.count()) === 0)
-  await page.evaluate(() => window.operant.invoke('settings:set', { topBar: { mediaControls: true, mediaSize: 'full', clockDate: true, clockSeconds: false } }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { topBar: { mediaControls: true, mediaSize: 'full', clockDate: true, clockSeconds: false } }))
   await bar.waitFor()
 
   // The Top bar section and the media shortcuts exist in Settings.

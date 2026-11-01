@@ -9,7 +9,7 @@ describe('CrewIndexes', () => {
   afterEach(() => dir && rmSync(dir, { recursive: true, force: true }))
 
   it('reports an unindexed folder, then indexes it on request', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'operant-cg-'))
+    dir = mkdtempSync(join(tmpdir(), 'foreman-cg-'))
     writeFileSync(join(dir, 'a.ts'), 'export function greet(n: string) { return helper(n) }\nfunction helper(n: string) { return n }\n')
     const idx = new CrewIndexes()
 
@@ -71,7 +71,7 @@ describe('indexing off the main thread', () => {
   afterEach(() => dir && rmSync(dir, { recursive: true, force: true }))
 
   it('does not block the event loop while another process holds the database write lock, and reports the lock', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'operant-cg-lock-'))
+    dir = mkdtempSync(join(tmpdir(), 'foreman-cg-lock-'))
     writeFileSync(join(dir, 'a.ts'), 'export const a = 1\n')
     const idx = new CrewIndexes()
     await idx.index(dir)
@@ -98,7 +98,7 @@ describe('indexing off the main thread', () => {
   }, 60_000)
 
   it('stops a run that takes too long', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'operant-cg-slow-'))
+    dir = mkdtempSync(join(tmpdir(), 'foreman-cg-slow-'))
     writeFileSync(join(dir, 'a.ts'), 'export const a = 1\n')
     await expect(new CrewIndexes().index(dir, 1)).rejects.toThrow(/stopped/)
     expect(new CrewIndexes().status(dir).indexing).toBe(false)

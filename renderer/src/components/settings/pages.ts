@@ -79,7 +79,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   {
     label: 'Claude & OpenCode',
     pages: [
-      { id: 'mods', label: 'Mods', description: 'The features of Operant you can turn off: the Agents panel, info bar, Keep warm, Commands menu and the Claude Code mods.', keywords: 'hooks status line subagent info bar keep warm commands engineering factory mode pack skills reset', subsections: [{ id: 'mods', label: 'Mods' }] },
+      { id: 'mods', label: 'Mods', description: 'The features of Foreman you can turn off: the Agents panel, info bar, Keep warm, Commands menu and the Claude Code mods.', keywords: 'hooks status line subagent info bar keep warm commands engineering factory mode pack skills reset', subsections: [{ id: 'mods', label: 'Mods' }] },
       { id: 'browser', label: 'Browser', description: 'The browser tile in each project, and whether the AI may drive it.', keywords: 'browser web ai control playwright cookies home page search', subsections: [{ id: 'browser', label: 'Browser' }] },
     ],
   },
@@ -104,7 +104,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
       {
         id: 'lessons',
         label: 'Lessons',
-        description: 'Everything Operant has learned from your sessions, in each place it is kept: lessons, skill drafts, code notes and personal memory.',
+        description: 'Everything Foreman has learned from your sessions, in each place it is kept: lessons, skill drafts, code notes and personal memory.',
         keywords: 'lessons drafts skills learned memory manager review approve reject codegraph notes personal hindsight',
         subsections: [{ id: 'lessons', label: 'Lessons and drafts' }],
       },
@@ -164,7 +164,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
       {
         id: 'install',
         label: 'Tools and installs',
-        description: 'Every program, skill and MCP server Operant uses: where it is, and a button to install it, look for it or point Operant at it.',
+        description: 'Every program, skill and MCP server Foreman uses: where it is, and a button to install it, look for it or point Foreman at it.',
         keywords: 'install setup location path locate find uv opencode codegraph playwright superpowers skills mcp servers dictation claude winget npm',
         subsections: [
           { id: 'install', label: 'Programs' },

@@ -1,4 +1,4 @@
-// Operant's Claude Code hook and status line writer. It has no dependencies and no model calls: Claude Code runs it
+// Foreman's Claude Code hook and status line writer. It has no dependencies and no model calls: Claude Code runs it
 // with the app binary as Node (ELECTRON_RUN_AS_NODE=1) and pipes the event JSON to stdin.
 //
 //   node op-event.mjs hook <eventsDir>    appends one line {ts, tile, ...payload} to <eventsDir>/<session_id>.jsonl
@@ -6,10 +6,10 @@
 //   node op-event.mjs recall <eventsDir>  SessionStart only: prints the project's memory file (<eventsDir>/../recall/<key>.txt,
 //                                         written by the app) as hookSpecificOutput.additionalContext; nothing when it is missing
 //
-// With OPERANT_FACTORY=1 (Subagent Factory Mode), `hook` also prints a PreToolUse deny for the Agent/Task tool while 3
+// With FOREMAN_FACTORY=1 (Subagent Factory Mode), `hook` also prints a PreToolUse deny for the Agent/Task tool while 3
 // helpers are running (SubagentStart minus SubagentStop in the session's events file).
 //
-// Only tiles Operant launched (OPERANT_SOURCE=operant) write anything. It always exits 0, so a failed write never
+// Only tiles Foreman launched (FOREMAN_SOURCE=foreman) write anything. It always exits 0, so a failed write never
 // blocks Claude Code.
 import { createHash } from 'node:crypto'
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
@@ -90,10 +90,10 @@ function runningHelpers(file) {
   return Math.max(0, n)
 }
 
-// With OPERANT_FACTORY=1, a PreToolUse for the Agent/Task tool is denied while FACTORY_CAP helpers are running. Any read or
+// With FOREMAN_FACTORY=1, a PreToolUse for the Agent/Task tool is denied while FACTORY_CAP helpers are running. Any read or
 // parse problem allows the call (prints nothing).
 function factoryCap(file, payload) {
-  if (process.env.OPERANT_FACTORY !== '1' || payload.hook_event_name !== 'PreToolUse') return
+  if (process.env.FOREMAN_FACTORY !== '1' || payload.hook_event_name !== 'PreToolUse') return
   if (payload.tool_name !== 'Agent' && payload.tool_name !== 'Task') return
   try {
     if (runningHelpers(file) < FACTORY_CAP) return
@@ -106,7 +106,7 @@ function factoryCap(file, payload) {
 
 async function main() {
   const [mode, eventsDir] = process.argv.slice(2)
-  if (process.env.OPERANT_SOURCE !== 'operant' || !eventsDir || (mode !== 'hook' && mode !== 'status' && mode !== 'recall')) return
+  if (process.env.FOREMAN_SOURCE !== 'foreman' || !eventsDir || (mode !== 'hook' && mode !== 'status' && mode !== 'recall')) return
   let payload
   try {
     payload = JSON.parse(await readStdin())
@@ -118,7 +118,7 @@ async function main() {
   const sessionId = payload.session_id
   if (typeof sessionId !== 'string' || !SAFE_ID.test(sessionId)) return
   mkdirSync(eventsDir, { recursive: true })
-  const tile = process.env.OPERANT_TILE_ID ?? null
+  const tile = process.env.FOREMAN_TILE_ID ?? null
   if (mode === 'hook') {
     const file = join(eventsDir, `${sessionId}.jsonl`)
     appendFileSync(file, `${JSON.stringify({ ts: Date.now(), tile, ...shrink(payload) })}\n`)

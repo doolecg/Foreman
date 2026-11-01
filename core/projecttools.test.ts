@@ -120,7 +120,7 @@ describe('openInIde', () => {
 })
 
 describe('gitChanges', () => {
-  const root = mkdtempSync(join(tmpdir(), 'operant-git-'))
+  const root = mkdtempSync(join(tmpdir(), 'foreman-git-'))
   afterAll(() => rmSync(root, { recursive: true, force: true }))
   const git = (cwd: string, ...args: string[]) => runHidden('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args], { cwd })
 
@@ -174,7 +174,7 @@ describe('gitInfo', () => {
   })
 
   it('answers null outside a repository', async () => {
-    const plain = mkdtempSync(join(tmpdir(), 'operant-nogit-'))
+    const plain = mkdtempSync(join(tmpdir(), 'foreman-nogit-'))
     try {
       const r = await gitInfo(plain)
       if (r === null) expect(r).toBeNull()

@@ -13,7 +13,7 @@ describe('store', () => {
   afterEach(() => store.close())
 
   it('adds the lesson link columns to a database that already has lessons', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'operant-lessons-'))
+    const dir = mkdtempSync(join(tmpdir(), 'foreman-lessons-'))
     const file = join(dir, 'a.db')
     try {
       const old = new Store(file)
@@ -48,7 +48,7 @@ describe('store', () => {
   })
 
   it('gives tiles from before updated_at their creation time as the last activity, and lets updateScratch move it', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'operant-scratch-'))
+    const dir = mkdtempSync(join(tmpdir(), 'foreman-scratch-'))
     const file = join(dir, 'a.db')
     try {
       const old = new Store(file, () => 1234)

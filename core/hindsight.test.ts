@@ -14,7 +14,7 @@ describe('hindsight service', () => {
   it('names one bank per project folder', () => {
     expect(bankFor(String.raw`C:\code\Shop`)).toBe(bankFor('c:/code/shop/'))
     expect(bankFor('/a/shop')).not.toBe(bankFor('/b/shop'))
-    expect(bankFor('/a/My Shop')).toMatch(/^operant-my-shop-[a-z0-9]+$/)
+    expect(bankFor('/a/My Shop')).toMatch(/^foreman-my-shop-[a-z0-9]+$/)
   })
 
   it('reports a missing uvx as a clear status when the server is down', async () => {
@@ -103,7 +103,7 @@ describe('hindsight service', () => {
 
   describe('adopting the agent plugins server', () => {
     const file = { serverMode: 'self-hosted', apiUrl: 'http://10.0.0.5:8888/' }
-    it('uses apiUrl from coding-agent.json when Operant has no URL and is local', async () => {
+    it('uses apiUrl from coding-agent.json when Foreman has no URL and is local', async () => {
       const seen: string[] = []
       const s = svc({ readJson: () => file, fetch: async (u) => (seen.push(u), resp(true)) })
       expect(s.url).toBe('http://10.0.0.5:8888')
@@ -113,7 +113,7 @@ describe('hindsight service', () => {
       await s.recall('b', 'q')
       expect(seen.at(-1)).toMatch(/^http:\/\/10.0.0.5:8888\/v1\/default\/banks\/b\/memories\/recall$/)
     })
-    it('does not adopt when Operant has its own URL, shares a daemon, or the file is not self-hosted with an apiUrl', () => {
+    it('does not adopt when Foreman has its own URL, shares a daemon, or the file is not self-hosted with an apiUrl', () => {
       expect(svc({ readJson: () => file }, { url: () => 'http://nas:1' }).url).toBe('http://nas:1')
       expect(svc({ readJson: () => file }, { lan: () => ({ host: '0.0.0.0', port: 9077, openBind: true }) }).mode).toBe('lan')
       expect(svc({ readJson: () => ({ ...file, serverMode: 'embedded' }) }).managed).toBe(true)
@@ -290,7 +290,7 @@ describe('hindsight service', () => {
       const local = bankFor('/code/shop')
       setSharedBanks(true)
       const shared = bankFor('/code/shop')
-      expect(shared).toMatch(/^operant-shop-[a-z0-9]+$/)
+      expect(shared).toMatch(/^foreman-shop-[a-z0-9]+$/)
       expect(shared).not.toBe(local)
       expect(bankFor('/code/shop/')).toBe(shared)
       expect(bankFor('/code/other')).not.toBe(shared)

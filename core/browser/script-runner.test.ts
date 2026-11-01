@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { clampTimeout, formatScriptResult, redactSecrets, runScriptInWorker } from './script-runner'
 
-const dir = mkdtempSync(join(tmpdir(), 'operant-script-test-'))
+const dir = mkdtempSync(join(tmpdir(), 'foreman-script-test-'))
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
 // A stand-in for playwright-core: connectOverCDP gives one context with two pages.

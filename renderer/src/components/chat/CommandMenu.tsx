@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { OPEN_SETTINGS_EVENT } from '@/components/memory/LearningBadge'
 import { RUNS_IN_CHAT } from './chatHelpers'
 
-// Commands that only run on Claude Code's own screen, but have a place in Operant: the Settings page they map to.
+// Commands that only run on Claude Code's own screen, but have a place in Foreman: the Settings page they map to.
 const IN_SETTINGS: Record<string, { section: string; label: string }> = {
   config: { section: 'general', label: 'Settings' },
   theme: { section: 'appearance', label: 'Appearance settings' },

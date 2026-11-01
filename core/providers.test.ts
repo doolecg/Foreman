@@ -35,7 +35,7 @@ let dir: string
 beforeEach(() => {
   store = new Store(':memory:', () => NOW)
   now = NOW
-  dir = mkdtempSync(join(tmpdir(), 'operant-prov-'))
+  dir = mkdtempSync(join(tmpdir(), 'foreman-prov-'))
 })
 afterEach(() => {
   store.close()
@@ -301,7 +301,7 @@ describe('OpenCode', () => {
 })
 
 describe('Claude estimate rows', () => {
-  it('shows what Operant recorded as an estimate and leaves imported rows out', async () => {
+  it('shows what Foreman recorded as an estimate and leaves imported rows out', async () => {
     store.upsertKeyedUsage({ extKey: 'a', at: NOW - 1000, model: 'claude-sonnet-5-5', inputTokens: 10, outputTokens: 5, costUsd: 0.2 }, false)
     store.upsertKeyedUsage({ extKey: 'b', at: NOW - 1000, model: 'claude-sonnet-5-5', inputTokens: 10, outputTokens: 5, costUsd: 5, legacy: true }, false)
     const m = monitor({})

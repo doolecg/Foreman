@@ -34,7 +34,7 @@ describe('spawnHidden', () => {
 
   it('logs a missing command as an error and still resolves', async () => {
     consoleLog.clear()
-    const r = await runHidden('operant-no-such-command', [], { source: 'codegraph' })
+    const r = await runHidden('foreman-no-such-command', [], { source: 'codegraph' })
     expect(r.code).toBeNull()
     expect(consoleLog.list({ source: 'codegraph' }).some((l) => l.error)).toBe(true)
   })

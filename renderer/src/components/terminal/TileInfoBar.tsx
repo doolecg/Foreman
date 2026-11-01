@@ -31,7 +31,7 @@ function Item({ label, children, title, shrink }: { label: string; children: Rea
   )
 }
 
-// The thin row under a tile's title: model, context, tokens, cost, folder and branch. Values Operant cannot observe show as n/a.
+// The thin row under a tile's title: model, context, tokens, cost, folder and branch. Values Foreman cannot observe show as n/a.
 const TONE_DOT: Record<TileStatusTone, string> = {
   exited: 'bg-destructive',
   warn: 'bg-warning',

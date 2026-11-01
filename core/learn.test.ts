@@ -25,7 +25,7 @@ describe('learning loop', () => {
   beforeEach(() => {
     store = new Store(':memory:')
     crewId = store.createCrew('shop', '/code/shop').id
-    dir = mkdtempSync(join(tmpdir(), 'operant-learn-'))
+    dir = mkdtempSync(join(tmpdir(), 'foreman-learn-'))
     // controlled applies low-risk lessons; the trivial-session gate is off here because these transcripts have no user turns.
     settings = { ...DEFAULT_LEARN_SETTINGS, hindsight: true, codegraph: true, review: 'auto', mode: 'controlled', minUserTurns: 0, minTokens: 0 }
     answers = []
@@ -85,7 +85,7 @@ describe('learning loop', () => {
     answers.push(JSON.stringify([{ kind: 'convention', text: 'The user prefers short replies', scope: 'user', files: [], symbols: [] }]))
     await svc.onConversationEnd(crewId, finishedRun())
     const [file] = readdirSync(join(dir, 'memory')).filter((f) => f !== 'MEMORY.md')
-    expect(file).toMatch(/^operant_user_/)
+    expect(file).toMatch(/^foreman_user_/)
     expect(readFileSync(join(dir, 'memory', file!), 'utf8')).toContain('type: user')
   })
 
@@ -293,7 +293,7 @@ describe('learning loop', () => {
   })
 
   it('runs the learn call in the project and adds read-only CodeGraph only when asked and indexed', async () => {
-    const proj = mkdtempSync(join(tmpdir(), 'operant-learn-proj-'))
+    const proj = mkdtempSync(join(tmpdir(), 'foreman-learn-proj-'))
     const started: Array<{ cwd: string; mcpConfig?: string; allowedTools?: string }> = []
     const adapter = { start: async (o: { cwd: string; mcpConfig?: string; allowedTools?: string }) => (started.push(o), { done: Promise.resolve({ ok: true, text: '[]' }), stop: async () => undefined }) }
     const model = claudeLearnModel(undefined, { adapter })

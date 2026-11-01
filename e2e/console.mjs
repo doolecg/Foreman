@@ -10,9 +10,9 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-console-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-console-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-console-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-console-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-console-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-console-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 const SECRET = 'sk-e2e-secret-123456'
@@ -22,17 +22,17 @@ writeFileSync(
 )
 
 const env = e2eEnv({ dataDir, claudeDir })
-const packaged = process.env.OPERANT_E2E_EXE
+const packaged = process.env.FOREMAN_E2E_EXE
 
 let app = null
 try {
   app = await electron.launch(packaged ? { executablePath: packaged, args: [], env } : { args: ['.'], env })
   const page = await app.firstWindow()
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  await page.getByText('Welcome to Operant').waitFor()
-  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  await page.getByText('Welcome to Foreman').waitFor()
+  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
 
   const crew = await inv('crews:create', { name: 'console-demo', folder: project })
   await page.locator('[data-crew-row]').getByText('console-demo', { exact: true }).click({ position: { x: 4, y: 4 } })

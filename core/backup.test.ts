@@ -29,12 +29,12 @@ describe('backup bundle', () => {
     const tampered = JSON.parse(JSON.stringify(b))
     tampered.files['settings.json'] = tampered.files['settings.json'].replace('7', '9')
     expect(() => verifyBackup(JSON.stringify(tampered))).toThrow(/Checksum mismatch in settings.json/)
-    expect(() => verifyBackup('{"format":"other"}')).toThrow(/not an Operant backup/)
+    expect(() => verifyBackup('{"format":"other"}')).toThrow(/not a Foreman backup/)
     expect(() => verifyBackup('not json')).toThrow(/not valid JSON/)
   })
 
   it('keeps only the newest five automatic snapshots and never prunes a manual backup', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'operant-prune-'))
+    const dir = mkdtempSync(join(tmpdir(), 'foreman-prune-'))
     try {
       for (let i = 0; i < 7; i++) writeBackup(dir, buildBackup({ 'settings.json': { i } }, 'auto', Date.UTC(2026, 0, 1 + i)), AUTO_PREFIX)
       writeBackup(dir, buildBackup({ 'settings.json': {} }, 'manual', Date.UTC(2025, 0, 1)))
@@ -61,7 +61,7 @@ describe('backup and restore through the app services', () => {
     store = new Store(':memory:')
     store.createCrew('shop', '/code/shop')
     clock = Date.UTC(2026, 9, 9, 10)
-    dir = mkdtempSync(join(tmpdir(), 'operant-backup-'))
+    dir = mkdtempSync(join(tmpdir(), 'foreman-backup-'))
     settings = sanitizeSettings({ ...DEFAULT_SETTINGS, dailyBudgetUsd: 7 })
     learn = new LearnService({
       store,
@@ -99,7 +99,7 @@ describe('backup and restore through the app services', () => {
     const kept = store.createPreset({ name: 'keep me', agent: 'claude', model: '', permissionMode: 'default', roleText: 'Keep this text.' })
     const before = { settings: structuredClone(settings) }
     const entry = ops.createBackup('before')
-    expect(entry.name.startsWith('operant-backup-')).toBe(true)
+    expect(entry.name.startsWith('foreman-backup-')).toBe(true)
     expect(readdirSync(dir)).toContain(entry.name)
 
     // mutate: settings change, a preset is removed and renamed text, a team is added

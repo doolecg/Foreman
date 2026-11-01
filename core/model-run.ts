@@ -78,7 +78,7 @@ export function assertFakeClaude(env: NodeJS.ProcessEnv = process.env, cli: 'cla
 
 // A settings file whose only content turns hooks off; `claude --settings` layers it over the user's own settings.
 export function noHooksSettingsFile(dir: string = tmpdir()): string {
-  const file = join(dir, 'operant-claude-no-hooks.json')
+  const file = join(dir, 'foreman-claude-no-hooks.json')
   mkdirSync(dir, { recursive: true })
   writeFileSync(file, '{"disableAllHooks":true}\n')
   return file

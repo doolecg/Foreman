@@ -436,7 +436,7 @@ export async function gitStageHunk(folder: string, ref: GitHunkRef, stage: boole
     const patch = hunkPatch(d.out, ref)
     if (patch === null) return failure('The file changed since it was shown: refresh and try again')
     if (patch.includes('�')) return failure('This file is not plain UTF-8 text: stage the whole file')
-    const dir = await mkdtemp(join(tmpdir(), 'operant-patch-'))
+    const dir = await mkdtemp(join(tmpdir(), 'foreman-patch-'))
     try {
       const file = join(dir, 'hunk.patch')
       await writeFile(file, patch, 'utf8')
@@ -463,7 +463,7 @@ export async function gitCommit(folder: string, message: string, amend = false):
   return exclusive(repo.root, async () => {
     if (!amend && !(await readStatus(repo)).files.some((f) => !f.untracked && !f.conflicted && f.x !== '.')) return failure('Nothing is staged: stage files first')
     if (amend && !(await hasHead(repo))) return failure('There is no commit to amend yet')
-    const dir = await mkdtemp(join(tmpdir(), 'operant-msg-'))
+    const dir = await mkdtemp(join(tmpdir(), 'foreman-msg-'))
     try {
       const file = join(dir, 'COMMIT_MSG')
       await writeFile(file, text, 'utf8')

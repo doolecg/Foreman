@@ -3,7 +3,7 @@ import type { PresetFileEntry, PresetImportItem } from '../shared/ops'
 
 // Preset files: one JSON document of presets (their launch settings and guidance text). Built-ins export like any
 // preset; importing never recreates a built-in, it adds a copy the user owns.
-const FORMAT = 'operant-presets'
+const FORMAT = 'foreman-presets'
 const FILE_MAX = 1_000_000
 const PRESETS_MAX = 200
 const NAME_MAX = 80
@@ -28,7 +28,7 @@ export function exportPresets(presets: Preset[], filename?: string): ExportText 
     roleText: p.roleText,
   }))
   const one = presets.length === 1 ? presets[0]!.name.replace(/[^\w-]+/g, '-').toLowerCase() : 'presets'
-  return { filename: filename ?? `operant-preset-${one}.json`, mime: 'application/json', text: JSON.stringify({ format: FORMAT, version: 1, presets: out }, null, 2) }
+  return { filename: filename ?? `foreman-preset-${one}.json`, mime: 'application/json', text: JSON.stringify({ format: FORMAT, version: 1, presets: out }, null, 2) }
 }
 
 // Reads a preset file and says, per preset, whether it adds, is skipped (a preset of that name exists) or is refused.
@@ -42,7 +42,7 @@ export function parsePresetFile(text: string, existingNames: string[]): PresetIm
     throw new Error('That file is not valid JSON')
   }
   const d = doc as { format?: unknown; presets?: unknown }
-  if (!d || d.format !== FORMAT || !Array.isArray(d.presets)) throw new Error('That is not an Operant preset file')
+  if (!d || (d.format !== FORMAT && d.format !== 'operant-presets') || !Array.isArray(d.presets)) throw new Error('That is not a Foreman preset file')
   if (d.presets.length > PRESETS_MAX) throw new Error(`A preset file holds at most ${PRESETS_MAX} presets`)
   const taken = new Set(existingNames.map((n) => n.toLowerCase()))
   return d.presets.map((raw: unknown, i): PresetImportItem => {

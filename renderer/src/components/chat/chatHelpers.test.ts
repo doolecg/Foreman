@@ -26,10 +26,10 @@ describe('formatting', () => {
 
   it('names saved images', () => {
     const at = new Date(2026, 9, 11, 14, 23, 5)
-    expect(imageFileName('image/png', at)).toBe('operant-image-20261011-142305.png')
-    expect(imageFileName('image/jpeg', at, 1)).toBe('operant-image-20261011-142305-2.jpg')
-    expect(imageFileName('image/svg+xml', at)).toBe('operant-image-20261011-142305.svg')
-    expect(imageFileName('', at)).toBe('operant-image-20261011-142305.png')
+    expect(imageFileName('image/png', at)).toBe('foreman-image-20261011-142305.png')
+    expect(imageFileName('image/jpeg', at, 1)).toBe('foreman-image-20261011-142305-2.jpg')
+    expect(imageFileName('image/svg+xml', at)).toBe('foreman-image-20261011-142305.svg')
+    expect(imageFileName('', at)).toBe('foreman-image-20261011-142305.png')
   })
 
   it('formats durations', () => {

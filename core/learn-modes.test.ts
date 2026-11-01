@@ -27,7 +27,7 @@ describe('learn modes, budgets and records', () => {
   beforeEach(() => {
     store = new Store(':memory:')
     crewId = store.createCrew('shop', '/code/shop').id
-    dir = mkdtempSync(join(tmpdir(), 'operant-modes-'))
+    dir = mkdtempSync(join(tmpdir(), 'foreman-modes-'))
     settings = { ...DEFAULT_LEARN_SETTINGS, hindsight: true, codegraph: true, mode: 'controlled', review: 'auto', minUserTurns: 3, minTokens: 100 }
     answers = []
     calls = []
@@ -179,7 +179,7 @@ describe('learn modes, budgets and records', () => {
     answers.push(one({ scope: 'project', text: 'Cart totals use integer cents only' }))
     await svc.onConversationEnd(crewId, 's2')
     expect(retained.map((r) => r.bank)).toEqual([SOUL_BANK, bankFor('/code/shop')])
-    expect(SOUL_BANK).toBe('operant-soul')
+    expect(SOUL_BANK).toBe('foreman-soul')
   })
 
   it('a limit reached in the aux budget stops the run with its label', async () => {
@@ -189,13 +189,13 @@ describe('learn modes, budgets and records', () => {
       hindsight: { retain: async () => ({ ok: true }), recall: async () => ({ ok: true, items: [] }), status: async () => ({ url: '', managed: true, state: 'running', detail: '' }) },
       git: async () => '',
       model: async () => {
-        throw new AuxLimitError('local limit', "Operant's daily limit of 200 model calls is reached", true)
+        throw new AuxLimitError('local limit', "Foreman's daily limit of 200 model calls is reached", true)
       },
       settings: () => settings,
       transcript: () => tail,
     })
     const r = await svc2.onConversationEnd(crewId, 's1')
-    expect(r!.error).toBe("local limit: Operant's daily limit of 200 model calls is reached (confirm to continue)")
+    expect(r!.error).toBe("local limit: Foreman's daily limit of 200 model calls is reached (confirm to continue)")
   })
 
   it('advanced applies a validated skill draft and rollback removes it', async () => {

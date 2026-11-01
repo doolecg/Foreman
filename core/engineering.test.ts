@@ -19,7 +19,7 @@ function setup() {
     mkdirSync(dirname(join(builtin, rel)), { recursive: true })
     writeFileSync(join(builtin, rel), text)
   }
-  put('engineering/.claude-plugin/plugin.json', '{"name":"operant-engineering"}')
+  put('engineering/.claude-plugin/plugin.json', '{"name":"foreman-engineering"}')
   put('engineering/skills/flow/SKILL.md', 'flow v1')
   put('factory/skills/factory/SKILL.md', 'factory v1')
   const read = (rel: string) => readFileSync(join(user, rel), 'utf8')
@@ -31,7 +31,7 @@ describe('engineering pack', () => {
     const { builtin, user, read } = setup()
     syncPack(builtin, user)
     expect(read('engineering/skills/flow/SKILL.md')).toBe('flow v1')
-    expect(read('engineering/.claude-plugin/plugin.json')).toContain('operant-engineering')
+    expect(read('engineering/.claude-plugin/plugin.json')).toContain('foreman-engineering')
     expect(read('factory/skills/factory/SKILL.md')).toBe('factory v1')
     const manifest = JSON.parse(read('.manifest.json'))
     expect(Object.keys(manifest).sort()).toEqual(['engineering/.claude-plugin/plugin.json', 'engineering/skills/flow/SKILL.md', 'factory/skills/factory/SKILL.md'])

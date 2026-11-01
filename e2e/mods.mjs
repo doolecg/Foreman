@@ -13,9 +13,9 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-mods-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-mods-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-mods-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-mods-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-mods-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-mods-claude-'))
 const claudeDir = claudeHome(claudeRoot, { trust: [project] })
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 writeFileSync(join(project, 'app.ts'), 'export const a = 1\n')
@@ -26,15 +26,15 @@ const app = await electron.launch({ args: ['.'], env })
 try {
   const page = await app.firstWindow()
   await page.setViewportSize({ width: 1920, height: 1080 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
   const until = async (label, fn, timeout) => {
     for (const end = Date.now() + timeout; Date.now() < end; await page.waitForTimeout(250)) if (await fn().catch(() => false)) return
     throw new Error(`timed out waiting for ${label}`)
   }
 
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
   await inv('crews:create', { name: 'mods', folder: project })
   await inv('settings:set', { mainCli: 'claude', mods: { enabled: true, mods: { subagents: true } }, infoBar: true })
   await page.locator('[data-crew-row]').getByText('mods', { exact: true }).click({ position: { x: 4, y: 4 } })

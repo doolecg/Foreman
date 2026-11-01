@@ -8,7 +8,7 @@ import { _electron as electron } from 'playwright-core'
 import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 import { startPopupSite } from './fixtures/site/popups.mjs'
 
-const root = mkdtempSync(join(tmpdir(), 'operant-popups-e2e-'))
+const root = mkdtempSync(join(tmpdir(), 'foreman-popups-e2e-'))
 const dataDir = join(root, 'data')
 const proj = join(root, 'proj')
 for (const d of [dataDir, proj]) mkdirSync(d, { recursive: true })
@@ -33,9 +33,9 @@ try {
   let output = ''
   for (const st of [app.process().stdout, app.process().stderr]) st?.on('data', (c) => (output += String(c)))
   const page = await app.firstWindow()
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  const inv = (c, ...a) => page.evaluate(([ch, args]) => window.operant.invoke(ch, ...args), [c, a])
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  const inv = (c, ...a) => page.evaluate(([ch, args]) => window.foreman.invoke(ch, ...args), [c, a])
   const contents = () => app.evaluate(({ webContents }) => webContents.getAllWebContents().map((w) => ({ id: w.id, url: w.getURL() })))
   const run = (id, code) => app.evaluate(({ webContents }, [i, c]) => webContents.fromId(i).executeJavaScript(c, true), [id, code])
   const idOf = async (part) => (await contents()).find((c) => c.url.startsWith(base) && c.url.includes(part))?.id

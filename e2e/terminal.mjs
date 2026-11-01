@@ -12,9 +12,9 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-term-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-term-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-term-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-term-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-term-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-term-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 writeFileSync(join(project, 'app.ts'), 'export const a = 1\n')
@@ -25,8 +25,8 @@ const app = await electron.launch({ args: ['.'], env })
 try {
   const page = await app.firstWindow()
   await page.setViewportSize({ width: 1920, height: 1080 })
-  await page.waitForFunction(() => !!window.operant)
-  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+  await page.waitForFunction(() => !!window.foreman)
+  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
   await inv('settings:set', { setupDone: true })
   const poll = async (label, fn, timeout = 15_000) => {
     for (const end = Date.now() + timeout; Date.now() < end; await page.waitForTimeout(200)) if (await fn()) return
@@ -35,7 +35,7 @@ try {
   const tiles = () => page.locator('[data-tile]')
   const rectOf = (loc) => loc.evaluate((e) => ({ x: e.offsetLeft, y: e.offsetTop, w: e.offsetWidth, h: e.offsetHeight }))
 
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
   await inv('crews:create', { name: 'tiles', folder: project })
   await inv('settings:set', { tiles: { layout: 'dwindle', gaps: 6 } })
   await page.locator('[data-crew-row]').getByText('tiles', { exact: true }).click({ position: { x: 4, y: 4 } })

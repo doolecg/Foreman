@@ -16,7 +16,7 @@ export interface NoticeState {
   unread: number
 }
 
-const KEY = 'operant.notices'
+const KEY = 'foreman.notices'
 const CAP = 100
 
 function load(): NoticeState {

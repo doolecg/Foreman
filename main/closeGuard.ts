@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import type { Operant } from '../core/operant'
+import type { Foreman } from '../core/foreman'
 import { shouldConfirmAppClose, type RunningCounts } from '../shared/notify'
 import { push } from './ipc'
 import type { TurnWatch } from './notify'
@@ -8,7 +8,7 @@ import type { TurnWatch } from './notify'
 const SHOWN_MS = 3000
 
 export interface CloseGuardDeps {
-  operant: Operant
+  foreman: Foreman
   turns: TurnWatch
   // Quitting, the OS ending the session, or an update install: never ask then.
   skip(): boolean
@@ -36,9 +36,9 @@ export function attachCloseGuard(win: BrowserWindow, deps: CloseGuardDeps): Clos
 
   const counts = async (): Promise<RunningCounts> => {
     const out: RunningCounts = { claude: 0, opencode: 0, shell: 0, midTurn: false }
-    for (const crew of await deps.operant.handlers['crews:list']()) {
-      for (const s of await deps.operant.handlers['scratch:list'](crew.id)) {
-        if (!(await deps.operant.handlers['scratch:status'](s.id)).running) continue
+    for (const crew of await deps.foreman.handlers['crews:list']()) {
+      for (const s of await deps.foreman.handlers['scratch:list'](crew.id)) {
+        if (!(await deps.foreman.handlers['scratch:status'](s.id)).running) continue
         if (s.agent === 'claude') out.claude++
         else if (s.agent === 'opencode') out.opencode++
         else if (s.agent === 'shell') out.shell++
@@ -57,7 +57,7 @@ export function attachCloseGuard(win: BrowserWindow, deps: CloseGuardDeps): Clos
       .catch((): RunningCounts => ({ claude: 0, opencode: 0, shell: 0, midTurn: false }))
       .then((c) => {
         if (win.isDestroyed()) return
-        if (!shouldConfirmAppClose(deps.operant.currentSettings.confirm.closeApp, c)) {
+        if (!shouldConfirmAppClose(deps.foreman.currentSettings.confirm.closeApp, c)) {
           asking = false
           closeNow()
           return

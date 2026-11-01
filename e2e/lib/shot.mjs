@@ -1,5 +1,5 @@
 // Shared e2e screenshot helper. Each shot is saved to docs/specs/screenshots as <name>-<YYYYMMDD-HHmmss>.png.
-// When the run was started from an Operant tile (OPERANT_TOKEN set), the shot is also sent to that tile's chat.
+// When the run was started from a Foreman tile (FOREMAN_TOKEN set), the shot is also sent to that tile's chat.
 import { spawn } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -20,10 +20,10 @@ function freePath(base) {
   return path
 }
 
-// Best effort: a failed or missing operant command never fails the test.
+// Best effort: a failed or missing foreman command never fails the test.
 function sendToTile(file, slug) {
   return new Promise((done) => {
-    const child = spawn('operant', ['shot', file, '--kind', `e2e-${slug}`], { windowsHide: true, stdio: 'ignore' })
+    const child = spawn('foreman', ['shot', file, '--kind', `e2e-${slug}`], { windowsHide: true, stdio: 'ignore' })
     const timer = setTimeout(() => child.kill(), 15_000)
     const finish = () => {
       clearTimeout(timer)
@@ -41,12 +41,12 @@ export async function shot(page, name) {
   if (!existsSync(ignore)) writeFileSync(ignore, '*\n')
 
   await page.waitForTimeout(500)
-  const tmp = mkdtempSync(join(tmpdir(), 'operant-shot-'))
+  const tmp = mkdtempSync(join(tmpdir(), 'foreman-shot-'))
   try {
     await page.screenshot({ path: join(tmp, 'shot.png') })
     const file = freePath(`${slug}-${stamp()}`)
     copyFileSync(join(tmp, 'shot.png'), file)
-    if (process.env.OPERANT_TOKEN) await sendToTile(file, slug)
+    if (process.env.FOREMAN_TOKEN) await sendToTile(file, slug)
     return file
   } finally {
     rmSync(tmp, { recursive: true, force: true })

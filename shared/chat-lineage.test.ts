@@ -49,12 +49,12 @@ describe('parentPath and drillDirection', () => {
 
 describe('buildCrumbs', () => {
   it('lists project, thread and each agent, with every earlier crumb a way back', () => {
-    const c = buildCrumbs('Operant', 'First run', ['a', 'b'], titleOf)
-    expect(c.map((x) => x.label)).toEqual(['Operant', 'First run', 'Spike', 'Explore'])
+    const c = buildCrumbs('Foreman', 'First run', ['a', 'b'], titleOf)
+    expect(c.map((x) => x.label)).toEqual(['Foreman', 'First run', 'Spike', 'Explore'])
     expect(c.map((x) => x.to)).toEqual([[], [], ['a'], null])
   })
   it('marks the thread as current at the main conversation', () => {
-    const c = buildCrumbs('Operant', 'First run', [], titleOf)
+    const c = buildCrumbs('Foreman', 'First run', [], titleOf)
     expect(c.map((x) => x.to)).toEqual([[], null])
   })
   it('leaves out an unnamed project and names an empty thread', () => {

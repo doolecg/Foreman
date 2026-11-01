@@ -1,6 +1,6 @@
 // Embedded browser with a REAL Claude agent (cheapest model): the agent drives the browser panel through the browser MCP
 // while the panel stays visible, then the owner takes control mid-task. Costs a few cents (two short turns on Haiku).
-// A throwaway OPERANT_DATA_DIR and CLAUDE_CONFIG_DIR (a copy of ~/.claude/.credentials.json, deleted at the end, never printed);
+// A throwaway FOREMAN_DATA_DIR and CLAUDE_CONFIG_DIR (a copy of ~/.claude/.credentials.json, deleted at the end, never printed);
 // the real claude is on PATH, the fake one is not.
 // Usage: node e2e/browser-real.mjs [outDir]  (default docs/specs/screenshots)
 import { execFileSync } from 'node:child_process'
@@ -14,14 +14,14 @@ import { startSite } from './fixtures/site/server.mjs'
 const MODEL = 'claude-haiku-5-5'
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const root = mkdtempSync(join(tmpdir(), 'operant-browser-real-'))
+const root = mkdtempSync(join(tmpdir(), 'foreman-browser-real-'))
 const dataDir = join(root, 'data')
 const claudeDir = join(root, 'claude')
 const project = join(root, 'alpha')
 for (const d of [dataDir, claudeDir, project, join(project, '.claude')]) mkdirSync(d, { recursive: true })
 copyFileSync(join(homedir(), '.claude', '.credentials.json'), join(claudeDir, '.credentials.json'))
 // The browser tools are allowed for this throwaway project so the run does not stop on permission prompts.
-writeFileSync(join(project, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: ['mcp__operant-browser'] } }))
+writeFileSync(join(project, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: ['mcp__foreman-browser'] } }))
 const cwd = realpathSync.native(project)
 
 const site = await startSite()
@@ -49,16 +49,16 @@ const poll = async (label, fn, timeout = 20_000) => {
   throw new Error(`timed out waiting for ${label}`)
 }
 
-const env = { ...process.env, OPERANT_BACKGROUND: '1', OPERANT_DATA_DIR: dataDir, CLAUDE_CONFIG_DIR: claudeDir }
-delete env.OPERANT_E2E
+const env = { ...process.env, FOREMAN_BACKGROUND: '1', FOREMAN_DATA_DIR: dataDir, CLAUDE_CONFIG_DIR: claudeDir }
+delete env.FOREMAN_E2E
 let app
 try {
   app = await electron.launch({ args: ['.'], env })
   const page = await app.firstWindow()
   await page.setViewportSize({ width: 1920, height: 1080 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  const inv = (c, ...a) => page.evaluate(([ch, args]) => window.operant.invoke(ch, ...args), [c, a])
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  const inv = (c, ...a) => page.evaluate(([ch, args]) => window.foreman.invoke(ch, ...args), [c, a])
   await inv('settings:set', { mainCli: 'claude', browser: { homeUrl: `${base}/`, autonomy: 'full' } })
   const crew = await inv('crews:create', { name: 'alpha', folder: cwd })
   await page.locator('[data-crew-row]').getByText('alpha', { exact: true }).click({ position: { x: 4, y: 4 } })
@@ -95,7 +95,7 @@ try {
   let r1 = 0
   await check('run 1: the agent logs in, reads the console error and takes a screenshot (panel visible)', async () => {
     r1 = await turn(
-      `Use ONLY the operant-browser MCP tools. Open ${base}/, log in with username test and password test, then call the console messages tool for errors and take one screenshot. Reply with one line: DONE then the console error text.`,
+      `Use ONLY the foreman-browser MCP tools. Open ${base}/, log in with username test and password test, then call the console messages tool for errors and take one screenshot. Reply with one line: DONE then the console error text.`,
     )
     await poll('the AI pill', async () => (await page.getByRole('status').filter({ hasText: 'AI is controlling' }).count()) > 0, 90_000)
     await shot(page, 'ai-controlling')
@@ -103,8 +103,8 @@ try {
     const s = await snap()
     const used = tools(s, r1)
     console.log(`  tools used: ${used.join(', ')}`)
-    ok(used.some((n) => n.startsWith('mcp__operant-browser__')), `no browser tool was used: ${used.join(',')}`)
-    ok(!used.some((n) => /Playwright|playwright|chrome/i.test(n) && !n.startsWith('mcp__operant-browser__')), 'a different browser tool was used')
+    ok(used.some((n) => n.startsWith('mcp__foreman-browser__')), `no browser tool was used: ${used.join(',')}`)
+    ok(!used.some((n) => /Playwright|playwright|chrome/i.test(n) && !n.startsWith('mcp__foreman-browser__')), 'a different browser tool was used')
     ok(/fixture-console-error/.test(lastText(s)) || s.items.slice(r1).some((i) => i.kind === 'tool' && JSON.stringify(i.result ?? '').includes('fixture-console-error')), `the console error was not reported: ${lastText(s).slice(0, 200)}`)
     const b = await inv('browser:state', crew.id)
     ok(b.open && b.tabs.length >= 1, 'the browser closed when the AI finished')
@@ -124,7 +124,7 @@ try {
   // ---- Run 2: Take control mid-task ----
   await check('run 2: Take control pauses the real agent, Let AI continue resumes it', async () => {
     const from = await turn(
-      `Use ONLY the operant-browser MCP tools. Open ${base}/slow?ms=4000, then ${base}/page2, then ${base}/, then take one snapshot. Reply with one line: DONE.`,
+      `Use ONLY the foreman-browser MCP tools. Open ${base}/slow?ms=4000, then ${base}/page2, then ${base}/, then take one snapshot. Reply with one line: DONE.`,
     )
     await poll('AI active', async () => (await inv('browser:state', crew.id)).ai.active, 90_000)
     await page.getByRole('button', { name: 'Take control' }).click()
@@ -149,7 +149,7 @@ try {
   await check('run 3: confirm mode asks before typing a password; Allow AI action lets the agent finish', async () => {
     await inv('settings:set', { browser: { homeUrl: `${base}/`, autonomy: 'confirm' } })
     await inv('browser:navigate', crew.id, (await inv('browser:state', crew.id)).activeTabId, `${base}/logout`).catch(() => undefined)
-    await turn(`Use ONLY the operant-browser MCP tools. Open ${base}/, log in with username test and password test. Reply with one line: DONE.`)
+    await turn(`Use ONLY the foreman-browser MCP tools. Open ${base}/, log in with username test and password test. Reply with one line: DONE.`)
     const allow = page.getByRole('button', { name: 'Allow AI action' })
     for (let i = 0; i < 6; i++) {
       const asked = await allow.waitFor({ timeout: i === 0 ? 120_000 : 15_000 }).then(() => true, () => false)

@@ -1,6 +1,6 @@
 // Splits the "Attached images" block (appended by core/attachments withImages) off a task's text.
 const BLOCK = /\n\nAttached images \(open each with your file-reading tool to see it\):\n((?:- [^\n]+\n?)+)\s*$/
-const INSIDE = /[\\/]\.operant-attachments[\\/][^\\/\n]+[\\/][^\\/\n]+$/
+const INSIDE = /[\\/]\.foreman-attachments[\\/][^\\/\n]+[\\/][^\\/\n]+$/
 
 export function splitAttachedImages(task: string): { text: string; images: string[] } {
   const m = BLOCK.exec(task)

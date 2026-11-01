@@ -1,9 +1,9 @@
-// Embedded browser e2e. No fake claude: the AI path uses the REAL claude (Haiku, forced by the app under OPERANT_E2E) for
+// Embedded browser e2e. No fake claude: the AI path uses the REAL claude (Haiku, forced by the app under FOREMAN_E2E) for
 // one short turn, everything else is driven without an AI. Covers: the browser MCP through the real agent and target
 // filtering (A), security (B), persistence across a restart (C), the human browser controls (D) and site compatibility (E).
 // Take control with a real agent lives in e2e/browser-real.mjs.
 // Usage: node e2e/browser.mjs [outDir]  (default docs/specs/screenshots)
-// A throwaway OPERANT_DATA_DIR and CLAUDE_CONFIG_DIR (a copy of the login, deleted at the end, never printed).
+// A throwaway FOREMAN_DATA_DIR and CLAUDE_CONFIG_DIR (a copy of the login, deleted at the end, never printed).
 import { execFileSync, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { networkInterfaces, tmpdir } from 'node:os'
@@ -16,7 +16,7 @@ import { COOKIE_VALUE, startSite } from './fixtures/site/server.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const root = mkdtempSync(join(tmpdir(), 'operant-browser-e2e-'))
+const root = mkdtempSync(join(tmpdir(), 'foreman-browser-e2e-'))
 const dataDir = join(root, 'data')
 const alphaRaw = join(root, 'alpha')
 const beta = join(root, 'beta')
@@ -24,11 +24,11 @@ for (const d of [dataDir, beta, join(alphaRaw, '.claude')]) mkdirSync(d, { recur
 const alpha = realpathSync.native(alphaRaw)
 const claudeDir = claudeHome(root)
 // The browser tools are allowed for this throwaway project so the run does not stop on permission prompts.
-writeFileSync(join(alphaRaw, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: ['mcp__operant-browser'] } }))
-// A SessionStart hook (user settings of the throwaway config dir) saves the tile's OPERANT_TOKEN to a file in the throwaway
+writeFileSync(join(alphaRaw, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: ['mcp__foreman-browser'] } }))
+// A SessionStart hook (user settings of the throwaway config dir) saves the tile's FOREMAN_TOKEN to a file in the throwaway
 // root, so the security checks can call the MCP endpoint. The token is never printed.
 const fwd = (p) => p.replaceAll('\\', '/')
-writeFileSync(join(root, 'dump-env.mjs'), "import { writeFileSync } from 'node:fs'\nwriteFileSync(process.argv[2], JSON.stringify({ token: process.env.OPERANT_TOKEN ?? '' }))\n")
+writeFileSync(join(root, 'dump-env.mjs'), "import { writeFileSync } from 'node:fs'\nwriteFileSync(process.argv[2], JSON.stringify({ token: process.env.FOREMAN_TOKEN ?? '' }))\n")
 writeFileSync(
   join(claudeDir, 'settings.json'),
   JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `node "${fwd(join(root, 'dump-env.mjs'))}" "${fwd(join(root, 'conn.json'))}"` }] }] } }),
@@ -61,7 +61,7 @@ const ok = (cond, msg) => {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-const packaged = process.env.OPERANT_E2E_EXE
+const packaged = process.env.FOREMAN_E2E_EXE
 let app = null
 let page = null
 let output = ''
@@ -73,10 +73,10 @@ const launch = async () => {
   app.process().stderr?.on('data', grab)
   page = await app.firstWindow()
   await page.setViewportSize({ width: 1920, height: 1080 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
 }
-const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
 const poll = async (label, fn, timeout = 15_000) => {
   for (const end = Date.now() + timeout; Date.now() < end; await sleep(150)) {
     const v = await fn().catch(() => false)
@@ -145,7 +145,7 @@ let crewB = 0
 
 try {
   await launch()
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
   await inv('settings:set', { mainCli: 'claude', browser: { homeUrl: `${base}/`, autonomy: 'full' } })
   crewA = (await inv('crews:create', { name: 'alpha', folder: alpha })).id
   crewB = (await inv('crews:create', { name: 'beta', folder: beta })).id
@@ -254,7 +254,7 @@ try {
   await poll('the tile token file', async () => existsSync(join(root, 'conn.json')), 20_000).catch(() => undefined)
   if (urlFile && existsSync(join(root, 'conn.json'))) {
     const token = JSON.parse(readFileSync(join(root, 'conn.json'), 'utf8')).token
-    const url = JSON.parse(readFileSync(urlFile, 'utf8')).mcpServers['operant-browser'].url
+    const url = JSON.parse(readFileSync(urlFile, 'utf8')).mcpServers['foreman-browser'].url
     if (/^[0-9a-f]{64}$/.test(token)) aiConn = { url, headers: { Authorization: `Bearer ${token}` } }
   }
 
@@ -272,7 +272,7 @@ try {
   await check('A real agent: browser tools exist (navigate, tabs, run_code), tabs/pages show only panel tabs', async () => {
     const from = (await snap()).items.length
     await inv('chat:send', tile.id, {
-      text: `Use ONLY the operant-browser MCP tools (load their schemas with ToolSearch if they are deferred). Do exactly these calls in order: 1) browser_navigate to ${base}/  2) browser_tabs with action "list"  3) browser_run_code_unsafe with code: async (page) => JSON.stringify(page.context().pages().map((p) => p.url()))  Call nothing else. Reply with one line: DONE then the JSON result of step 3.`,
+      text: `Use ONLY the foreman-browser MCP tools (load their schemas with ToolSearch if they are deferred). Do exactly these calls in order: 1) browser_navigate to ${base}/  2) browser_tabs with action "list"  3) browser_run_code_unsafe with code: async (page) => JSON.stringify(page.context().pages().map((p) => p.url()))  Call nothing else. Reply with one line: DONE then the JSON result of step 3.`,
     })
     await poll('the turn to start', async () => (await snap()).turn.phase !== 'idle', 30_000)
     await poll('the turn to finish', async () => (await snap()).turn.phase === 'idle', 240_000)
@@ -282,8 +282,8 @@ try {
     console.log(`  tools used: ${turnTools.join(', ')}`)
     console.log(`  cost: ${s.costUsd ?? 'n/a'} USD`)
     const named = (re) => items.filter((i) => re.test(i.name))
-    ok(named(/^mcp__operant-browser__browser_navigate$/).length > 0, 'browser_navigate was not used')
-    ok(!turnTools.some((n) => /playwright|chrome/i.test(n) && !n.startsWith('mcp__operant-browser__')), 'a different browser tool was used')
+    ok(named(/^mcp__foreman-browser__browser_navigate$/).length > 0, 'browser_navigate was not used')
+    ok(!turnTools.some((n) => /playwright|chrome/i.test(n) && !n.startsWith('mcp__foreman-browser__')), 'a different browser tool was used')
     const tabs = named(/browser_tabs$/)
     const run = named(/browser_run_code/)
     ok(tabs.length > 0, `browser_tabs was not used (${turnTools.join(',')})`)

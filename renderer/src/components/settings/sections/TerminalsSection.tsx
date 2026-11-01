@@ -91,7 +91,7 @@ export function TerminalsSection() {
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div className="space-y-1.5">
             <CardTitle className="text-base">CLI capabilities</CardTitle>
-            <CardDescription>What Operant found on this PC. A CLI that is missing or cannot be probed is shown as not installed; the rest of the app keeps working.</CardDescription>
+            <CardDescription>What Foreman found on this PC. A CLI that is missing or cannot be probed is shown as not installed; the rest of the app keeps working.</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
             <RefreshCw className={cn(refresh.isPending && 'animate-spin')} />
@@ -101,7 +101,7 @@ export function TerminalsSection() {
         <CardContent className="grid gap-4 md:grid-cols-2">
           {caps.isError && (
             <p role="alert" className="text-destructive text-sm md:col-span-2">
-              The capability check failed. Retry, or restart Operant.
+              The capability check failed. Retry, or restart Foreman.
             </p>
           )}
           {caps.data &&

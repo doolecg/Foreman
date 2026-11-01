@@ -7,10 +7,10 @@ export type { BackupEntry }
 
 // One JSON file holds the whole backup: each part is a JSON document kept as text, and the manifest gives the sha256
 // and size of every part. A restore checks all of them before it changes anything.
-export const BACKUP_FORMAT = 'operant-backup'
+export const BACKUP_FORMAT = 'foreman-backup'
 export const BACKUP_VERSION = 1
 export const AUTO_PREFIX = 'pre-update-'
-export const MANUAL_PREFIX = 'operant-backup-'
+export const MANUAL_PREFIX = 'foreman-backup-'
 export const KEEP_AUTO = 5
 
 // The parts a backup holds, restored in this order.
@@ -63,13 +63,13 @@ export function verifyBackup(text: string): { bundle: BackupBundle; parts: Parti
   try {
     doc = JSON.parse(text)
   } catch {
-    throw new Error('That file is not valid JSON, so it is not an Operant backup. Nothing was restored.')
+    throw new Error('That file is not valid JSON, so it is not a Foreman backup. Nothing was restored.')
   }
   const b = doc as Partial<BackupBundle>
-  if (!b || b.format !== BACKUP_FORMAT || typeof b.version !== 'number' || !b.manifest?.files || !b.files) {
-    throw new Error('That is not an Operant backup. Nothing was restored.')
+  if (!b || (b.format !== BACKUP_FORMAT && (b.format as unknown) !== 'operant-backup') || typeof b.version !== 'number' || !b.manifest?.files || !b.files) {
+    throw new Error('That is not a Foreman backup. Nothing was restored.')
   }
-  if (b.version > BACKUP_VERSION) throw new Error(`This backup is version ${b.version}; this Operant reads version ${BACKUP_VERSION} or older. Nothing was restored.`)
+  if (b.version > BACKUP_VERSION) throw new Error(`This backup is version ${b.version}; this Foreman reads version ${BACKUP_VERSION} or older. Nothing was restored.`)
   const listed = Object.keys(b.manifest.files)
   for (const name of Object.keys(b.files)) {
     if (!listed.includes(name)) throw new Error(`The backup holds ${name}, which its manifest does not list. Nothing was restored.`)

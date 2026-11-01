@@ -1,5 +1,5 @@
 // Anthropic first-party list prices, USD per million tokens (as of 2026-09).
-// Spend shown in Operant is an estimate from transcript usage, not a bill.
+// Spend shown in Foreman is an estimate from transcript usage, not a bill.
 interface Rate {
   input: number
   output: number

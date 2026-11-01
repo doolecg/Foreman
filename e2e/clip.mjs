@@ -16,9 +16,9 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 const phase = process.argv[2] ?? 'after'
 const outDir = resolve(process.argv[3] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-clip-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-clip-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-clip-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-clip-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-clip-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-clip-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 writeFileSync(join(project, 'app.ts'), 'export const a = 1\n')
@@ -35,9 +35,9 @@ const SCALES = [1, 1.25, 1.5, 0] // 0 = automatic
 const app = await electron.launch({ args: ['.'], env })
 try {
   const page = await app.firstWindow()
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
   const win = (size) => app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].setContentSize(s[0], s[1]), size)
 
   // Every visible terminal: its rows, the rows drawn past its tile's visible body, and where its footer row sits.
@@ -85,7 +85,7 @@ try {
 
   const setScale = (s) => inv('settings:set', { uiScale: s })
 
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
   await inv('crews:create', { name: 'clip', folder: project })
   await inv('settings:set', { mainCli: 'claude' })
   await page.locator('[data-crew-row]').getByText('clip', { exact: true }).click({ position: { x: 4, y: 4 } })

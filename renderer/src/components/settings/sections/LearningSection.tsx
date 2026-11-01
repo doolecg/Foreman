@@ -209,7 +209,7 @@ export function LearningSection() {
           <CardDescription>When and where lessons are kept. See the Memory page to read, edit and delete them.</CardDescription>
         </CardHeader>
         <CardContent className="divide-y">
-          <Row label="When to learn" info="Turns the learning step on or off. When on, Operant reads each Claude Code session once it ends and keeps any lessons worth remembering. When off, nothing new is learned and no lessons are added to briefs. It is on by default." hint={WHEN_HINT[when]} htmlFor="learn-enabled">
+          <Row label="When to learn" info="Turns the learning step on or off. When on, Foreman reads each Claude Code session once it ends and keeps any lessons worth remembering. When off, nothing new is learned and no lessons are added to briefs. It is on by default." hint={WHEN_HINT[when]} htmlFor="learn-enabled">
             <Select value={when} onValueChange={(v) => save.mutate({ learn: { enabled: v === 'finished' } })}>
               <SelectTrigger id="learn-enabled" className="w-52">
                 <SelectValue />
@@ -260,7 +260,7 @@ export function LearningSection() {
               <Row label="Changes per review" info="Sets the most lessons one review may add or change, so a single session cannot flood your memory. Once the cap is reached the review stops making changes. 0 means no limit, which is the default." hint="0 means no limit." htmlFor="learn-changes">
                 <NumberField id="learn-changes" value={l.maxChangesPerReview} min={0} max={100} onCommit={(n) => save.mutate({ learn: { maxChangesPerReview: n } })} />
               </Row>
-              <Row label="Validation retries" info="If the AI replies in a form Operant cannot read, it is asked again up to this many times. More retries rescue more reviews but can use more of your plan or credit. The default is 1." htmlFor="learn-retries">
+              <Row label="Validation retries" info="If the AI replies in a form Foreman cannot read, it is asked again up to this many times. More retries rescue more reviews but can use more of your plan or credit. The default is 1." htmlFor="learn-retries">
                 <NumberField id="learn-retries" value={l.validationRetries} min={0} max={5} onCommit={(n) => save.mutate({ learn: { validationRetries: n } })} />
               </Row>
               <Row info="Sets the most money learning may spend in one day. Once reached, further reviews are blocked until the next day. If you also set a daily cap for background AI jobs, the lower of the two applies. 0 means no cap, which is the default." label={`Daily budget (${symbol})`} hint="0 means no cap." htmlFor="learn-usd">
@@ -341,7 +341,7 @@ export function LearningSection() {
           </Row>
           {local && (
             <>
-              <Row label="Endpoint" info="Where Operant finds your local AI server, such as LM Studio or Ollama. Any server that speaks the OpenAI format works. If the address is wrong, the list of models cannot load and learning with this server fails. The default is http://127.0.0.1:1234." hint="LM Studio is http://127.0.0.1:1234. Ollama is http://127.0.0.1:11434. Any OpenAI-compatible server works.">
+              <Row label="Endpoint" info="Where Foreman finds your local AI server, such as LM Studio or Ollama. Any server that speaks the OpenAI format works. If the address is wrong, the list of models cannot load and learning with this server fails. The default is http://127.0.0.1:1234." hint="LM Studio is http://127.0.0.1:1234. Ollama is http://127.0.0.1:11434. Any OpenAI-compatible server works.">
                 <CommitInput id="learn-local-url" aria-label="Local server endpoint" className="w-72 font-mono text-xs" value={l.localUrl} onCommit={(v) => save.mutate({ learn: { localUrl: v } })} />
               </Row>
               {localModels.data?.error && (
@@ -357,7 +357,7 @@ export function LearningSection() {
                   </Button>
                 </div>
               </Row>
-              <Row label="Allow plain http outside my network" info="Operant normally refuses a plain http address that is not on this PC or your home network, because what you send could be read in transit. Turning this on allows it anyway. Leave it off unless you trust the connection. It is off by default." hint="Off refuses an http endpoint that is not on this PC or the LAN, since prompts would travel unencrypted." htmlFor="learn-local-insecure">
+              <Row label="Allow plain http outside my network" info="Foreman normally refuses a plain http address that is not on this PC or your home network, because what you send could be read in transit. Turning this on allows it anyway. Leave it off unless you trust the connection. It is off by default." hint="Off refuses an http endpoint that is not on this PC or the LAN, since prompts would travel unencrypted." htmlFor="learn-local-insecure">
                 <Switch id="learn-local-insecure" checked={l.localInsecureOk} onCheckedChange={(v) => save.mutate({ learn: { localInsecureOk: v } })} />
               </Row>
               <p className="text-muted-foreground py-3 text-xs">

@@ -1,6 +1,6 @@
 {
-  "name": "operant2",
-  "productName": "Operant 3",
+  "name": "foreman",
+  "productName": "Foreman",
   "version": "3.6.1",
   "description": "Run coding agents across your projects from one dashboard.",
   "license": "MIT",
@@ -11,9 +11,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/doolecg/Operant.git"
+    "url": "https://github.com/doolecg/Foreman.git"
   },
-  "homepage": "https://github.com/doolecg/Operant",
+  "homepage": "https://github.com/doolecg/Foreman",
   "type": "module",
   "main": "out/main/index.cjs",
   "scripts": {

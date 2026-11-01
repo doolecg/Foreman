@@ -23,7 +23,7 @@ export interface ModAvailability {
 }
 
 export interface Mod {
-  // 'keepWarm' and 'commandMenu' are Operant features of the Chat view (kind 'chat'), not Claude Code mods.
+  // 'keepWarm' and 'commandMenu' are Foreman features of the Chat view (kind 'chat'), not Claude Code mods.
   id: ModId | 'keepWarm' | 'commandMenu'
   title: string
   // One line for the settings card.
@@ -31,9 +31,9 @@ export interface Mod {
   appliesTo: 'claude'
   icon: LucideIcon
   defaultEnabled: boolean
-  // 'panel': Operant's own panel beside the Claude tile (has a component). 'native': a Claude Code mod, a plugin under
-  // plugin/mods/<id> that Operant loads with --plugin-dir; it draws inside Claude Code, not in Operant.
-  // 'chat': an Operant feature for the Chat view: no plugin, never adds a --plugin-dir.
+  // 'panel': Foreman's own panel beside the Claude tile (has a component). 'native': a Claude Code mod, a plugin under
+  // plugin/mods/<id> that Foreman loads with --plugin-dir; it draws inside Claude Code, not in Foreman.
+  // 'chat': a Foreman feature for the Chat view: no plugin, never adds a --plugin-dir.
   kind: 'panel' | 'native' | 'chat'
   isAvailable?: (capabilities: CapabilityReport | undefined) => ModAvailability
   component?: ComponentType<ModProps>

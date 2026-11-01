@@ -68,7 +68,7 @@ export function ThreadRows({ crew, tabs, active, query, onOpen, onDelete, onArch
       <ConfirmDialog
         open={doomed !== null}
         title="Delete this thread?"
-        description={doomed ? `"${doomed.title}" and its history will be removed from Operant. Claude's own session file stays on disk.` : ''}
+        description={doomed ? `"${doomed.title}" and its history will be removed from Foreman. Claude's own session file stays on disk.` : ''}
         confirmLabel="Delete"
         danger
         onConfirm={() => (doomed && onDelete(doomed), setDoomed(null))}

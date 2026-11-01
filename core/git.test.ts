@@ -186,7 +186,7 @@ describe('command construction', () => {
 })
 
 describe('against a real repository', { timeout: 60_000 }, () => {
-  const root = mkdtempSync(join(tmpdir(), 'operant-gitsvc-'))
+  const root = mkdtempSync(join(tmpdir(), 'foreman-gitsvc-'))
   const repo = join(root, 'repo')
   const sh = (...a: string[]) => execFileSync('git', a, { cwd: repo, windowsHide: true, encoding: 'utf8' })
   const write = (name: string, text: string) => {
@@ -213,7 +213,7 @@ describe('against a real repository', { timeout: 60_000 }, () => {
   })
 
   it('is not a repository outside one', async () => {
-    const plain = mkdtempSync(join(tmpdir(), 'operant-nogit2-'))
+    const plain = mkdtempSync(join(tmpdir(), 'foreman-nogit2-'))
     try {
       expect(await gitStatus(plain)).toBeNull()
       expect(await findRepo(plain)).toBeNull()

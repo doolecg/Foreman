@@ -1,11 +1,11 @@
 import type { McpCli, McpServer, OptionalMcpEntry, OptionalMcpId } from '../shared/types'
 
-// Optional MCP integrations. Operant never installs one by itself: the user clicks Add in Settings, and a preset that
+// Optional MCP integrations. Foreman never installs one by itself: the user clicks Add in Settings, and a preset that
 // names one simply leaves it out while it is not there.
 export interface OptionalMcpDef {
   id: OptionalMcpId
   name: string
-  // The name Operant writes into a CLI's config.
+  // The name Foreman writes into a CLI's config.
   server: string
   // Other names the same server may have in a user's config.
   aliases: string[]
@@ -15,9 +15,9 @@ export interface OptionalMcpDef {
   enables: string
   runtime: { command: string; hint: string }
   needsProject: boolean
-  // A user's own copy has the same name and command, so Operant remembers the entries it wrote instead of matching them.
+  // A user's own copy has the same name and command, so Foreman remembers the entries it wrote instead of matching them.
   recordsWrites?: boolean
-  // The command Operant writes. Checked against PyPI (mcp-server-git 2026.8.18: --repository) and npm (@playwright/mcp 0.0.83).
+  // The command Foreman writes. Checked against PyPI (mcp-server-git 2026.8.18: --repository) and npm (@playwright/mcp 0.0.83).
   launch: (folder: string) => { command: string; args: string[] }
 }
 
@@ -76,17 +76,17 @@ export const aliasesOf = (name: string): string[] => {
   return def ? optionalNames(def) : [name]
 }
 
-// The key of a CLI entry in the record of what Operant wrote.
+// The key of a CLI entry in the record of what Foreman wrote.
 export const writtenKey = (s: Pick<McpServer, 'cli' | 'scope' | 'name'>): string => `${s.cli}:${s.scope}:${s.name}`
 
-// Operant's own entry: the name it writes, with its package on the command line, in a CLI's own config. For a server whose
+// Foreman's own entry: the name it writes, with its package on the command line, in a CLI's own config. For a server whose
 // entries look like a user's copy, only the entries in the record count.
 export function isAppAdded(def: OptionalMcpDef, s: Pick<McpServer, 'cli' | 'scope' | 'name' | 'target' | 'editable'>, written: string[] = []): boolean {
   if (!s.editable || s.name !== def.server || !s.target.includes(def.package)) return false
   return def.recordsWrites ? written.includes(writtenKey(s)) : true
 }
 
-// The same server under another name, or added by hand, or a plugin's copy of it. Operant's built-in CodeGraph is not a
+// The same server under another name, or added by hand, or a plugin's copy of it. Foreman's built-in CodeGraph is not a
 // config entry, so it is never a copy.
 export function isFoundElsewhere(def: OptionalMcpDef, s: Pick<McpServer, 'cli' | 'scope' | 'name' | 'target' | 'editable'>, written: string[] = []): boolean {
   if (isAppAdded(def, s, written) || s.scope === 'builtin') return false
@@ -116,7 +116,7 @@ export function optionalEntry(
     server: def.server,
     status,
     added: own.map((s) => ({ cli: s.cli, scope: s.scope })),
-    // A copy a Claude plugin or connector provides is not Operant's to add or remove.
+    // A copy a Claude plugin or connector provides is not Foreman's to add or remove.
     provided: status === 'found' && other !== undefined && (other.scope === 'plugin' || other.scope === 'connector'),
     ...(status === 'found' && other
       ? {

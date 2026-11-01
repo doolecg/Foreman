@@ -19,16 +19,16 @@ describe('paths', () => {
 
   it('resolves the app data dir per OS', () => {
     expect(appDataDir(env('win32', { APPDATA: 'C:\\Users\\u\\AppData\\Roaming' }))).toBe(
-      join('C:\\Users\\u\\AppData\\Roaming', 'Operant2'),
+      join('C:\\Users\\u\\AppData\\Roaming', 'Foreman'),
     )
-    expect(appDataDir(env('darwin'))).toBe(join('/home/u', 'Library', 'Application Support', 'Operant2'))
-    expect(appDataDir(env('linux'))).toBe(join('/home/u', '.config', 'Operant2'))
-    expect(appDataDir(env('linux', { XDG_CONFIG_HOME: '/cfg' }))).toBe(join('/cfg', 'Operant2'))
-    expect(appDataDir(env('win32', { OPERANT_DATA_DIR: 'D:\\tmp\\op' }))).toBe('D:\\tmp\\op')
+    expect(appDataDir(env('darwin'))).toBe(join('/home/u', 'Library', 'Application Support', 'Foreman'))
+    expect(appDataDir(env('linux'))).toBe(join('/home/u', '.config', 'Foreman'))
+    expect(appDataDir(env('linux', { XDG_CONFIG_HOME: '/cfg' }))).toBe(join('/cfg', 'Foreman'))
+    expect(appDataDir(env('win32', { FOREMAN_DATA_DIR: 'D:\\tmp\\op' }))).toBe('D:\\tmp\\op')
   })
 
-  it('keeps the data folder name pinned across the Operant 3 rename', () => {
-    expect(appDataDir(env('win32', { APPDATA: 'C:\a' }))).toBe(join('C:\a', 'Operant2'))
+  it('keeps the data folder name pinned across the Foreman rename', () => {
+    expect(appDataDir(env('win32', { APPDATA: 'C:\a' }))).toBe(join('C:\a', 'Foreman'))
   })
 
   it('picks a default shell per OS', () => {
@@ -43,7 +43,7 @@ describe('paths', () => {
     afterEach(() => tmp && rmSync(tmp, { recursive: true, force: true }))
 
     it('links a directory so its contents are visible through the link', () => {
-      tmp = mkdtempSync(join(tmpdir(), 'operant-paths-'))
+      tmp = mkdtempSync(join(tmpdir(), 'foreman-paths-'))
       const target = join(tmp, 'target')
       const link = join(tmp, 'nested', 'link')
       mkdirSync(target)

@@ -1,6 +1,6 @@
 // Main Run: exports the code committed on main to build/main-run and runs it there, leaving the working
 // tree untouched. It uses its own data folder (build/profiles/main, outside main-run so it survives the
-// re-export), so it runs beside an installed Operant without touching its data.
+// re-export), so it runs beside an installed Foreman without touching its data.
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -13,7 +13,7 @@ const npm = (args) => {
     cwd: out,
     stdio: 'inherit',
     shell: process.platform === 'win32',
-    env: { ...process.env, OPERANT_DATA_DIR: process.env.OPERANT_DATA_DIR ?? profile },
+    env: { ...process.env, FOREMAN_DATA_DIR: process.env.FOREMAN_DATA_DIR ?? profile },
   })
   if (r.status !== 0) process.exit(r.status ?? 1)
 }

@@ -11,7 +11,7 @@ describe('saveScreenshot', () => {
   const now = new Date(2026, 9, 11, 13, 5, 9).getTime()
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'operant-shots-'))
+    root = mkdtempSync(join(tmpdir(), 'foreman-shots-'))
     project = join(root, 'proj')
     mkdirSync(project)
     src = join(root, 'a.png')

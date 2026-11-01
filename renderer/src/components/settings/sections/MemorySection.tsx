@@ -135,11 +135,11 @@ export function MemorySection() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Tools</CardTitle>
-          <CardDescription>Both are off until you switch them on. When on and installed, every Claude session Operant starts uses them.</CardDescription>
+          <CardDescription>Both are off until you switch them on. When on and installed, every Claude session Foreman starts uses them.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div id="settings-hindsight" className="scroll-mt-6 space-y-3">
-            <Row label="Use Hindsight" info="Turns on Hindsight, a memory server that stores lessons so later Claude sessions can recall them. When on and installed, Operant starts the local server with the app and gives each session access to it. It is off by default." hint="Lessons are kept in Hindsight and recalled when a session starts. Starts the local server with the app." htmlFor="mem-use-hindsight">
+            <Row label="Use Hindsight" info="Turns on Hindsight, a memory server that stores lessons so later Claude sessions can recall them. When on and installed, Foreman starts the local server with the app and gives each session access to it. It is off by default." hint="Lessons are kept in Hindsight and recalled when a session starts. Starts the local server with the app." htmlFor="mem-use-hindsight">
               <Switch id="mem-use-hindsight" checked={s.learn.hindsight} onCheckedChange={(v) => save.mutate({ learn: { hindsight: v } }, { onError: fail })} />
             </Row>
             <HindsightSection />

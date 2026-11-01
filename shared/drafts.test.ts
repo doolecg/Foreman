@@ -3,12 +3,12 @@ import { draftKey, parseDraftKey, pruneDrafts } from './drafts'
 
 describe('drafts', () => {
   it('formats keys', () => {
-    expect(draftKey('approve', 42)).toBe('operant.draft.approve.42')
-    expect(draftKey('newtask', 3)).toBe('operant.draft.newtask.3')
+    expect(draftKey('approve', 42)).toBe('foreman.draft.approve.42')
+    expect(draftKey('newtask', 3)).toBe('foreman.draft.newtask.3')
   })
   it('parses keys back and rejects others', () => {
-    expect(parseDraftKey('operant.draft.sendback.7')).toEqual({ kind: 'sendback', id: 7 })
-    expect(parseDraftKey('operant.draft.bogus.7')).toBeNull()
+    expect(parseDraftKey('foreman.draft.sendback.7')).toEqual({ kind: 'sendback', id: 7 })
+    expect(parseDraftKey('foreman.draft.bogus.7')).toBeNull()
     expect(parseDraftKey('other.key')).toBeNull()
   })
   it('prunes drafts whose run is gone', () => {

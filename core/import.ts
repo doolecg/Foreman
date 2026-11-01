@@ -7,10 +7,10 @@ import { appDataDir, type PathEnv } from './paths'
 import { costUsd, isPriced } from './pricing'
 import type { Store } from './store'
 
-// Everything that moves between Operant versions or machines, as one JSON document. Operant 2.8.2's data folder is
+// Everything that moves between Foreman versions or machines, as one JSON document. Operant 2.8.2's data folder is
 // read into the same shape, so both go through one preview and one apply.
 
-export const BUNDLE_FORMAT = 'operant-export'
+export const BUNDLE_FORMAT = 'foreman-export'
 export const BUNDLE_VERSION = 1
 const SKIPPED_MAX = 200
 
@@ -99,10 +99,10 @@ class Skips {
   }
 }
 
-// Operant 2.8.2's data folder: OPERANT_USER_DATA when set, else %APPDATA%\Operant (its Electron app name).
+// Operant 2.8.2's data folder: OPERANT_USER_DATA when set, else the Operant folder in app data (its Electron app name).
 export function legacyDataDir(e?: PathEnv): string {
   const env = e ?? { platform: process.platform, home: process.env.USERPROFILE ?? process.env.HOME ?? '', env: process.env }
-  return env.env.OPERANT_USER_DATA || appDataDir({ ...env, env: { ...env.env, OPERANT_DATA_DIR: undefined } }, 'Operant')
+  return env.env.OPERANT_USER_DATA || appDataDir({ ...env, env: { ...env.env, FOREMAN_DATA_DIR: undefined } }, 'Operant')
 }
 
 function jsonl(file: string, onBad: (line: number, reason: string) => void): Array<Record<string, unknown>> {
@@ -147,7 +147,7 @@ const SETTINGS_NOTED = ['tokenBudget', 'defaultAgent', 'team', 'planLimits', 'no
 export function readLegacy(dir: string, opts: { rolesDir?: string }, deps: ImportDeps = {}): Read {
   const now = (deps.now ?? Date.now)()
   const exists = deps.exists ?? existsSync
-  const bundle = emptyBundle('operant-2.8.2', now)
+  const bundle = emptyBundle('foreman-2.8.2', now)
   const skips = new Skips()
   const notes: string[] = []
   const found = exists(join(dir, 'config.json')) || exists(join(dir, 'store'))
@@ -280,15 +280,15 @@ export function readBundleText(text: string, location: string): Read {
   try {
     o = obj(JSON.parse(text))
   } catch {
-    return { bundle: emptyBundle('operant-export', 0), skipped: [], notes: ['That file is not valid JSON'], found: false, location }
+    return { bundle: emptyBundle('foreman-export', 0), skipped: [], notes: ['That file is not valid JSON'], found: false, location }
   }
-  if (o.format !== BUNDLE_FORMAT || typeof o.version !== 'number') {
-    return { bundle: emptyBundle('operant-export', 0), skipped: [], notes: ['That file is not an Operant export'], found: false, location }
+  if ((o.format !== BUNDLE_FORMAT && o.format !== 'operant-export') || typeof o.version !== 'number') {
+    return { bundle: emptyBundle('foreman-export', 0), skipped: [], notes: ['That file is not a Foreman export'], found: false, location }
   }
-  if (o.version > BUNDLE_VERSION) notes.push(`The export is version ${o.version}, newer than this Operant understands (${BUNDLE_VERSION}); unknown parts are ignored`)
-  const bundle = emptyBundle('operant-export', num(o.exportedAt) ?? 0)
+  if (o.version > BUNDLE_VERSION) notes.push(`The export is version ${o.version}, newer than this Foreman understands (${BUNDLE_VERSION}); unknown parts are ignored`)
+  const bundle = emptyBundle('foreman-export', num(o.exportedAt) ?? 0)
   bundle.origin = str(o.origin)
-  bundle.app = str(o.app) || 'Operant'
+  bundle.app = str(o.app) || 'Foreman'
   for (const p of Array.isArray(o.projects) ? o.projects : []) {
     const r = obj(p)
     if (str(r.name).trim() && str(r.folder).trim()) bundle.projects.push({ name: str(r.name).trim(), folder: str(r.folder).trim() })
@@ -347,7 +347,7 @@ export function machineId(store: Store): string {
 
 // This version's data in the bundle format, to move to another machine (or back into 2.8.2-style tools).
 export function exportBundle(store: Store, now: number): Bundle {
-  const bundle = emptyBundle('operant-export', now)
+  const bundle = emptyBundle('foreman-export', now)
   bundle.origin = machineId(store)
   const crews = store.listCrews()
   bundle.projects = crews.filter((c) => c.kind !== 'playground').map((c) => ({ name: c.name, folder: c.folder }))
@@ -517,7 +517,7 @@ export function readSource(source: ImportSource, deps: ImportDeps = {}): Read {
   try {
     text = readFileSync(source.path, 'utf8')
   } catch {
-    return { bundle: emptyBundle('operant-export', 0), skipped: [], notes: ['That file could not be read'], found: false, location: source.path }
+    return { bundle: emptyBundle('foreman-export', 0), skipped: [], notes: ['That file could not be read'], found: false, location: source.path }
   }
   return readBundleText(text, source.path)
 }

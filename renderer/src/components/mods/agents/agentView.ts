@@ -283,7 +283,7 @@ export function cardTime(ms: number): string {
 
 // ---- cleared agents, kept per tile
 
-const key = (tileId: number): string => `operant.agents.cleared.${tileId}`
+const key = (tileId: number): string => `foreman.agents.cleared.${tileId}`
 
 export function loadCleared(tileId: number): Set<string> {
   try {
@@ -423,7 +423,7 @@ export function sessionRows(items: ChatItem[]): SessionRow[] {
   return out
 }
 
-const openKey = 'operant.agents.status.open'
+const openKey = 'foreman.agents.status.open'
 
 export function loadStatusOpen(): boolean {
   try {

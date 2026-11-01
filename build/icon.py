@@ -1,4 +1,4 @@
-"""Operant's app icon is the artwork from Operant 2.8.2: build/icon.png (512x512, dark rounded square with orange,
+"""Foreman's app icon is the artwork from Operant 2.8.2: build/icon.png (512x512, dark rounded square with orange,
 blue and green blocks). This writes the other formats electron-builder needs from it:
 
     python build/icon.py

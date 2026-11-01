@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-// What Operant needs from an OpenCode message: a finished assistant turn and its token counts.
+// What Foreman needs from an OpenCode message: a finished assistant turn and its token counts.
 export interface OpenCodeTurn {
   id: string
   at: number

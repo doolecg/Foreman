@@ -1,5 +1,5 @@
-appId: com.doolecg.operant2
-productName: Operant 3
+appId: com.doolecg.foreman
+productName: Foreman
 copyright: Copyright © 2026 doolecg
 directories:
   output: dist
@@ -14,10 +14,10 @@ files:
   - "!**/*.map"
 
 extraResources:
-  # The operant skill plugin that operators load with --plugin-dir.
+  # The foreman skill plugin that operators load with --plugin-dir.
   - from: plugin
     to: plugin
-  # The agents' `operant` CLI and its wrappers, run with the app binary as Node.
+  # The agents' `foreman` CLI and its wrappers, run with the app binary as Node.
   - from: out/cli
     to: cli
   - from: cli/bin
@@ -28,7 +28,7 @@ extraResources:
   # The window and taskbar icon, loaded at runtime.
   - from: build/icon.png
     to: icon.png
-  # Operant's LICENSE and the third-party notices, written by scripts/notices.mjs during the build.
+  # Foreman's LICENSE and the third-party notices, written by scripts/notices.mjs during the build.
   - from: out/licenses
     to: licenses
   # The PowerShell helper for the Windows media controls; outside the asar so PowerShell can read it.
@@ -45,22 +45,22 @@ win:
   target:
     - target: msi
       arch: [x64]
-  artifactName: Operant3-${version}-windows-${arch}.${ext}
+  artifactName: Foreman-${version}-windows-${arch}.${ext}
 
 msi:
-  # oneClick: true skips the assisted wizard, so no install-folder page; perMachine installs to C:\Program Files\Operant 3.
+  # oneClick: true skips the assisted wizard, so no install-folder page; perMachine installs to C:\Program Files\Foreman.
   oneClick: true
   perMachine: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Operant 3
+  shortcutName: Foreman
 
 mac:
   target:
     - target: dmg
       arch: [arm64, x64]
   category: public.app-category.developer-tools
-  artifactName: Operant3-${version}-mac-${arch}.${ext}
+  artifactName: Foreman-${version}-mac-${arch}.${ext}
 
 linux:
   target:
@@ -70,6 +70,6 @@ linux:
       arch: [x64]
   category: Development
   maintainer: doolecg <doolecg@gmail.com>
-  artifactName: Operant3-${version}-linux-${arch}.${ext}
+  artifactName: Foreman-${version}-linux-${arch}.${ext}
 
 publish: null

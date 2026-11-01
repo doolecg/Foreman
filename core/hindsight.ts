@@ -48,9 +48,9 @@ const defaults: HindsightDeps = {
 }
 
 export interface HindsightOptions {
-  // A server hosted elsewhere (Docker, LAN). When set, Operant only probes it.
+  // A server hosted elsewhere (Docker, LAN). When set, Foreman only probes it.
   url?: () => string
-  // Shared mode: Operant runs the daemon bound to `host` so other machines can connect. Null in the other modes.
+  // Shared mode: Foreman runs the daemon bound to `host` so other machines can connect. Null in the other modes.
   lan?: () => { host: string; port: number; openBind: boolean } | null
   // The API key sent as `Authorization: Bearer` (and set on the daemon in shared mode); null when none.
   key?: () => string | null
@@ -89,11 +89,11 @@ export function bankFor(folder: string): string {
   let h = 5381
   for (let i = 0; i < norm.length; i++) h = ((h * 33) ^ norm.charCodeAt(i)) >>> 0
   const name = leaf.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project'
-  return `operant-${name}-${h.toString(36)}`
+  return `foreman-${name}-${h.toString(36)}`
 }
 
 // The global bank for user preferences that hold across every project (the Soul Bank).
-export const SOUL_BANK = 'operant-soul'
+export const SOUL_BANK = 'foreman-soul'
 
 export type RecallResult = { ok: true; items: string[] } | { ok: false; error: string }
 export type RetainResult = { ok: true } | { ok: false; error: string }
@@ -124,7 +124,7 @@ export class HindsightService {
     return { port: Number(j.apiPort) || DEFAULT_PORT, embedVersion: typeof j.embedVersion === 'string' ? j.embedVersion : '' }
   }
 
-  // The server the agent plugins already use (self-hosted, apiUrl in coding-agent.json), taken only when Operant's own
+  // The server the agent plugins already use (self-hosted, apiUrl in coding-agent.json), taken only when Foreman's own
   // URL is unset and it is not sharing a daemon of its own.
   get adoptedUrl(): string {
     if ((this.opts.url?.() ?? '').trim() || this.opts.lan?.()) return ''
@@ -141,7 +141,7 @@ export class HindsightService {
     return !this.managed ? 'remote' : this.opts.lan?.() ? 'lan' : 'local'
   }
 
-  // Where Operant itself reaches the server. The daemon's own checks only probe 127.0.0.1, so a shared server is
+  // Where Foreman itself reaches the server. The daemon's own checks only probe 127.0.0.1, so a shared server is
   // probed there too, then on the bound address when that is a specific adapter and loopback is not served.
   private candidates(): string[] {
     const remote = (this.opts.url?.() ?? '').trim().replace(/\/+$/, '') || this.adoptedUrl
@@ -300,7 +300,7 @@ export class HindsightService {
   }
 
   private async runAct(action: 'start' | 'stop' | 'restart'): Promise<HindsightStatus> {
-    if (!this.managed) return { ...(await this.status()), detail: 'Hosted elsewhere: Operant does not start or stop it' }
+    if (!this.managed) return { ...(await this.status()), detail: 'Hosted elsewhere: Foreman does not start or stop it' }
     const mode = this.mode
     const fail = (state: HindsightStatus['state'], detail: string): HindsightStatus => ({ url: this.url, managed: true, mode, state, detail })
     const lan = this.opts.lan?.()
@@ -374,7 +374,7 @@ export class HindsightService {
     return { ok: true, items }
   }
 
-  async retain(bank: string, content: string, tags: string[], context = 'Operant job outcome'): Promise<RetainResult> {
+  async retain(bank: string, content: string, tags: string[], context = 'Foreman job outcome'): Promise<RetainResult> {
     const r = await this.post(`/v1/default/banks/${encodeURIComponent(bank)}/memories`, { items: [{ content, tags, context }], async: true })
     return r.ok ? { ok: true } : r
   }

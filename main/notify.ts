@@ -1,5 +1,5 @@
 import { Notification } from 'electron'
-import type { Operant } from '../core/operant'
+import type { Foreman } from '../core/foreman'
 import { emptyChatState, pendingPrompts, reduceChat, tileState, type ChatItem, type ChatState } from '../shared/claude-chat'
 import type { ClaudeTileState } from '../shared/mods'
 import { notifyCopy, shouldNotify, type NotifyKind } from '../shared/notify'
@@ -21,7 +21,7 @@ export interface TurnWatchDeps {
 
 // Follows the Claude tiles' turns from the events the core emits, and raises a Windows notification when a turn finishes
 // or Claude waits for the owner (only when the window is unfocused or the tile is not on screen).
-export function watchClaudeTurns(operant: Operant, deps: TurnWatchDeps): TurnWatch {
+export function watchClaudeTurns(foreman: Foreman, deps: TurnWatchDeps): TurnWatch {
   const chats = new Map<number, ChatState>()
   const phases = new Map<number, string>()
   const recent = new Map<string, number>()
@@ -29,22 +29,22 @@ export function watchClaudeTurns(operant: Operant, deps: TurnWatchDeps): TurnWat
   let visible: number | null = null
 
   const describe = async (scratchId: number): Promise<{ name: string; crewId: number } | null> => {
-    for (const crew of await operant.handlers['crews:list']()) {
-      const found = (await operant.handlers['scratch:list'](crew.id)).find((s) => s.id === scratchId)
+    for (const crew of await foreman.handlers['crews:list']()) {
+      const found = (await foreman.handlers['scratch:list'](crew.id)).find((s) => s.id === scratchId)
       if (found) return { name: found.title, crewId: crew.id }
     }
     return null
   }
 
   const fire = (scratchId: number, kind: NotifyKind, detail: string): void => {
-    if (process.env.OPERANT_E2E === '1' || !Notification.isSupported()) return
+    if (process.env.FOREMAN_E2E === '1' || !Notification.isSupported()) return
     const key = `${scratchId}:${kind}`
     const now = Date.now()
     if (now - (recent.get(key) ?? 0) < DEDUPE_MS) return
     recent.set(key, now)
     void describe(scratchId).then((found) => {
       if (!found) return
-      const enabled = operant.currentSettings.notify
+      const enabled = foreman.currentSettings.notify
       if (!shouldNotify({ kind, enabled, windowFocused: deps.isWindowFocused(), tileVisible: visible === scratchId })) return
       const copy = notifyCopy({ kind, name: found.name, detail })
       const note = new Notification({ title: copy.title, body: copy.body })
@@ -74,7 +74,7 @@ export function watchClaudeTurns(operant: Operant, deps: TurnWatchDeps): TurnWat
     return 'Claude has a question for you'
   }
 
-  operant.on('chat:ops', ({ scratchId, ops }) => {
+  foreman.on('chat:ops', ({ scratchId, ops }) => {
     const prev = chats.get(scratchId) ?? emptyChatState(scratchId)
     const before = tileState(prev)
     let next = reduceChat(prev, ops)
@@ -85,7 +85,7 @@ export function watchClaudeTurns(operant: Operant, deps: TurnWatchDeps): TurnWat
     else if (after === 'Waiting for you' && before !== after) fire(scratchId, 'needs', waitingText(next.items))
   })
 
-  operant.on('claudeTile:state', (s: ClaudeTileState) => {
+  foreman.on('claudeTile:state', (s: ClaudeTileState) => {
     const prev = phases.get(s.tileId)
     const phase = s.session.phase
     phases.set(s.tileId, phase)

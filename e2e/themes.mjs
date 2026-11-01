@@ -12,9 +12,9 @@ import { BUILTIN_THEMES, tokensFor } from '../shared/themes.ts'
 
 const outDir = resolve(process.argv[2] ?? 'out/e2e')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-e2e-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-e2e-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 writeFileSync(join(project, 'app.ts'), 'export const x = 1\n')
@@ -38,13 +38,13 @@ try {
   const css = (name) => page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)
   const attr = (n) => page.evaluate((a) => document.documentElement.dataset[a], n)
   const termBg = () => page.evaluate(() => { const v = document.querySelector('.xterm-scrollable-element'); return v ? getComputedStyle(v).backgroundColor : null })
-  const set = (appearance) => page.evaluate((a) => window.operant.invoke('settings:set', { appearance: a }), appearance)
+  const set = (appearance) => page.evaluate((a) => window.foreman.invoke('settings:set', { appearance: a }), appearance)
   const winBg = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBackgroundColor())
 
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
   await page.evaluate(async (folder) => {
-    const o = window.operant
+    const o = window.foreman
     await o.invoke('settings:set', { setupDone: true, uiScale: 1 })
     await o.invoke('crews:create', { name: 'shop', folder })
   }, project)
@@ -95,11 +95,11 @@ try {
   await page.mouse.move(5, 5)
   await page.getByTestId('theme-card-dracula').hover()
   await poll('hover previews', async () => (await attr('theme')) === 'dracula')
-  assert.equal((await page.evaluate(() => window.operant.invoke('settings:get'))).appearance.theme, 'nord', 'hover does not save')
+  assert.equal((await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance.theme, 'nord', 'hover does not save')
   await page.mouse.move(5, 5)
   await poll('preview ends', async () => (await attr('theme')) === 'nord')
   await page.getByTestId('theme-card-dracula').click()
-  await poll('click keeps', async () => (await page.evaluate(() => window.operant.invoke('settings:get'))).appearance.theme === 'dracula')
+  await poll('click keeps', async () => (await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance.theme === 'dracula')
   await page.mouse.move(5, 5)
   await page.waitForTimeout(300)
   await page.screenshot({ path: join(outDir, 'themes-picker.png') })
@@ -119,14 +119,14 @@ try {
   await custom.scrollIntoViewIfNeeded()
   await custom.fill('#102030')
   await poll('draft previews', async () => (await css('--background')) === '#102030')
-  assert.equal((await page.evaluate(() => window.operant.invoke('settings:get'))).appearance.customThemes.length, 0, 'draft is not saved')
+  assert.equal((await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance.customThemes.length, 0, 'draft is not saved')
   await page.getByRole('button', { name: 'Reset colours' }).click()
   await poll('reset reverts', async () => (await css('--background')) === def('dracula').bg)
   await custom.fill('#102030')
   await page.getByTestId('custom-name').fill('Night shift')
   await page.getByTestId('custom-save').click()
-  await poll('custom saved', async () => (await page.evaluate(() => window.operant.invoke('settings:get'))).appearance.customThemes.length === 1)
-  let ap = (await page.evaluate(() => window.operant.invoke('settings:get'))).appearance
+  await poll('custom saved', async () => (await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance.customThemes.length === 1)
+  let ap = (await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance
   assert.deepEqual(ap.customThemes[0], { id: 'custom-1', name: 'Night shift', base: 'dracula', colors: { bg: '#102030' } })
   assert.equal(ap.theme, 'custom-1')
   assert.equal(await css('--background'), '#102030')
@@ -135,27 +135,27 @@ try {
 
   await page.getByTestId('custom-hex-accent').fill('#00cc88')
   await page.getByTestId('custom-save').click()
-  await poll('custom edited', async () => (await page.evaluate(() => window.operant.invoke('settings:get'))).appearance.customThemes[0].colors.accent === '#00cc88')
+  await poll('custom edited', async () => (await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance.customThemes[0].colors.accent === '#00cc88')
   assert.equal(await css('--primary'), '#00cc88')
 
-  const exported = JSON.stringify({ operantTheme: 1, name: 'Imported one', base: 'nord', colors: { bg: '#202020', accent: '#ff00ff' } })
+  const exported = JSON.stringify({ foremanTheme: 1, name: 'Imported one', base: 'nord', colors: { bg: '#202020', accent: '#ff00ff' } })
   await page.getByTestId('custom-import-text').fill(exported)
   await page.getByTestId('custom-import').click()
-  await poll('imported', async () => (await page.evaluate(() => window.operant.invoke('settings:get'))).appearance.customThemes.length === 2)
+  await poll('imported', async () => (await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance.customThemes.length === 2)
   await page.getByTestId('custom-import-text').fill('not json')
   await page.getByTestId('custom-import').click()
   await page.getByRole('alert').filter({ hasText: 'invalid JSON' }).waitFor()
 
   await page.getByRole('button', { name: 'Delete Night shift' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Delete theme' }).click()
-  await poll('deleted', async () => (await page.evaluate(() => window.operant.invoke('settings:get'))).appearance.customThemes.length === 1)
-  ap = (await page.evaluate(() => window.operant.invoke('settings:get'))).appearance
+  await poll('deleted', async () => (await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance.customThemes.length === 1)
+  ap = (await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance
   assert.equal(ap.theme, 'custom-2', 'deleting another theme keeps the one in use')
   assert.equal(ap.customThemes[0].name, 'Imported one')
   await page.getByRole('button', { name: 'Delete Imported one' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Delete theme' }).click()
-  await poll('all deleted', async () => (await page.evaluate(() => window.operant.invoke('settings:get'))).appearance.customThemes.length === 0)
-  assert.equal((await page.evaluate(() => window.operant.invoke('settings:get'))).appearance.theme, 'dark', 'deleting the theme in use falls back to Dark')
+  await poll('all deleted', async () => (await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance.customThemes.length === 0)
+  assert.equal((await page.evaluate(() => window.foreman.invoke('settings:get'))).appearance.theme, 'dark', 'deleting the theme in use falls back to Dark')
 
   // Restart: the last theme comes back, and the window is painted in its colour before the page loads.
   await set({ theme: 'gruvbox', accent: '' })

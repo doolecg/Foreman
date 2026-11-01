@@ -3,7 +3,7 @@ import { chmodSync, lstatSync, mkdirSync, unlinkSync } from 'node:fs'
 import { createServer, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-// The exit codes `operant` reports (cli/operant.ts maps them to its own output).
+// The exit codes `foreman` reports (cli/foreman.ts maps them to its own output).
 export const EXIT = {
   OK: 0,
   ERROR: 1,
@@ -62,17 +62,17 @@ function privateDir(dir: string): void {
   const st = lstatSync(dir)
   const uid = process.getuid?.()
   if (!st.isDirectory() || st.isSymbolicLink() || (uid !== undefined && st.uid !== uid)) {
-    throw new Error('The Operant socket directory is not a private directory')
+    throw new Error('The Foreman socket directory is not a private directory')
   }
   chmodSync(dir, 0o700)
 }
 
 export function socketPath(base = tmpdir()): string {
-  if (process.platform === 'win32') return `\\\\.\\pipe\\operant2-${randomBytes(16).toString('hex')}`
+  if (process.platform === 'win32') return `\\\\.\\pipe\\foreman-${randomBytes(16).toString('hex')}`
   const uid = process.getuid?.() ?? 0
   const name = `${randomBytes(8).toString('hex')}.sock`
-  let dir = join(base, `operant2-${uid}`)
-  if (Buffer.byteLength(join(dir, name)) > MAX_SOCKET_PATH) dir = join('/tmp', `operant2-${uid}`)
+  let dir = join(base, `foreman-${uid}`)
+  if (Buffer.byteLength(join(dir, name)) > MAX_SOCKET_PATH) dir = join('/tmp', `foreman-${uid}`)
   privateDir(dir)
   return join(dir, name)
 }
@@ -103,7 +103,7 @@ export class CliServer {
     this.onError = opts.onError ?? (() => {})
   }
 
-  // The value for OPERANT_SOCKET.
+  // The value for FOREMAN_SOCKET.
   get address(): string {
     return this.path
   }
@@ -127,7 +127,7 @@ export class CliServer {
     return path
   }
 
-  // A fresh 32-byte token for the tile's session (hex, for OPERANT_TOKEN); replaces any earlier one.
+  // A fresh 32-byte token for the tile's session (hex, for FOREMAN_TOKEN); replaces any earlier one.
   issueToken(tileId: number): string {
     this.revokeToken(tileId)
     const token = randomBytes(TOKEN_BYTES)

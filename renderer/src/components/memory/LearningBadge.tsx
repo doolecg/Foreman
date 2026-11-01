@@ -5,7 +5,7 @@ import { useLearnStatus } from '@/lib/queries'
 import { cn } from '@/lib/utils'
 import { STORE_LABEL } from './ui'
 
-export const OPEN_SETTINGS_EVENT = 'operant:open-settings'
+export const OPEN_SETTINGS_EVENT = 'foreman:open-settings'
 
 const PILL = 'bg-accent/60 hover:bg-accent inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px]'
 

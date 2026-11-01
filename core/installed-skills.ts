@@ -7,10 +7,10 @@ export interface InstalledSkillFile extends EnhanceSkill {
   path: string
 }
 
-// The skills in <claude dir>/skills/*/SKILL.md, by name and description, then the Operant hub's own skills
-// (<claude dir>/operant-hub/skills, e.g. team-work with its subagent tiers and limits).
+// The skills in <claude dir>/skills/*/SKILL.md, by name and description, then the Foreman hub's own skills
+// (<claude dir>/foreman-hub/skills, e.g. team-work with its subagent tiers and limits).
 export function installedSkills(claudeDir: string): EnhanceSkill[] {
-  return [...skillsIn(join(claudeDir, 'operant-hub', 'skills')), ...skillsIn(join(claudeDir, 'skills'))].map(({ name, description }) => ({ name, description }))
+  return [...skillsIn(join(claudeDir, 'foreman-hub', 'skills')), ...skillsIn(join(claudeDir, 'skills'))].map(({ name, description }) => ({ name, description }))
 }
 
 // The skills Claude Code loads everywhere (<claude dir>/skills) and the ones of a project (<project>/.claude/skills).

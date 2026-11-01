@@ -369,7 +369,7 @@ export class ClaudeAgents {
   private readEvents(sessionId: string): void {
     let tail = this.tails.get(sessionId)
     if (!tail) {
-      // A session Operant has not begun (e.g. /clear inside a tile): only events from this run and from a tile count.
+      // A session Foreman has not begun (e.g. /clear inside a tile): only events from this run and from a tile count.
       tail = new JsonlTail(join(this.opts.eventsDir, `${sessionId}.jsonl`))
       this.tails.set(sessionId, tail)
     }
@@ -387,7 +387,7 @@ export class ClaudeAgents {
     for (const rec of changed) this.publish(rec)
   }
 
-  // The tile an event belongs to: its OPERANT_TILE_ID tag, else the tile already mapped to the session.
+  // The tile an event belongs to: its FOREMAN_TILE_ID tag, else the tile already mapped to the session.
   private recordFor(ev: ClaudeEvent): TileRecord | null {
     const tileId = ev.tile ?? this.sessionTile.get(ev.sessionId) ?? null
     if (tileId === null) return null

@@ -38,7 +38,7 @@ function HindsightTab({ crewId, search }: { crewId: number | null; search: strin
     <div className="space-y-3">
       <p className="surface-line text-muted-foreground rounded-md border border-dashed p-3 text-xs">
         Entries already written to Hindsight cannot be edited or deleted from here: Hindsight offers no call for it. Editing or deleting a lesson here changes only
-        Operant&apos;s record and the personal memory file.
+        Foreman&apos;s record and the personal memory file.
       </p>
       {entries.isPending && crewId != null && <p className="text-muted-foreground text-xs">Asking Hindsight…</p>}
       {crewId == null && <Empty>Pick a project to read its Hindsight entries.</Empty>}
@@ -64,7 +64,7 @@ function MemoryTab({ crewId, search }: { crewId: number | null; search: string }
   return (
     <div className="space-y-3">
       <p className="text-muted-foreground text-xs">
-        The project&apos;s personal memory files. Files Operant wrote (operant_lesson_N) change through their lesson on the Lessons tab; the rest are yours and are shown
+        The project&apos;s personal memory files. Files Foreman wrote (foreman_lesson_N) change through their lesson on the Lessons tab; the rest are yours and are shown
         read-only.
       </p>
       <ErrorLine error={files.error} />
@@ -91,7 +91,7 @@ function MemoryTab({ crewId, search }: { crewId: number | null; search: string }
   )
 }
 
-// Everything Operant remembers, by store, with the learning status on top.
+// Everything Foreman remembers, by store, with the learning status on top.
 export function MemoryPage({ crewId, embedded = false }: { crewId: number | null; embedded?: boolean }) {
   const crews = useCrews()
   const [tab, setTab] = useState<Tab>('lessons')
@@ -122,7 +122,7 @@ export function MemoryPage({ crewId, embedded = false }: { crewId: number | null
         {!embedded && (
           <div>
             <h2 className="text-xl font-semibold">Memory</h2>
-            <p className="text-muted-foreground text-sm">Everything Operant has learned from your sessions, in each place it is kept.</p>
+            <p className="text-muted-foreground text-sm">Everything Foreman has learned from your sessions, in each place it is kept.</p>
           </div>
         )}
 
@@ -162,7 +162,7 @@ export function MemoryPage({ crewId, embedded = false }: { crewId: number | null
             {tab === 'codegraph' && (
               <div className="space-y-3">
                 <p className="text-muted-foreground text-xs">
-                  CodeGraph has no notes API, so these notes live in Operant, tagged to the files and symbols they name.
+                  CodeGraph has no notes API, so these notes live in Foreman, tagged to the files and symbols they name.
                 </p>
                 <LessonsList filter={filter} crews={crews.data ?? []} crewId={readCrew} />
               </div>

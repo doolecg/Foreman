@@ -43,7 +43,7 @@ export function TokensSection() {
           </CardDescription>
         </CardHeader>
         <CardContent className="divide-y">
-          <Row label={`Daily budget (${symbol})`} hint="All projects and scratch terminals together. 0 turns it off." info="A spending guide for each day, across all projects and scratch terminals. When spend since midnight nears it, Operant raises a warning. Nothing is stopped. Spend is estimated from session records at list prices. 0 turns it off, which is the default." htmlFor="budget">
+          <Row label={`Daily budget (${symbol})`} hint="All projects and scratch terminals together. 0 turns it off." info="A spending guide for each day, across all projects and scratch terminals. When spend since midnight nears it, Foreman raises a warning. Nothing is stopped. Spend is estimated from session records at list prices. 0 turns it off, which is the default." htmlFor="budget">
             <NumberField
               id="budget"
               min={0}
@@ -59,7 +59,7 @@ export function TokensSection() {
           <Row label={`Weekly budget (${symbol})`} hint="The last 7 days, all projects together. 0 turns it off." info="A spending guide for the last 7 days, across all projects. It only warns and never stops anything. Spend is an estimate from session records at list prices, so your real bill may differ. 0 turns it off, which is the default." htmlFor="budget-week">
             <NumberField id="budget-week" min={0} max={10000000} step="0.5" value={toField(s.weeklyBudgetUsd)} onCommit={(v) => save.mutate({ weeklyBudgetUsd: fromField(v) })} />
           </Row>
-          <Row label="Warn at (% of a cap)" hint="Raises an activity event and an amber badge." info="The share of a spending limit you must reach before Operant shows an amber badge and logs an activity event. With a daily limit of 10 and this at 80, the warning appears at 8. Use 1 to 100. The default is 80." htmlFor="warn-pct">
+          <Row label="Warn at (% of a cap)" hint="Raises an activity event and an amber badge." info="The share of a spending limit you must reach before Foreman shows an amber badge and logs an activity event. With a daily limit of 10 and this at 80, the warning appears at 8. Use 1 to 100. The default is 80." htmlFor="warn-pct">
             <NumberField id="warn-pct" min={1} max={100} value={t.capWarnPct} onCommit={(v) => set({ capWarnPct: v })} />
           </Row>
         </CardContent>
@@ -111,7 +111,7 @@ export function TokensSection() {
           <Row
             label="Pin the Claude Code version for operators"
             hint="Stops Claude Code updating itself in an operator's terminal: an upgrade changes the prefix and rebuilds every cache. Update it yourself between runs."
-            info="A Claude Code upgrade changes what is cached and forces every cache to be rebuilt at full price. When on, Operant tells Claude Code in its tiles not to update itself, so you update it between runs. On by default." htmlFor="pin-version"
+            info="A Claude Code upgrade changes what is cached and forces every cache to be rebuilt at full price. When on, Foreman tells Claude Code in its tiles not to update itself, so you update it between runs. On by default." htmlFor="pin-version"
           >
             <Switch id="pin-version" checked={t.pinClaudeVersion} onCheckedChange={(v) => set({ pinClaudeVersion: v })} />
           </Row>

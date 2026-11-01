@@ -19,7 +19,7 @@ This skill is for deciding where code lives and what it exposes, before it is wr
 
 1. Read the code around the change and the project's own words for its concepts.
    - Check the existing glossary first.
-   - If there is none, keep a short one in `.operant/engineering/<task-name>/notes.html`.
+   - If there is none, keep a short one in `.foreman/engineering/<task-name>/notes.html`.
 2. List what callers must know to use the module correctly, and make that list shorter.
    - Inputs, outputs, order of calls, errors, config and speed limits all count.
 3. Apply the deletion test. Picture the module deleted.
@@ -32,7 +32,7 @@ This skill is for deciding where code lives and what it exposes, before it is wr
    - Compare them on caller effort, where bugs would hide and how easy tests are.
    - Pick one and say why in one or two lines.
 6. Set the contract: validate input at the boundary only, make changes additive so old callers keep working, and use one error format everywhere.
-7. Record the plan in `.operant/engineering/<task-name>/notes.html` as a short HTML page.
+7. Record the plan in `.foreman/engineering/<task-name>/notes.html` as a short HTML page.
    - Put in the chosen interface, the rejected option and any new terms.
 8. Write a decision note only when the choice is hard to reverse, surprising to a future reader and a real trade-off.
    - If any of the three is missing, skip the note.

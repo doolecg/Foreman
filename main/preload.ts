@@ -1,9 +1,9 @@
 import { contextBridge, ipcRenderer, webFrame, webUtils, type IpcRendererEvent } from 'electron'
-import { CORE_CHANNELS, MAIN_CHANNELS, decodeIpcError, encodeIpcError, type OperantBridge } from '../shared/ipc'
+import { CORE_CHANNELS, MAIN_CHANNELS, decodeIpcError, encodeIpcError, type ForemanBridge } from '../shared/ipc'
 
 const allowed = new Set<string>([...CORE_CHANNELS, ...MAIN_CHANNELS])
 
-const bridge: OperantBridge = {
+const bridge: ForemanBridge = {
   invoke: (channel, ...args) => {
     if (!allowed.has(channel)) return Promise.reject(new Error(`Unknown IPC channel: ${channel}`))
     return ipcRenderer.invoke(channel, ...args).catch((err: unknown) => {
@@ -21,4 +21,4 @@ const bridge: OperantBridge = {
   filePath: (file) => webUtils.getPathForFile(file),
 }
 
-contextBridge.exposeInMainWorld('operant', bridge)
+contextBridge.exposeInMainWorld('foreman', bridge)

@@ -172,7 +172,7 @@ export class CdpFilter {
       }
       case 'Target.attachToBrowserTarget': {
         // Playwright's newCDPSession opens one. The real browser session is never handed out: this one is virtual.
-        const root = `operant-root-${this.nextRoot++}`
+        const root = `foreman-root-${this.nextRoot++}`
         this.roots.add(root)
         return { kind: 'reply', message: ok(msg, { sessionId: root }) }
       }

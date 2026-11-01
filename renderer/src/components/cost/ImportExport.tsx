@@ -23,7 +23,7 @@ function PreviewView({ p, applied }: { p: ImportPreview; applied: boolean }) {
   return (
     <div className="space-y-3" aria-label={applied ? 'Import result' : 'Import preview'} role="region">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <Badge variant="outline">{p.format === 'operant-2.8.2' ? 'Operant 2.8.2 data folder' : 'Operant export file'}</Badge>
+        <Badge variant="outline">{p.format === 'foreman-2.8.2' ? 'Operant 2.8.2 data folder' : 'Foreman export file'}</Badge>
         <span className="text-muted-foreground min-w-0 truncate" title={p.location}>
           {p.location}
         </span>

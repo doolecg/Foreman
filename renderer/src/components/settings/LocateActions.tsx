@@ -5,8 +5,8 @@ import type { InstallStatusItem } from '@shared/install'
 import { Button } from '@/components/ui/button'
 import { useToolPath } from '@/lib/queries'
 
-// What to do about a program Operant cannot find: look in the places its installer uses, and if that finds nothing, pick the
-// file yourself. A program Operant was pointed at can go back to PATH.
+// What to do about a program Foreman cannot find: look in the places its installer uses, and if that finds nothing, pick the
+// file yourself. A program Foreman was pointed at can go back to PATH.
 export function LocateActions({ item }: { item: InstallStatusItem }) {
   const tool = useToolPath()
   const [note, setNote] = useState<{ text: string; error: boolean } | null>(null)

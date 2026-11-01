@@ -33,7 +33,7 @@ describe('liveSummary', () => {
 
 describe('buildCards', () => {
   const groups = [
-    { crew: crew(1, 'Operant'), rows: [row(1), row(2, { updatedAt: 10 }), row(3, { agent: 'shell' }), row(4, { updatedAt: 30 })] },
+    { crew: crew(1, 'Foreman'), rows: [row(1), row(2, { updatedAt: 10 }), row(3, { agent: 'shell' }), row(4, { updatedAt: 30 })] },
     { crew: crew(2, 'Playground'), rows: [] },
   ]
   const live = new Map<number, BoardLive>([[1, { status: 'needs', line: 'ok?', model: null }]])
@@ -41,7 +41,7 @@ describe('buildCards', () => {
   it('keeps open tiles and closed threads with history, only claude and opencode', () => {
     const cards = buildCards(groups, new Set([1, 2, 3]), live)
     expect(cards.map((c) => c.row.id)).toEqual([1, 4, 2])
-    expect(cards[0]).toMatchObject({ project: 'Operant', status: 'needs', line: 'ok?', open: true })
+    expect(cards[0]).toMatchObject({ project: 'Foreman', status: 'needs', line: 'ok?', open: true })
     expect(cards[1]).toMatchObject({ status: 'quiet', open: false })
   })
   it('puts Needs you first, then newest', () => {

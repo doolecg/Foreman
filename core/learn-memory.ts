@@ -13,13 +13,13 @@ const one = (s: string) => s.replace(/\s+/g, ' ').trim()
 
 // A lesson's file is named after it, so writing it again updates the file instead of adding a second one.
 // User-level facts get their own prefix and type, apart from the project's.
-export const memoryFileName = (l: Pick<Lesson, 'id' | 'scope'>): string => `operant_${l.scope === 'user' ? 'user' : 'lesson'}_${l.id}.md`
+export const memoryFileName = (l: Pick<Lesson, 'id' | 'scope'>): string => `foreman_${l.scope === 'user' ? 'user' : 'lesson'}_${l.id}.md`
 
 function render(l: Lesson): { name: string; description: string; text: string } {
   const type = l.scope === 'user' ? 'user' : l.kind === 'correction' ? 'feedback' : 'project'
   const name = one(scrubLogLine(l.text)).slice(0, 60)
   const n = l.sourceJobs.length
-  const description = `${l.kind} learned by Operant${n ? ` from ${n} session${n === 1 ? '' : 's'}` : ''}`
+  const description = `${l.kind} learned by Foreman${n ? ` from ${n} session${n === 1 ? '' : 's'}` : ''}`
   const where = [l.files.length ? `Files: ${l.files.join(', ')}` : '', l.symbols.length ? `Symbols: ${l.symbols.join(', ')}` : ''].filter(Boolean)
   const text = `---\nname: ${name.replace(/\n/g, ' ')}\ndescription: ${description}\ntype: ${type}\n---\n\n${scrubLogLine(l.text)}\n${where.length ? `\n${where.join('\n')}\n` : ''}`
   return { name, description, text }

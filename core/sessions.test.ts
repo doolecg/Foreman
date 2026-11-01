@@ -56,7 +56,7 @@ describe('inherited environment', () => {
       CLAUDE_CODE_ENTRYPOINT: 'cli',
       CLAUDE_CODE_MESSAGING_TOKEN: 't',
       CLAUDE_CONFIG_DIR: 'c',
-      OPERANT_TOKEN: 'o',
+      FOREMAN_TOKEN: 'o',
       ELECTRON_RUN_AS_NODE: '1',
     })
     expect(env).toEqual({ PATH: 'p', CLAUDE_CONFIG_DIR: 'c' })

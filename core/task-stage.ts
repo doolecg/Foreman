@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, statSync, watch, t
 import { join } from 'node:path'
 import { taskPlan, taskStages, type StageLine, type TaskInfo, type TaskListItem, type TaskPlan } from '../shared/engineering'
 
-const tasksDir = (folder: string) => join(folder, '.operant', 'engineering')
+const tasksDir = (folder: string) => join(folder, '.foreman', 'engineering')
 
 // The files of one task folder with the time the newest of them changed.
 function readTask1(dir: string): { files: string[]; at: number } {
@@ -69,7 +69,7 @@ export function readTaskPlan(folder: string, clearedAt = 0): TaskPlan | null {
   return {
     ...infoOf(best, slices),
     ...taskPlan(best.files, slices, specTitle),
-    specPath: hasSpec ? `.operant/engineering/${best.name}/spec.html` : null,
+    specPath: hasSpec ? `.foreman/engineering/${best.name}/spec.html` : null,
   }
 }
 
@@ -83,7 +83,7 @@ export function watchTasks(folder: string, onChange: () => void): () => void {
   // Windows reports long names: watching an 8.3 short path (C:\Users\ABCDEF~1) trips a libuv assertion that kills the process.
   if (!existsSync(folder)) return () => {}
   const real = realpathSync.native(folder)
-  const levels = [tasksDir(real), join(real, '.operant'), real]
+  const levels = [tasksDir(real), join(real, '.foreman'), real]
   let watcher: FSWatcher | null = null
   let level = -1
   let timer: ReturnType<typeof setTimeout> | null = null
@@ -97,7 +97,7 @@ export function watchTasks(folder: string, onChange: () => void): () => void {
     try {
       watcher = watch(levels[next]!, { recursive: next === 0 }, (_, name) => {
         // Above the Engineering folder only the next folder down matters, not every file of the project.
-        if (next === 0 || name === (next === 1 ? 'engineering' : '.operant')) fire()
+        if (next === 0 || name === (next === 1 ? 'engineering' : '.foreman')) fire()
       })
       watcher.on('error', () => {})
     } catch {

@@ -13,8 +13,8 @@ let legacy: string
 let projects: string
 let store: Store
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'operant-import-'))
-  legacy = join(dir, 'Operant')
+  dir = mkdtempSync(join(tmpdir(), 'foreman-import-'))
+  legacy = join(dir, 'Foreman')
   projects = join(dir, 'repos')
   mkdirSync(join(legacy, 'store'), { recursive: true })
   mkdirSync(join(projects, 'Alpha'), { recursive: true })
@@ -71,7 +71,7 @@ describe('import from Operant 2.8.2', () => {
     const read = readSource({ kind: 'legacy', dir: legacy })
     const preview = previewRead(store, read)
     expect(preview).toMatchObject({
-      format: 'operant-2.8.2',
+      format: 'foreman-2.8.2',
       found: true,
       projects: { add: 2, existing: 0, skipped: 1 },
       usage: { add: 3, existing: 0 },
@@ -116,7 +116,7 @@ describe('import from Operant 2.8.2', () => {
     expect(none.found).toBe(false)
     expect(none.notes[0]).toMatch(/No Operant 2.8.2 data/)
     expect(legacyDataDir({ platform: 'win32', home: 'C:\\h', env: { OPERANT_USER_DATA: 'D:\\custom', APPDATA: 'C:\\a' } })).toBe('D:\\custom')
-    expect(legacyDataDir({ platform: 'win32', home: 'C:\\h', env: { APPDATA: 'C:\\a', OPERANT_DATA_DIR: 'X' } })).toMatch(/Operant$/)
+    expect(legacyDataDir({ platform: 'win32', home: 'C:\\h', env: { APPDATA: 'C:\\a', FOREMAN_DATA_DIR: 'X' } })).toMatch(/Operant$/)
     expect(legacyDataDir({ platform: 'win32', home: 'C:\\h', env: { APPDATA: 'C:\\a' } })).not.toMatch(/Operant2/)
     expect(readSource({ kind: 'legacy', dir: legacy }, { env: undefined }).found).toBe(true)
   })
@@ -139,8 +139,8 @@ describe('export and import between machines', () => {
 
   it('refuses files that are not exports and lists unusable rows', () => {
     expect(readBundleText('nope', 'x').found).toBe(false)
-    expect(readBundleText('{"format":"other"}', 'x').notes[0]).toMatch(/not an Operant export/)
-    const read = readBundleText(JSON.stringify({ format: 'operant-export', version: 1, usage: [{ key: 'a', at: 1, inputTokens: -1, outputTokens: 0, cacheRead: 0, cacheWrite: 0, costUsd: 0 }, { at: 1 }], projects: [{ name: 'x' }] }), 'x')
+    expect(readBundleText('{"format":"other"}', 'x').notes[0]).toMatch(/not a Foreman export/)
+    const read = readBundleText(JSON.stringify({ format: 'foreman-export', version: 1, usage: [{ key: 'a', at: 1, inputTokens: -1, outputTokens: 0, cacheRead: 0, cacheWrite: 0, costUsd: 0 }, { at: 1 }], projects: [{ name: 'x' }] }), 'x')
     expect(read.skipped.map((s) => s.kind)).toEqual(['project', 'usage', 'usage'])
     expect(previewRead(store, read).usage.skipped).toBe(2)
   })
@@ -149,7 +149,7 @@ describe('export and import between machines', () => {
     const p = (name: string, o: object) => ({ name, agent: 'claude', model: 'sonnet', ...o })
     const read = readBundleText(
       JSON.stringify({
-        format: 'operant-export',
+        format: 'foreman-export',
         version: 1,
         presets: [p('ok', {}), p('badagent', { agent: 'shell' }), p('badmode', { permissionMode: 'yolo' }), p('badmodel', { model: 'x; rm -rf /' }), p('risky', { permissionMode: 'bypassPermissions' })],
       }),

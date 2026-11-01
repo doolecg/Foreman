@@ -1,5 +1,5 @@
-// The `operant` command a tile runs. Parses argv, sends one JSON line to the app's local socket with the
-// tile's token, prints the answer and exits with its code. Built on its own to out/cli/operant.cjs and
+// The `foreman` command a tile runs. Parses argv, sends one JSON line to the app's local socket with the
+// tile's token, prints the answer and exits with its code. Built on its own to out/cli/foreman.cjs and
 // run by the app binary as Node; it has no dependencies and imports nothing from the app.
 import { connect } from 'node:net'
 import { resolve } from 'node:path'
@@ -19,17 +19,17 @@ interface CommandSpec {
 
 const COMMANDS: Record<string, CommandSpec> = {
   // The project's Hindsight memory (the project of the tile the command runs in).
-  'memory.recall': { pos: ['query...'], flags: {}, usage: 'operant memory recall <query|->' },
-  'memory.retain': { pos: ['text...'], flags: { tag: 'strs' }, usage: 'operant memory retain <text|-> [--tag T ...]' },
+  'memory.recall': { pos: ['query...'], flags: {}, usage: 'foreman memory recall <query|->' },
+  'memory.retain': { pos: ['text...'], flags: { tag: 'strs' }, usage: 'foreman memory retain <text|-> [--tag T ...]' },
   // Saves a screenshot; the app answers with the saved path. The file is sent as an absolute path.
-  shot: { pos: ['file'], flags: { kind: 'str' }, usage: 'operant shot <file> [--kind K]' },
+  shot: { pos: ['file'], flags: { kind: 'str' }, usage: 'foreman shot <file> [--kind K]' },
 }
 
 // Text values that may be `-` (read from stdin).
 const TEXT = new Set(['query', 'text'])
 
 export const HELP = [
-  'Usage (exit codes: 0 ok, 1 error, 2 usage, 3 not found, 4 conflict, 5 forbidden, 6 limited, 7 Operant not reachable):',
+  'Usage (exit codes: 0 ok, 1 error, 2 usage, 3 not found, 4 conflict, 5 forbidden, 6 limited, 7 Foreman not reachable):',
   ...Object.values(COMMANDS).map((c) => `  ${c.usage}`),
   'Add --json for machine output. A text value of - is read from stdin.',
 ].join('\n')
@@ -56,11 +56,11 @@ export function parseArgs(argv: string[]): Parsed {
     json = true
   }
   const first = words[0]
-  if (first === undefined) return tail.length ? { kind: 'error', message: 'Missing command. Run: operant --help' } : { kind: 'help', text: HELP }
-  if (first.startsWith('-')) return { kind: 'error', message: 'Put the command first. Run: operant --help' }
+  if (first === undefined) return tail.length ? { kind: 'error', message: 'Missing command. Run: foreman --help' } : { kind: 'help', text: HELP }
+  if (first.startsWith('-')) return { kind: 'error', message: 'Put the command first. Run: foreman --help' }
   const name = first === 'memory' ? `memory.${words[1] ?? ''}` : first
   const spec = Object.hasOwn(COMMANDS, name) ? COMMANDS[name] : undefined
-  if (!spec) return { kind: 'error', message: `Unknown command "${first === 'memory' ? `memory ${words[1] ?? ''}`.trim() : first}". Run: operant --help` }
+  if (!spec) return { kind: 'error', message: `Unknown command "${first === 'memory' ? `memory ${words[1] ?? ''}`.trim() : first}". Run: foreman --help` }
   const args: Record<string, unknown> = {}
   const pos: string[] = []
   try {
@@ -123,11 +123,11 @@ export function render(reply: Reply, json: boolean): { stdout: string; stderr: s
     return { stdout: `${JSON.stringify(body)}\n`, stderr: '', code }
   }
   if (code === 0) return { stdout: reply.out ? `${reply.out}\n` : '', stderr: '', code }
-  return { stdout: '', stderr: `operant: ${reply.error ?? 'error'}\n`, code }
+  return { stdout: '', stderr: `foreman: ${reply.error ?? 'error'}\n`, code }
 }
 
 export function unreachable(why: string, json: boolean): { stdout: string; stderr: string; code: number } {
-  return render({ exit: EXIT_UNREACHABLE, error: `Operant is not reachable (${why})` }, json)
+  return render({ exit: EXIT_UNREACHABLE, error: `Foreman is not reachable (${why})` }, json)
 }
 
 // A fixed phrase for a connection failure: Node's own message names the socket path, which is never shown.
@@ -140,7 +140,7 @@ export function failureReason(err: unknown): string {
 }
 
 // Sends one request line and resolves with the one reply line, or rejects (with a message that never
-// contains the socket path) when Operant can't be reached.
+// contains the socket path) when Foreman can't be reached.
 export function request(socketPath: string, line: string, timeoutMs: number): Promise<Reply> {
   return new Promise((resolve, reject) => {
     const socket = connect(socketPath)
@@ -191,9 +191,9 @@ export async function main(argv: string[], env: NodeJS.ProcessEnv, input: NodeJS
   const parsed = parseArgs(argv)
   if (parsed.kind === 'help') return { stdout: `${parsed.text}\n`, stderr: '', code: 0 }
   if (parsed.kind === 'error') return render({ exit: EXIT_USAGE, error: parsed.message }, argv.includes('--json'))
-  const socketPath = env.OPERANT_SOCKET
-  const token = env.OPERANT_TOKEN
-  if (!socketPath || !token) return unreachable('OPERANT_SOCKET or OPERANT_TOKEN is not set', parsed.json)
+  const socketPath = env.FOREMAN_SOCKET
+  const token = env.FOREMAN_TOKEN
+  if (!socketPath || !token) return unreachable('FOREMAN_SOCKET or FOREMAN_TOKEN is not set', parsed.json)
   try {
     if (parsed.stdin) parsed.args[parsed.stdin] = await readStdin(input)
   } catch (err) {

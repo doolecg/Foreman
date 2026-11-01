@@ -19,11 +19,11 @@ describe('loadEnv', () => {
   const file = (text: string | null) => (f: string) => (f.endsWith('.env') ? text : null)
 
   it('never overrides the real environment, skips empty values and logs only key names', () => {
-    const env: NodeJS.ProcessEnv = { OPERANT_DATA_DIR: 'real' }
+    const env: NodeJS.ProcessEnv = { FOREMAN_DATA_DIR: 'real' }
     const lines: string[] = []
-    const set = loadEnv({ dir: '/x', env, read: file('OPERANT_DATA_DIR=fromfile\nHINDSIGHT_URL=http://secret-host:1\nDISCORD_BOT_TOKEN=\n'), log: (l) => lines.push(l) })
+    const set = loadEnv({ dir: '/x', env, read: file('FOREMAN_DATA_DIR=fromfile\nHINDSIGHT_URL=http://secret-host:1\nDISCORD_BOT_TOKEN=\n'), log: (l) => lines.push(l) })
     expect(set).toEqual(['HINDSIGHT_URL'])
-    expect(env).toMatchObject({ OPERANT_DATA_DIR: 'real', HINDSIGHT_URL: 'http://secret-host:1' })
+    expect(env).toMatchObject({ FOREMAN_DATA_DIR: 'real', HINDSIGHT_URL: 'http://secret-host:1' })
     expect(lines).toEqual(['.env: loaded HINDSIGHT_URL'])
     expect(lines.join()).not.toContain('secret-host')
   })
@@ -43,7 +43,7 @@ describe('.env.example', () => {
   const ALLOWED = new Set(['', 'your-token-here', 'your-key-here', 'http://127.0.0.1:9077', '1'])
 
   it('lists the variables the app reads', () => {
-    expect(entries.map(([k]) => k).sort()).toEqual(['DISCORD_BOT_TOKEN', 'HINDSIGHT_API_KEY', 'HINDSIGHT_URL', 'OPERANT_BACKGROUND', 'OPERANT_DATA_DIR', 'OPERANT_UPDATE_TEST'])
+    expect(entries.map(([k]) => k).sort()).toEqual(['DISCORD_BOT_TOKEN', 'FOREMAN_BACKGROUND', 'FOREMAN_DATA_DIR', 'FOREMAN_UPDATE_TEST', 'HINDSIGHT_API_KEY', 'HINDSIGHT_URL'])
   })
 
   it('holds only empty values or obvious placeholders', () => {

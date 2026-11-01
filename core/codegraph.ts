@@ -14,7 +14,7 @@ export const CODEGRAPH_MISSING = 'CodeGraph is not installed. Install it from Se
 
 // Loaded lazily, and a missing library only disables indexing, not the app. In development the SDK comes from the
 // repo's node_modules; packaged builds use the user's global install (null until one is found). Only a success is
-// kept, so a CodeGraph installed while Operant runs is picked up on the next call.
+// kept, so a CodeGraph installed while Foreman runs is picked up on the next call.
 let loaded: CodeGraphStatic | null = null
 function load(libraryPath?: string | null): CodeGraphStatic {
   if (loaded) return loaded
@@ -67,7 +67,7 @@ function runInWorker(op: 'index' | 'rebuild', folder: string, lib: string, timeo
 }
 
 // The SDK of a global `npm i -g @colbymchenry/codegraph`. npm's global folder is asked for once at startup; after that
-// each call only checks the folder, so an install made while Operant runs counts straight away. Null while missing.
+// each call only checks the folder, so an install made while Foreman runs counts straight away. Null while missing.
 // Without npm's answer (npm missing or slow) it asks again, at most every RETRY_MS.
 const RETRY_MS = 10_000
 export function globalCodegraph(

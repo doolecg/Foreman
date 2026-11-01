@@ -98,7 +98,7 @@ type PushEvents = { [E in keyof IpcEvents]: [IpcEvents[E]] }
 
 type Group<P extends string> = Pick<Handlers, Extract<CoreChannel, `${P}:${string}`>>
 
-// What Operant needs from the CLI server (CliServer satisfies it).
+// What Foreman needs from the CLI server (CliServer satisfies it).
 export interface CliAccess {
   readonly address: string
   listen(): Promise<string>
@@ -127,10 +127,10 @@ export interface LaunchOptions {
   launchDir?: string
   rolesDir?: string
   writer?: LaunchWriter
-  // Folder holding the `operant` wrapper; put on a tile's PATH when it has a CLI token.
+  // Folder holding the `foreman` wrapper; put on a tile's PATH when it has a CLI token.
   cliDir?: string
-  // The binary the wrapper runs the CLI with (OPERANT_NODE).
-  operantNode?: string
+  // The binary the wrapper runs the CLI with (FOREMAN_NODE).
+  foremanNode?: string
   // The CodeGraph MCP server is offered only when the `codegraph` CLI is on PATH.
   codegraphOnPath?: () => boolean
   baseEnv?: NodeJS.ProcessEnv
@@ -142,7 +142,7 @@ export interface LaunchWriter {
   writeFile(path: string, content: string): void
 }
 
-export interface OperantOptions {
+export interface ForemanOptions {
   store: Store
   sessions: SessionManager
   indexes: CrewIndexes
@@ -191,7 +191,7 @@ export interface FileDialogs {
   open(filter: { name: string; extensions: string[] }): Promise<string | null>
 }
 
-// What the CLI server asks of Operant: who a token belongs to (a tile's project) and the memory commands.
+// What the CLI server asks of Foreman: who a token belongs to (a tile's project) and the memory commands.
 export interface CliTarget {
   identify(tileId: number): Identity | null
   run(who: Identity, req: CliRequest): Promise<CliResult>
@@ -232,13 +232,13 @@ function onPath(name: string, env: NodeJS.ProcessEnv, platform: NodeJS.Platform)
 }
 
 // A refusal the dashboard can show: a code to branch on and a message fit for the user.
-export class OperantError extends Error {
+export class ForemanError extends Error {
   constructor(
     readonly code: IpcErrorCode,
     message: string,
   ) {
     super(message)
-    this.name = 'OperantError'
+    this.name = 'ForemanError'
   }
 }
 
@@ -247,16 +247,16 @@ const LOCAL_LLM_KEY = 'learn-local-key'
 const HINDSIGHT_KEY = { shared: 'hindsight-shared-key', remote: 'hindsight-remote-key' } as const
 const slotOf = (slot: unknown): keyof typeof HINDSIGHT_KEY => {
   if (slot === 'shared' || slot === 'remote') return slot
-  throw new OperantError('BAD_ARGS', 'Key slot must be shared or remote')
+  throw new ForemanError('BAD_ARGS', 'Key slot must be shared or remote')
 }
 
-const bad = (message: string) => new OperantError('BAD_ARGS', message)
-const notFound = (message: string) => new OperantError('NOT_FOUND', message)
-const conflict = (message: string) => new OperantError('CONFLICT', message)
+const bad = (message: string) => new ForemanError('BAD_ARGS', message)
+const notFound = (message: string) => new ForemanError('NOT_FOUND', message)
+const conflict = (message: string) => new ForemanError('CONFLICT', message)
 
 // Every error a handler can throw, as a code and a message. Programming errors stay INTERNAL.
 export function ipcErrorOf(err: unknown): { code: IpcErrorCode; message: string } {
-  if (err instanceof OperantError) return { code: err.code, message: err.message }
+  if (err instanceof ForemanError) return { code: err.code, message: err.message }
   if (err instanceof LaunchError) return { code: 'BAD_ARGS', message: err.message }
   if (err instanceof LearnError) return { code: err.code, message: err.message }
   const message = err instanceof Error ? err.message : String(err)
@@ -267,10 +267,10 @@ export function ipcErrorOf(err: unknown): { code: IpcErrorCode; message: string 
   return { code: 'BAD_ARGS', message }
 }
 
-const toOperantError = (err: unknown): OperantError => {
-  if (err instanceof OperantError) return err
+const toForemanError = (err: unknown): ForemanError => {
+  if (err instanceof ForemanError) return err
   const { code, message } = ipcErrorOf(err)
-  return new OperantError(code, message)
+  return new ForemanError(code, message)
 }
 
 const NAME_MAX = 80
@@ -294,7 +294,7 @@ function threadTitle(text: string): string | null {
 }
 
 // Everything the dashboard can ask for or be told about, independent of Electron.
-export class Operant extends EventEmitter<PushEvents> {
+export class Foreman extends EventEmitter<PushEvents> {
   readonly handlers: Handlers
   readonly budgets: BudgetMonitor
   readonly learn: LearnService
@@ -328,7 +328,7 @@ export class Operant extends EventEmitter<PushEvents> {
   private readonly timers: unknown[] = []
   // The longest a quit waits on any one step (the CLI socket, killing processes).
   shutdownStepMs = 3000
-  // Scratch terminals: transcript followers and the sessions Operant opened.
+  // Scratch terminals: transcript followers and the sessions Foreman opened.
   private readonly scratchFeeds = new Map<number, ScratchFeed>()
   // The last turn phase each tile reported, from the Chat view's ops and from the Terminal view's hooks.
   private readonly chatPhase = new Map<number, string>()
@@ -358,7 +358,7 @@ export class Operant extends EventEmitter<PushEvents> {
   private readonly importDeps: ImportDeps
   private pendingTeamImport: string | null = null
 
-  constructor(opts: OperantOptions) {
+  constructor(opts: ForemanOptions) {
     super()
     const { store, sessions, indexes } = opts
     this.store = store
@@ -475,7 +475,7 @@ export class Operant extends EventEmitter<PushEvents> {
       indexes: this.indexes,
       settings: () => this.settings,
       saveSettings: (next) => this.saveSettings(next),
-      backupDir: opts.backupDir ?? join(tmpdir(), 'operant2', 'backups'),
+      backupDir: opts.backupDir ?? join(tmpdir(), 'foreman', 'backups'),
       claudeDir: claudeDirOf(),
       now: this.now,
       log: (kind, message) => this.log(kind, message),
@@ -536,15 +536,15 @@ export class Operant extends EventEmitter<PushEvents> {
       ...this.installHandlers(),
       ...this.toolsHandlers(),
     }
-    // Every refusal leaves core as an OperantError with a code.
+    // Every refusal leaves core as a ForemanError with a code.
     const wrapped: Record<string, (...args: unknown[]) => unknown> = {}
     for (const [channel, fn] of Object.entries(all) as Array<[string, (...args: unknown[]) => unknown]>) {
       wrapped[channel] = (...args) => {
         try {
           const result = fn(...args)
-          return result instanceof Promise ? result.catch((err: unknown) => Promise.reject(toOperantError(err))) : result
+          return result instanceof Promise ? result.catch((err: unknown) => Promise.reject(toForemanError(err))) : result
         } catch (err) {
-          throw toOperantError(err)
+          throw toForemanError(err)
         }
       }
     }
@@ -726,7 +726,7 @@ export class Operant extends EventEmitter<PushEvents> {
         try {
           return readProjectImage(this.requireCrew(crewId).folder, String(path))
         } catch (err) {
-          throw err instanceof OperantError ? err : bad(err instanceof Error ? err.message : 'Could not read the image')
+          throw err instanceof ForemanError ? err : bad(err instanceof Error ? err.message : 'Could not read the image')
         }
       },
       'ide:open': (crewId, ide) => openInIde(this.requireCrew(crewId).folder, ide ?? this.settings.ide.default, this.settings.ide.custom),
@@ -878,7 +878,7 @@ export class Operant extends EventEmitter<PushEvents> {
         return { saved: await this.saveExport(exportTeams(store, teams)) }
       },
       'teams:importPreview': async (): Promise<TeamImportPreview | null> => {
-        const path = await this.fileDialogs?.open({ name: 'Operant teams', extensions: ['json'] })
+        const path = await this.fileDialogs?.open({ name: 'Foreman teams', extensions: ['json'] })
         if (!path) return null
         const items = parseTeamFile(store, readFileSync(path, 'utf8'))
         this.pendingTeamImport = path
@@ -1086,7 +1086,7 @@ export class Operant extends EventEmitter<PushEvents> {
   }
 
   // A crew's modes as launch.ts takes them: the preamble for the appended system prompt, the pack folders to load
-  // with --plugin-dir, and whether Factory is on (it sets OPERANT_FACTORY for the cap hook).
+  // with --plugin-dir, and whether Factory is on (it sets FOREMAN_FACTORY for the cap hook).
   private projectModes(crewId: number): Pick<LaunchContext, 'modePreamble' | 'packPlugins' | 'factory'> {
     const crew = this.engineeringDir ? this.store.getCrew(crewId) : null
     if (!this.engineeringDir || !crew || (!crew.engineering && !crew.factory)) return {}
@@ -1100,7 +1100,7 @@ export class Operant extends EventEmitter<PushEvents> {
   }
 
   // The native mods' plugin folders (plugin/mods/<id>) for the enabled mods, each passed to Claude Code with
-  // --plugin-dir. Operant's own Subagent Panel has no plugin. A folder that is missing is skipped with a log line.
+  // --plugin-dir. Foreman's own Subagent Panel has no plugin. A folder that is missing is skipped with a log line.
   private modPluginDirs(): string[] {
     if (!this.modPluginsDir) return []
     const dirs: string[] = []
@@ -1202,7 +1202,7 @@ export class Operant extends EventEmitter<PushEvents> {
 
   private toolsHandlers(): Group<'tools'> {
     const program = (id: InstallId) => {
-      if (!PROGRAM_BINARY[id]) throw bad('That one is not a program Operant looks for')
+      if (!PROGRAM_BINARY[id]) throw bad('That one is not a program Foreman looks for')
     }
     return {
       'tools:find': async (id) => {
@@ -1296,7 +1296,7 @@ export class Operant extends EventEmitter<PushEvents> {
       'learn:rollback': (changeId) => this.learn.rollback(changeId),
       'learn:clearRecords': (crewId) => this.learn.clearRecords(crewId),
       'hindsight:act': (action) => {
-        if (action !== 'start' && action !== 'stop' && action !== 'restart') throw new OperantError('BAD_ARGS', 'Action must be start, stop or restart')
+        if (action !== 'start' && action !== 'stop' && action !== 'restart') throw new ForemanError('BAD_ARGS', 'Action must be start, stop or restart')
         return this.hindsightAct(action)
       },
       'hindsight:adapters': () => listAdapters(),
@@ -1370,7 +1370,7 @@ export class Operant extends EventEmitter<PushEvents> {
 
   private moveHandlers(): Group<'import'> & Group<'data'> & Group<'providers'> & Group<'servers'> {
     const bundleText = (): ExportText => ({
-      filename: `operant-export-${new Date(this.now()).toISOString().slice(0, 10)}.json`,
+      filename: `foreman-export-${new Date(this.now()).toISOString().slice(0, 10)}.json`,
       mime: 'application/json',
       text: JSON.stringify(exportBundle(this.store, this.now()), null, 2),
     })
@@ -1406,7 +1406,7 @@ export class Operant extends EventEmitter<PushEvents> {
   }
 
   private async pickFile(): Promise<string | null> {
-    return (await this.fileDialogs?.open({ name: 'Operant export', extensions: ['json'] })) ?? null
+    return (await this.fileDialogs?.open({ name: 'Foreman export', extensions: ['json'] })) ?? null
   }
 
   // Writes export text to the path the user picked; null when they cancelled.
@@ -1471,8 +1471,8 @@ export class Operant extends EventEmitter<PushEvents> {
       try {
         await this.cli.listen()
       } catch (err) {
-        // Without the socket tiles start from now on get no CLI environment (`operant` exits 7).
-        this.log('error', `The operant CLI socket could not be opened (${err instanceof Error ? err.name : 'unexpected error'}). Tiles run without the operant CLI`)
+        // Without the socket tiles start from now on get no CLI environment (`foreman` exits 7).
+        this.log('error', `The foreman CLI socket could not be opened (${err instanceof Error ? err.name : 'unexpected error'}). Tiles run without the foreman CLI`)
       }
     }
     this.timers.push(this.scheduler.every(() => this.pollUsage(), USAGE_POLL_MS))
@@ -1485,7 +1485,7 @@ export class Operant extends EventEmitter<PushEvents> {
     for (const h of this.timers.splice(0)) this.scheduler.cancel(h)
   }
 
-  // Quit path: no more timers, every process Operant started killed by pid, every token revoked, the socket
+  // Quit path: no more timers, every process Foreman started killed by pid, every token revoked, the socket
   // closed. No step can hold the quit for more than shutdownStepMs. Sessions are the caller's.
   async shutdown(): Promise<void> {
     const bounded = async (work: () => Promise<unknown> | unknown): Promise<void> => {
@@ -1777,13 +1777,13 @@ export class Operant extends EventEmitter<PushEvents> {
     if (req.cmd === 'memory.retain') {
       const text = typeof args.text === 'string' ? args.text : ''
       const tags = Array.isArray(args.tag) ? args.tag.filter((t): t is string => typeof t === 'string') : []
-      const r = await this.hindsight.retain(bankFor(crew.folder), text, tags, 'Operant agent note')
+      const r = await this.hindsight.retain(bankFor(crew.folder), text, tags, 'Foreman agent note')
       return r.ok ? { exit: EXIT.OK, out: 'retained' } : { exit: EXIT.ERROR, error: r.error ?? 'retain failed' }
     }
     if (req.cmd === 'shot') {
       const file = typeof args.file === 'string' ? args.file : ''
       const kind = typeof args.kind === 'string' ? args.kind : undefined
-      if (!file) return { exit: EXIT.USAGE, error: 'usage: operant shot <file> [kind]' }
+      if (!file) return { exit: EXIT.USAGE, error: 'usage: foreman shot <file> [kind]' }
       let saved
       try {
         saved = saveScreenshot({ projectDir: crew.folder, kind, file, now: this.now() })
@@ -1810,19 +1810,19 @@ export class Operant extends EventEmitter<PushEvents> {
     const platform = this.launch.platform ?? process.platform
     const cliDir = this.launch.cliDir
     const browserUrl = this.settings.browser.aiControl ? (this.browserMcp?.() ?? null) : null
-    const modes: ReturnType<Operant['projectModes']> = plain ? {} : this.projectModes(crewId)
+    const modes: ReturnType<Foreman['projectModes']> = plain ? {} : this.projectModes(crewId)
     return {
       platform,
       shell: shellKind(this.settings.shell.file, platform),
       crewId,
       crewFolder,
       pluginDir: this.pluginDir,
-      launchDir: this.launch.launchDir ?? join(tmpdir(), 'operant2', 'launch'),
-      rolesDir: this.launch.rolesDir ?? join(tmpdir(), 'operant2', 'roles'),
+      launchDir: this.launch.launchDir ?? join(tmpdir(), 'foreman', 'launch'),
+      rolesDir: this.launch.rolesDir ?? join(tmpdir(), 'foreman', 'roles'),
       sessionId,
       supported: this.launch.supported,
-      operantCli: cliDir ? join(cliDir, platform === 'win32' ? 'operant.cmd' : 'operant') : undefined,
-      operantNode: this.launch.operantNode,
+      foremanCli: cliDir ? join(cliDir, platform === 'win32' ? 'foreman.cmd' : 'foreman') : undefined,
+      foremanNode: this.launch.foremanNode,
       defaultCacheTtl: this.settings.tokens.defaultCacheTtl,
       subagentCacheTtl: this.settings.tokens.subagentCacheTtl,
       pinClaudeVersion: this.settings.tokens.pinClaudeVersion,
@@ -1875,7 +1875,7 @@ export class Operant extends EventEmitter<PushEvents> {
     }
   }
 
-  // Never restarts a running session. A launch failure is logged and thrown as an OperantError.
+  // Never restarts a running session. A launch failure is logged and thrown as a ForemanError.
   startScratch(scratchId: number, opts: { resume?: boolean } = {}): ScratchStatus {
     const scratch = this.store.getScratch(scratchId)
     const key = this.scratchKey(scratchId)
@@ -1896,15 +1896,15 @@ export class Operant extends EventEmitter<PushEvents> {
       const launch = buildScratchLaunch(row, ctx, { preset, resume })
       this.writeFiles(launch)
       const env = this.sessionEnv(launch.env, scratchId)
-      // A Claude tile tagged with its tile id and Operant as the source: the hooks write only for these.
-      const tagged: Record<string, string> = launch.file === 'claude' && ctx.mods ? { OPERANT_TILE_ID: String(scratchId), OPERANT_SOURCE: 'operant' } : {}
+      // A Claude tile tagged with its tile id and Foreman as the source: the hooks write only for these.
+      const tagged: Record<string, string> = launch.file === 'claude' && ctx.mods ? { FOREMAN_TILE_ID: String(scratchId), FOREMAN_SOURCE: 'foreman' } : {}
       this.sessions.start({ key, cwd: launch.cwd, env: { ...env, ...tagged }, command: commandLine(launch, shellOf(ctx)) })
       if (launch.file === 'claude') this.attachScratch(scratchId, this.transcriptFile(launch.cwd, sessionId), sessionId)
       if (ctx.mods) this.claudeAgents?.begin(scratchId, sessionId, launch.cwd)
       this.log('scratch', `Tile ${scratch.title} started`, scratch.crewId)
       return this.scratchStatus(scratchId)
     } catch (err) {
-      const failure = toOperantError(err)
+      const failure = toForemanError(err)
       this.log('error', `Tile ${scratch.title} failed to start: ${failure.message}`, scratch.crewId)
       throw failure
     }
@@ -2018,7 +2018,7 @@ export class Operant extends EventEmitter<PushEvents> {
     this.writeFiles(launch)
     const base = this.launch.baseEnv ?? process.env
     const cli = resolveCli('claude', base, ctx.platform)
-    const tagged: Record<string, string> = ctx.mods ? { OPERANT_TILE_ID: String(scratchId), OPERANT_SOURCE: 'operant' } : {}
+    const tagged: Record<string, string> = ctx.mods ? { FOREMAN_TILE_ID: String(scratchId), FOREMAN_SOURCE: 'foreman' } : {}
     const env = { ...inheritedEnv(base), ...this.sessionEnv(launch.env, scratchId), ...tagged }
     if (!cli) return { file: 'claude', args: launch.args, cwd: launch.cwd, env, shell: false, blocked: 'Claude Code was not found on PATH. Install it, or check Settings > Capabilities.' }
     return { file: cli.file, args: launch.args, cwd: launch.cwd, env, shell: cli.shell }
@@ -2061,7 +2061,7 @@ export class Operant extends EventEmitter<PushEvents> {
       session.start(resume ? undefined : false)
       return this.scratchStatus(id)
     } catch (err) {
-      const failure = toOperantError(err)
+      const failure = toForemanError(err)
       this.log('error', `Tile ${scratch.title} failed to start: ${failure.message}`, scratch.crewId)
       throw failure
     }

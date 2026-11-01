@@ -29,7 +29,7 @@ function EditDialog({ lesson, onClose }: { lesson: Lesson; onClose: () => void }
         <DialogHeader>
           <DialogTitle>Edit lesson {lesson.id}</DialogTitle>
           <DialogDescription>
-            Changes reach Operant and the personal memory file. A copy already written to Hindsight stays as it was: Hindsight has no edit call.
+            Changes reach Foreman and the personal memory file. A copy already written to Hindsight stays as it was: Hindsight has no edit call.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

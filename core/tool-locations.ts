@@ -77,10 +77,10 @@ export function findInDefaults(id: InstallId, d: LocationDeps = systemLocationDe
   return null
 }
 
-// The PATH Operant started with, kept so a path that is later forgotten leaves nothing behind.
+// The PATH Foreman started with, kept so a path that is later forgotten leaves nothing behind.
 const basePath = new WeakMap<NodeJS.ProcessEnv, string>()
 
-// Puts the folder of every program the owner pointed Operant at in front of PATH, for Operant and everything it starts.
+// Puts the folder of every program the owner pointed Foreman at in front of PATH, for Foreman and everything it starts.
 // With no paths the environment is left alone.
 export function applyToolPaths(paths: Record<string, string>, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): void {
   const key = Object.keys(env).find((k) => k.toLowerCase() === 'path') ?? 'PATH'

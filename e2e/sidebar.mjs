@@ -13,11 +13,11 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 const prefix = process.argv[3] ?? ''
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-side-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-side-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-side-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-side-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
-const root = mkdtempSync(join(tmpdir(), 'operant-side-dirs-'))
+const root = mkdtempSync(join(tmpdir(), 'foreman-side-dirs-'))
 const names = ['atlas', 'beacon', 'cobalt', 'delta', 'ember', 'fjord']
 const folders = {}
 for (const n of names) {
@@ -41,10 +41,10 @@ let app = null
 try {
   app = await electron.launch({ args: ['.'], env })
   const page = await app.firstWindow()
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
-  await page.getByText('Welcome to Operant').waitFor()
-  const inv = (c, ...a) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [c, a])
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  await page.getByText('Welcome to Foreman').waitFor()
+  const inv = (c, ...a) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [c, a])
   const win = (fn, arg) => app.evaluate(({ BrowserWindow }, a) => new Function('w', 'a', `return (${a.fn})(w, a.arg)`)(BrowserWindow.getAllWindows()[0], a), { fn: fn.toString(), arg })
 
   const crews = {}
@@ -55,7 +55,7 @@ try {
   await inv('groups:move', crews.delta.id, work.id)
   await inv('groups:move', crews.ember.id, play.id)
   await page.reload()
-  await page.waitForFunction(() => !!window.operant)
+  await page.waitForFunction(() => !!window.foreman)
 
   const row = (n) => page.locator(`[data-crew-row="${crews[n].id}"]`)
   const aside = page.getByRole('complementary', { name: 'Projects' })

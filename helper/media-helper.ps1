@@ -1,4 +1,4 @@
-# Operant media helper: reports what Windows is playing (the same session the volume flyout shows)
+# Foreman media helper: reports what Windows is playing (the same session the volume flyout shows)
 # and runs the bar's media buttons. Started by media.js; one JSON line per change on stdout (state,
 # { timeline }, or { art } when the cover changes), one command per line on stdin:
 # toggle | next | prev | shuffle | focus | vol <0..1>.
@@ -14,7 +14,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace OperantMedia {
+namespace ForemanMedia {
   [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumerator {}
 
   [Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -227,7 +227,7 @@ function CheckVolume($app, [switch]$Force) {
   $script:lastVolCheck = Get-Date
   $isApp = $false
   $vol = -1
-  try { $vol = [OperantMedia.Volume]::Get($app, [ref]$isApp) } catch {}
+  try { $vol = [ForemanMedia.Volume]::Get($app, [ref]$isApp) } catch {}
   $script:lastVol = [math]::Round($vol, 3)
   $script:lastVolIsApp = $isApp
 }
@@ -265,7 +265,7 @@ function State {
 }
 
 # Where the track is: position and length in seconds, and when the player last reported the position (ms since
-# 1970), so Operant can count on from there. Sent only when the player reports a new position.
+# 1970), so Foreman can count on from there. Sent only when the player reports a new position.
 function Timeline {
   $session = $manager.GetCurrentSession()
   if (-not $session) { return $null }
@@ -301,9 +301,9 @@ function Run($line) {
     'shuffle' { [void](Await ($session.TryChangeShuffleActiveAsync(-not [bool]$session.GetPlaybackInfo().IsShuffleActive)) ([bool])) }
     'focus' {
       $props = Await ($session.TryGetMediaPropertiesAsync()) ([Type]"${ns}MediaProperties")
-      [void][OperantMedia.Window]::Focus((AppKey $session.SourceAppUserModelId), $props.Title)
+      [void][ForemanMedia.Window]::Focus((AppKey $session.SourceAppUserModelId), $props.Title)
     }
-    'vol' { [OperantMedia.Volume]::Set((AppKey $session.SourceAppUserModelId), [float][math]::Min([double]1, [math]::Max([double]0, [double]$parts[1]))) }
+    'vol' { [ForemanMedia.Volume]::Set((AppKey $session.SourceAppUserModelId), [float][math]::Min([double]1, [math]::Max([double]0, [double]$parts[1]))) }
   }
 }
 
@@ -313,7 +313,7 @@ function Run($line) {
 $eventsOk = $true
 
 function Unsubscribe-Session {
-  foreach ($id in 'OperantMediaProps', 'OperantPlaybackInfo', 'OperantTimeline') {
+  foreach ($id in 'ForemanMediaProps', 'ForemanPlaybackInfo', 'ForemanTimeline') {
     Get-EventSubscriber -SourceIdentifier $id -ErrorAction SilentlyContinue | Unregister-Event
   }
 }
@@ -322,18 +322,18 @@ function Subscribe-Session($session) {
   Unsubscribe-Session
   if (-not $session) { return }
   try {
-    Register-ObjectEvent -InputObject $session -EventName MediaPropertiesChanged -SourceIdentifier OperantMediaProps | Out-Null
-    Register-ObjectEvent -InputObject $session -EventName PlaybackInfoChanged -SourceIdentifier OperantPlaybackInfo | Out-Null
-    Register-ObjectEvent -InputObject $session -EventName TimelinePropertiesChanged -SourceIdentifier OperantTimeline | Out-Null
+    Register-ObjectEvent -InputObject $session -EventName MediaPropertiesChanged -SourceIdentifier ForemanMediaProps | Out-Null
+    Register-ObjectEvent -InputObject $session -EventName PlaybackInfoChanged -SourceIdentifier ForemanPlaybackInfo | Out-Null
+    Register-ObjectEvent -InputObject $session -EventName TimelinePropertiesChanged -SourceIdentifier ForemanTimeline | Out-Null
   } catch { $script:eventsOk = $false }
 }
 
 try {
-  Register-ObjectEvent -InputObject $manager -EventName CurrentSessionChanged -SourceIdentifier OperantSessionChanged | Out-Null
+  Register-ObjectEvent -InputObject $manager -EventName CurrentSessionChanged -SourceIdentifier ForemanSessionChanged | Out-Null
 } catch { $eventsOk = $false }
 Subscribe-Session ($manager.GetCurrentSession())
 
-# stdin is read asynchronously so events keep being handled between commands; the helper exits when Operant closes stdin.
+# stdin is read asynchronously so events keep being handled between commands; the helper exits when Foreman closes stdin.
 $stdin = New-Object System.IO.StreamReader ([Console]::OpenStandardInput())
 $pending = $stdin.ReadLineAsync()
 $commandDue = [DateTime]::MinValue
@@ -353,7 +353,7 @@ while ($true) {
   if ($due) { $commandDue = [DateTime]::MaxValue }
   $events = Get-Event -ErrorAction SilentlyContinue
   foreach ($e in $events) {
-    if ($e.SourceIdentifier -eq 'OperantSessionChanged') { Subscribe-Session ($manager.GetCurrentSession()) }
+    if ($e.SourceIdentifier -eq 'ForemanSessionChanged') { Subscribe-Session ($manager.GetCurrentSession()) }
     Remove-Event -EventIdentifier $e.EventIdentifier
     $due = $true
   }
@@ -366,4 +366,4 @@ while ($true) {
   Start-Sleep -Milliseconds 50
 }
 Unsubscribe-Session
-Unregister-Event -SourceIdentifier OperantSessionChanged -ErrorAction SilentlyContinue
+Unregister-Event -SourceIdentifier ForemanSessionChanged -ErrorAction SilentlyContinue

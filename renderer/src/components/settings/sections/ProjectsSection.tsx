@@ -52,7 +52,7 @@ export function ProjectsSection() {
               </SelectContent>
             </Select>
           </Row>
-          <Row label="Custom command" info="The command used when IDE is set to Custom command, for example myide --new-window. Operant adds the project folder in quotes at the end. Folder names containing characters like quotes or ampersands are refused for safety." hint="Used when the IDE above is Custom command. The project folder is added at the end." htmlFor="ide-custom">
+          <Row label="Custom command" info="The command used when IDE is set to Custom command, for example myide --new-window. Foreman adds the project folder in quotes at the end. Folder names containing characters like quotes or ampersands are refused for safety." hint="Used when the IDE above is Custom command. The project folder is added at the end." htmlFor="ide-custom">
             <CommitInput
               id="ide-custom"
               className="w-64 font-mono text-xs"

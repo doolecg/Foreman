@@ -68,7 +68,7 @@ export function ProviderLimitBadge({ onOpen }: { onOpen: () => void }) {
   const week = claude.find((w) => WEEK.test(w.label) && !w.label.includes('(')) ?? claude.find((w) => WEEK.test(w.label))
   const pair = five && week ? [five, week] : claude.slice(0, 2)
   const shown = hot.length > 0 ? hot : all
-  const none = planOff ? 'plan limits are off. Turn them on in Settings, Tokens and budgets. Click for Operant usage' : 'no plan-limit data yet. Click for Operant usage'
+  const none = planOff ? 'plan limits are off. Turn them on in Settings, Tokens and budgets. Click for Foreman usage' : 'no plan-limit data yet. Click for Foreman usage'
   const text = shown.length === 0 ? none : shown.map((h) => `${h.provider} ${h.window} ${Math.round(h.pct)}% used`).join('; ')
   return (
     <Tooltip>

@@ -1,7 +1,7 @@
 // Keybinds are stored as accelerators like "Mod+Shift+P" or "Alt+Mouse4". Mod is Ctrl, or Cmd on macOS.
 import { keyNameOf, matchesMouse, mouseButtonOf, mouseLabel, mouseToAccel, releasesAccel } from '@shared/keybinds'
 
-const isMac = () => window.operant?.platform === 'darwin'
+const isMac = () => window.foreman?.platform === 'darwin'
 
 export function eventToAccel(e: KeyboardEvent): string | null {
   const key = keyNameOf(e)

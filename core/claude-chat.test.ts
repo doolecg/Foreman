@@ -8,7 +8,7 @@ import { ChatHub, ChatSession, cmdArg, coalesceOps, type ChatChild, type ChatLau
 import { parseStatusFile } from './claude-events'
 import { resolveCli } from './proc'
 
-const root = mkdtempSync(join(tmpdir(), 'operant-chat-'))
+const root = mkdtempSync(join(tmpdir(), 'foreman-chat-'))
 afterEach(() => undefined)
 process.on('exit', () => rmSync(root, { recursive: true, force: true }))
 

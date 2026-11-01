@@ -110,7 +110,7 @@ describe('cdp-filter client commands', () => {
     const d = f.fromClient({ id: 1, method: 'Target.attachToBrowserTarget' })
     expect(d.kind).toBe('reply')
     const root = d.kind === 'reply' ? ((d.message['result'] as CdpMessage)['sessionId'] as string) : ''
-    expect(root).toMatch(/^operant-root-/)
+    expect(root).toMatch(/^foreman-root-/)
     expect(f.fromClient({ id: 2, sessionId: root, method: 'Browser.close' })).toMatchObject({ kind: 'reply', message: { sessionId: root } })
     expect(f.fromClient({ id: 3, sessionId: root, method: 'Target.setAutoAttach', params: { autoAttach: true } }).kind).toBe('reply')
     expect(f.fromClient({ id: 4, sessionId: root, method: 'Target.attachToTarget', params: { targetId: APP } }).kind).toBe('reply')

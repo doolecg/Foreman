@@ -2,7 +2,7 @@ import { useQuery, type QueryClient } from '@tanstack/react-query'
 import type { GitDiffRequest } from '@shared/git'
 import { call, registerLive } from './core'
 
-// The Git page's reads. They refresh on window focus, when a tile's turn ends or a tile exits, and after Operant's own git actions.
+// The Git page's reads. They refresh on window focus, when a tile's turn ends or a tile exits, and after Foreman's own git actions.
 const all = ['gitStatus', 'gitInfo', 'gitDiff', 'gitLog', 'gitBranches'] as const
 
 export const useRepoStatus = (crewId: number | null, open = true) =>

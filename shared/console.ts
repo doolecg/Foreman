@@ -1,4 +1,4 @@
-// The console layer: output of the background processes Operant starts, shown inside the app instead of a console window.
+// The console layer: output of the background processes Foreman starts, shown inside the app instead of a console window.
 
 export const CONSOLE_SOURCES = ['hindsight', 'opencode', 'claude-run', 'mcp', 'codegraph', 'git', 'providers', 'media'] as const
 export type ConsoleSource = (typeof CONSOLE_SOURCES)[number]
@@ -16,7 +16,7 @@ export interface ConsoleLine {
   error: boolean
 }
 
-// A background process Operant started and that has not exited yet.
+// A background process Foreman started and that has not exited yet.
 export interface ConsoleProcess {
   pid: number
   source: ConsoleSource

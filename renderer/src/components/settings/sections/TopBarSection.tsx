@@ -77,7 +77,7 @@ export function TopBarSection() {
           <Row label="Show seconds" info="Shows the seconds as well as hours and minutes, and the clock then updates every second instead of every ten seconds. Off by default, which is a little calmer to look at." htmlFor="top-clock-seconds">
             <Switch id="top-clock-seconds" checked={t.clockSeconds} onCheckedChange={(v) => set({ clockSeconds: v })} />
           </Row>
-          <Row label="Show the date" info="Shows the weekday and date beside the time, for example Tue 7 Oct. On by default. When the window is narrow, Operant hides the date automatically to save room, even if this is on." hint="Like Tue 7 Oct. Hidden automatically when the window is narrow." htmlFor="top-clock-date">
+          <Row label="Show the date" info="Shows the weekday and date beside the time, for example Tue 7 Oct. On by default. When the window is narrow, Foreman hides the date automatically to save room, even if this is on." hint="Like Tue 7 Oct. Hidden automatically when the window is narrow." htmlFor="top-clock-date">
             <Switch id="top-clock-date" checked={t.clockDate} onCheckedChange={(v) => set({ clockDate: v })} />
           </Row>
         </CardContent>

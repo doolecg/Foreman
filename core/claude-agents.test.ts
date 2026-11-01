@@ -196,7 +196,7 @@ describe('ClaudeAgents', () => {
     expect(emitted.length).toBeGreaterThan(0)
   })
 
-  it('maps a session by its OPERANT_TILE_ID tag when it was not begun here', () => {
+  it('maps a session by its FOREMAN_TILE_ID tag when it was not begun here', () => {
     const { agents, eventsDir, setNow } = setup(500)
     setNow(900)
     mkdirIfMissing(eventsDir)

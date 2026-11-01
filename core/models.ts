@@ -131,7 +131,7 @@ export function buildProviders(ids: string[], service: Record<string, ServiceMod
 
 const realService = async (): Promise<Record<string, ServiceModel>> => {
   // e2e and unit runs use the fake opencode only; the machine's real service would add its own models.
-  if (process.env.OPERANT_E2E || process.env.VITEST) return {}
+  if (process.env.FOREMAN_E2E || process.env.VITEST) return {}
   const cfg = findService()
   if (!cfg) return {}
   const r = await fetch(`${cfg.url}/api/model`, { headers: { Authorization: cfg.auth }, signal: AbortSignal.timeout(5000) })

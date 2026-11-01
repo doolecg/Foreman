@@ -34,6 +34,6 @@ export function parseTilePopoutQuery(search: string): TilePopoutRequest | null {
   return sanitizeTilePopout({ scratchId: Number(q.get('tilePopout')), crewId: Number(q.get('crew')), kind: q.get('kind'), title: q.get('title') })
 }
 
-export const tilePopoutWindowTitle = (title: string): string => `${title} - Operant`
+export const tilePopoutWindowTitle = (title: string): string => `${title} - Foreman`
 
 export const isTileOut = (out: readonly number[] | undefined, scratchId: number): boolean => out?.includes(scratchId) === true

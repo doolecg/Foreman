@@ -28,6 +28,6 @@ Makes Claude's replies plainer, and shows what the session is doing.
 
 ## Load
 
-    claude --plugin-dir F:\PROGRAMMING\REPOS\Operant2\plugin\mods\plainEnglish
+    claude --plugin-dir F:\PROGRAMMING\REPOS\Foreman\plugin\mods\plainEnglish
 
 Tests: `claude plugin test <this folder>`.

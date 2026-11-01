@@ -78,7 +78,7 @@ export function shouldIgnoreCertError(mode: CertMode, hostname: string): boolean
 // The default Electron user agent minus the "Electron/x" and app-name tokens, so sites see plain Chrome.
 export function cleanUserAgent(ua: string, appName = ''): string {
   let out = ua.replace(/\s*Electron\/\S+/gi, '')
-  const names = new Set([appName, 'Operant', 'Operant2', 'operant2'].filter(Boolean))
+  const names = new Set([appName, 'Foreman', 'Foreman', 'foreman'].filter(Boolean))
   for (const n of names) out = out.replace(new RegExp(`\\s*${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\/\\S+`, 'gi'), '')
   return out.replace(/\s{2,}/g, ' ').trim()
 }

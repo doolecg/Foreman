@@ -22,7 +22,7 @@
 {"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"ude\\\\F--"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPadHNCDjV6TrZ6hetT"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"PROGRAMMING"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPadHNCDjV6TrZ6hetT"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"-REPOS-"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPadHNCDjV6TrZ6hetT"}
-{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"Operant2"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPadHNCDjV6TrZ6hetT"}
+{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"Foreman"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPadHNCDjV6TrZ6hetT"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"\\\\60f"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPadHNCDjV6TrZ6hetT"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"75889"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPadHNCDjV6TrZ6hetT"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"-a"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPadHNCDjV6TrZ6hetT"}
@@ -61,7 +61,7 @@
 {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"\\Temp\\claude\\"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPaoMat1A1aPgdnFcVe"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"F--PROGRAM"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPaoMat1A1aPgdnFcVe"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"MING-REPOS-"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPaoMat1A1aPgdnFcVe"}
-{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Operant2\\60f75"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPaoMat1A1aPgdnFcVe"}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Foreman\\60f75"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPaoMat1A1aPgdnFcVe"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"889"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPaoMat1A1aPgdnFcVe"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"-aae1-4371"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPaoMat1A1aPgdnFcVe"}
 {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"-a"}},"parent_tool_use_id":null,"api_message_id":"msg_011CfsPaoMat1A1aPgdnFcVe"}

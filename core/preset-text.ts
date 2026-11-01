@@ -43,7 +43,7 @@ export const PRESET_TEXT: Record<string, string> = {
   ),
   learn: text(
     'extract the durable lessons from a finished session or change, for the next one.',
-    'Edit no files. Read what happened: the diff, the notes and the outcome. Keep only confirmed decisions, non-obvious pitfalls and the user\'s stated preferences; drop guesses and anything you did not verify. Never record secrets, tokens, keys or personal data. Check what is already saved so nothing is repeated. Keep each lesson to one short sentence. If the operant CLI is available, save each lesson with `operant memory retain "<lesson>"`; otherwise list the lessons for the user to save.',
+    'Edit no files. Read what happened: the diff, the notes and the outcome. Keep only confirmed decisions, non-obvious pitfalls and the user\'s stated preferences; drop guesses and anything you did not verify. Never record secrets, tokens, keys or personal data. Check what is already saved so nothing is repeated. Keep each lesson to one short sentence. If the foreman CLI is available, save each lesson with `foreman memory retain "<lesson>"`; otherwise list the lessons for the user to save.',
     'the lessons as a short list, and whether each was saved. At most 100 words.',
   ),
 }

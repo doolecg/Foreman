@@ -10,7 +10,7 @@ import { toast } from '@/lib/toast'
 import { ConfirmDialog } from '../parts'
 import { ToolRow } from './ToolRow'
 
-// The skills Operant uses, where each lives, and how to install or reset them: the Superpowers pack and the Engineering and
+// The skills Foreman uses, where each lives, and how to install or reset them: the Superpowers pack and the Engineering and
 // Factory skills (which are built in and copied to the data folder).
 export function SkillsSection() {
   const status = useInstallStatus()
@@ -35,7 +35,7 @@ export function SkillsSection() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Skill packs</CardTitle>
-          <CardDescription>The skills that Operant's presets and modes use, and where each one lives.</CardDescription>
+          <CardDescription>The skills that Foreman's presets and modes use, and where each one lives.</CardDescription>
         </CardHeader>
         <CardContent className="divide-y">
           <ToolRow
@@ -58,7 +58,7 @@ export function SkillsSection() {
             name="Engineering and Factory skills"
             badge={<Badge variant="secondary">{pack?.edited.length ? `${pack.edited.length} edited` : 'Built in'}</Badge>}
             tag="required"
-            description="The skills the two modes use. Your copy lives in the Operant data folder; edit it freely. Reset puts the built-in version back and keeps a backup of your edits."
+            description="The skills the two modes use. Your copy lives in the Foreman data folder; edit it freely. Reset puts the built-in version back and keeps a backup of your edits."
             detail={pack?.folder ? `Location: ${pack.folder}` : undefined}
             install={
               <Button size="sm" variant="outline" aria-label="Open the skills folder" onClick={() => call('engineering:openFolder').catch((e) => toast(decodeIpcError(e).message, true))}>
@@ -74,7 +74,7 @@ export function SkillsSection() {
         </CardContent>
       </Card>
       <ConfirmDialog open={confirm === 'install'} title="Install Superpowers?" confirmLabel="Run the install" onClose={() => setConfirm(null)} onConfirm={() => void install()}>
-        <p>Operant will run this command for you:</p>
+        <p>Foreman will run this command for you:</p>
         <p className="bg-muted rounded-md px-2 py-1.5 font-mono text-xs break-all">{commandText('superpowers', platform)}</p>
       </ConfirmDialog>
       <ConfirmDialog

@@ -12,9 +12,9 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const shots = resolve('docs/specs/screenshots')
 mkdirSync(shots, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-popups-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-popups-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-popups-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-popups-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-popups-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-popups-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 const ocFile = join(dataDir, 'opencode.json')
@@ -40,10 +40,10 @@ let page = null
 const launch = async () => {
   app = await electron.launch({ args: ['.'], env })
   page = await app.firstWindow()
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
 }
-const inv = (c, ...a) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [c, a])
+const inv = (c, ...a) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [c, a])
 const win = (fn, arg) => app.evaluate(({ BrowserWindow }, a) => new Function('w', 'a', `return (${a.fn})(w, a.arg)`)(BrowserWindow.getAllWindows()[0], a), { fn: fn.toString(), arg })
 const shot = async (name) => {
   await sleep(500)
@@ -72,7 +72,7 @@ const dialogOk = async (label, { footer, scrolls = true }) => {
 
 try {
   await launch()
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
   await inv('crews:create', { name: 'alpha', folder: project })
   await inv('crews:create', { name: 'beta', folder: project })
   for (let i = 0; i < 25; i++) await inv('groups:create', `Group number ${i + 1}`)
@@ -80,7 +80,7 @@ try {
   await win((w) => w.setContentSize(1000, 640))
   await inv('settings:set', { uiScale: 1 })
   await page.reload()
-  await page.waitForFunction(() => !!window.operant)
+  await page.waitForFunction(() => !!window.foreman)
   await sleep(1500)
   await page.getByRole('complementary', { name: 'Projects' }).getByText('alpha', { exact: true }).waitFor()
   await sleep(800)

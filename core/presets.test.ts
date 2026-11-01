@@ -118,7 +118,7 @@ describe('built-in presets', () => {
 
   it('keeps commands that no longer exist out of the shipped text', () => {
     const text = [...Object.values(PRESET_TEXT), ...BUILTIN_TEAMS.flatMap((t) => [t.description, t.rules])].join('\n')
-    expect(text).not.toMatch(/operant (task|test|wait|agent|read|run|build)|\bboard\b|\bworker|\bMaster\b/i)
+    expect(text).not.toMatch(/foreman (task|test|wait|agent|read|run|build)|\bboard\b|\bworker|\bMaster\b/i)
     expect(text.toLowerCase()).not.toContain('brainstorm')
   })
 
@@ -142,7 +142,7 @@ describe('upgrade to the stage set', () => {
   let store: Store
   let backups: string
   beforeEach(() => {
-    backups = mkdtempSync(join(tmpdir(), 'operant-presets-'))
+    backups = mkdtempSync(join(tmpdir(), 'foreman-presets-'))
     store = new Store(':memory:', Date.now, backups)
     // Put the database back into the previous state: fifteen seats and their OpenCode copies, one of them edited
     // (a "researcher" with its own model), plus a preset the user made from scratch.

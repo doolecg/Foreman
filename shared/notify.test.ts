@@ -21,9 +21,9 @@ describe('shouldConfirmAppClose', () => {
 
 describe('tileCloseCopy', () => {
   it('says a running turn will be stopped', () => {
-    expect(tileCloseCopy({ title: 'Claude: Operant', kind: 'claude', busy: true })).toEqual({
+    expect(tileCloseCopy({ title: 'Claude: Foreman', kind: 'claude', busy: true })).toEqual({
       title: 'Close this terminal?',
-      body: 'Claude: Operant. Claude is still working and will be stopped.',
+      body: 'Claude: Foreman. Claude is still working and will be stopped.',
     })
   })
   it('says an idle session can be resumed', () => expect(tileCloseCopy({ title: 'Claude', kind: 'claude', busy: false }).body).toContain('can be resumed'))
@@ -66,15 +66,15 @@ describe('firstLine', () => {
 
 describe('notifyCopy', () => {
   it('titles a finished turn', () => {
-    expect(notifyCopy({ kind: 'finished', name: 'Claude: Operant', detail: 'Added the dialog.' })).toEqual({
+    expect(notifyCopy({ kind: 'finished', name: 'Claude: Foreman', detail: 'Added the dialog.' })).toEqual({
       title: 'Claude is done',
-      body: 'Claude: Operant · Added the dialog.',
+      body: 'Claude: Foreman · Added the dialog.',
     })
   })
   it('titles a waiting Claude with the permission text', () => {
-    expect(notifyCopy({ kind: 'needs', name: 'Claude: Operant', detail: 'Claude needs your permission to use Bash' })).toEqual({
+    expect(notifyCopy({ kind: 'needs', name: 'Claude: Foreman', detail: 'Claude needs your permission to use Bash' })).toEqual({
       title: 'Claude needs you',
-      body: 'Claude: Operant · Claude needs your permission to use Bash',
+      body: 'Claude: Foreman · Claude needs your permission to use Bash',
     })
   })
   it('falls back to a plain line when there is no text', () => {

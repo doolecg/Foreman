@@ -18,12 +18,12 @@ const run: Run = (cmd, args) => runHidden(cmd, args, { quiet: true }).then((r) =
 async function windowsUnprotect(wrapped: Buffer): Promise<Buffer | null> {
   const script =
     'Add-Type -AssemblyName System.Security;' +
-    '$b=[Convert]::FromBase64String($env:OPERANT_DPAPI_B64);' +
+    '$b=[Convert]::FromBase64String($env:FOREMAN_DPAPI_B64);' +
     "$k=[System.Security.Cryptography.ProtectedData]::Unprotect($b,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser);" +
     '[Convert]::ToBase64String($k)'
   const res = await runHidden('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
     quiet: true,
-    env: { ...process.env, OPERANT_DPAPI_B64: wrapped.toString('base64') },
+    env: { ...process.env, FOREMAN_DPAPI_B64: wrapped.toString('base64') },
   })
   const out = res.stdout.trim()
   if (!out) return null

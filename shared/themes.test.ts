@@ -198,13 +198,13 @@ describe('themes: custom theme CRUD', () => {
     expect(list[1]!.name).toBe('Second')
 
     const file = exportTheme(list[0]!)
-    expect(JSON.parse(file)).toEqual({ operantTheme: 1, name: 'Renamed', base: 'nord', colors: { bg: '#222222' } })
+    expect(JSON.parse(file)).toEqual({ foremanTheme: 1, name: 'Renamed', base: 'nord', colors: { bg: '#222222' } })
     const imported = importTheme(file, list)
     expect(imported).toHaveLength(3)
     expect(imported[2]).toMatchObject({ name: 'Renamed', base: 'nord', colors: { bg: '#222222' } })
     expect(new Set(imported.map((t) => t.id)).size).toBe(3)
     expect(() => importTheme('{', list)).toThrow(/invalid JSON/)
-    expect(() => importTheme('{"a":1}', list)).toThrow(/not an Operant theme/)
+    expect(() => importTheme('{"a":1}', list)).toThrow(/not a Foreman theme/)
 
     list = deleteCustomTheme(list, 'custom-1')
     expect(list.map((t) => t.id)).toEqual(['custom-2'])

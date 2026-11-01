@@ -24,7 +24,7 @@ describe('prompt enhance', () => {
     expect(p).toContain('Done when:')
     expect(p).toContain('never an answer to it')
     expect(p).toContain('Never name a brainstorming skill')
-    expect(p).toContain('operant skill')
+    expect(p).toContain('foreman skill')
     expect(p).toContain('- debug: find bugs')
     expect(p).toContain('"""\nfix the login\n"""')
     expect(buildEnhancePrompt('x', [])).toContain('Installed skills:\nnone')

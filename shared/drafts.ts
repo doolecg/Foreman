@@ -1,7 +1,7 @@
 // Pure helpers for the renderer's draft store (text typed but not yet submitted).
 export type DraftKind = 'approve' | 'sendback' | 'answer' | 'newtask'
 
-export const DRAFT_PREFIX = 'operant.draft.'
+export const DRAFT_PREFIX = 'foreman.draft.'
 
 // For 'newtask' the id is the project id; for the others it is the run id.
 export function draftKey(kind: DraftKind, id: number): string {
@@ -9,7 +9,7 @@ export function draftKey(kind: DraftKind, id: number): string {
 }
 
 export function parseDraftKey(key: string): { kind: DraftKind; id: number } | null {
-  const m = /^operant\.draft\.(approve|sendback|answer|newtask)\.(\d+)$/.exec(key)
+  const m = /^foreman\.draft\.(approve|sendback|answer|newtask)\.(\d+)$/.exec(key)
   return m ? { kind: m[1] as DraftKind, id: Number(m[2]) } : null
 }
 

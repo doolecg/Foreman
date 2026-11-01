@@ -62,7 +62,7 @@ describe('artifactsOf', () => {
     expect(list.every((a) => a.kind === 'url' && a.origin === 'link')).toBe(true)
   })
   it('keeps any address a browser tool navigated to', () => {
-    const list = artifactsOf([tool('mcp__operant-browser__browser_navigate', { url: 'https://example.com/page' })])
+    const list = artifactsOf([tool('mcp__foreman-browser__browser_navigate', { url: 'https://example.com/page' })])
     expect(list.map((a) => a.target)).toEqual(['https://example.com/page'])
   })
   it('takes a screenshot tool file name', () => {

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { OperatorTerminal } from '@/components/dashboard/OperatorTerminal'
 import type { TerminalTab } from './useTerminals'
 
-const HEIGHT = 'operant.terminal.height'
+const HEIGHT = 'foreman.terminal.height'
 const MIN = 15
 const MAX = 80
 

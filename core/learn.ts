@@ -144,7 +144,7 @@ export function claudeLearnModel(supported?: ReadonlySet<string>, o: LearnModelO
       return localChat(url.url, ai.model, [{ role: 'user', content: prompt }], {}, o.local)
     }
     const adapter = ai.cli === 'opencode' ? (opencode ??= opencodeLearnAdapter()) : claude
-    const scratch = join(tmpdir(), 'operant-learn')
+    const scratch = join(tmpdir(), 'foreman-learn')
     mkdirSync(scratch, { recursive: true })
     const cwd = opts?.folder && existsSync(opts.folder) ? opts.folder : scratch
     let mcpConfig: string | undefined
@@ -900,7 +900,7 @@ export class LearnService {
     const folded = this.d.db.listLessons({ crewId: l.crewId }).filter((o) => o.consolidatedInto === l.id).map((o) => o.id)
     // Facts about the user go to the Soul Bank (one global bank); project lessons go to the project's own bank.
     const r = await this.d.hindsight.retain(l.scope === 'user' ? SOUL_BANK : bankFor(folder), this.hindsightText(l), [
-      'operant',
+      'foreman',
       'lesson',
       `lesson:${l.id}`,
       `kind:${l.kind}`,
@@ -908,7 +908,7 @@ export class LearnService {
       ...l.sourceJobs.map((j) => `job:${j}`),
       ...l.files.map((f) => `file:${f}`),
       ...l.symbols.map((s) => `symbol:${s}`),
-    ], 'Operant lesson')
+    ], 'Foreman lesson')
     if (!r.ok) throw new Error(r.error)
   }
 
@@ -1312,7 +1312,7 @@ export class LearnService {
     const memErr = folder ? this.memory.check(folder) : null
     const detail: Record<LearnStore, { up: boolean; detail: string }> = {
       hindsight: { up: hs?.state === 'running', detail: hs?.detail ?? 'Hindsight did not answer' },
-      codegraph: { up: true, detail: 'Notes are kept in Operant and added to the brief next to CodeGraph results' },
+      codegraph: { up: true, detail: 'Notes are kept in Foreman and added to the brief next to CodeGraph results' },
       memory: { up: memErr == null, detail: memErr ?? 'Personal memory folder is writable' },
     }
     const drafts = this.d.db.listDrafts(crewId)

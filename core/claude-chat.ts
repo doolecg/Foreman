@@ -24,7 +24,7 @@ import { killTree, runHidden, spawnHidden } from './proc'
 import { findRewindPoint, promptUuidByText } from '../shared/chat-rewind'
 
 // One Claude Code process per Chat tile: `claude -p --input-format stream-json --output-format stream-json ...` (flags
-// from buildChatLaunch). Operant writes user and control messages to its stdin and maps the JSON lines on its stdout
+// from buildChatLaunch). Foreman writes user and control messages to its stdin and maps the JSON lines on its stdout
 // into ChatItems (claude-chat-map.ts). ChatSession is everything for one tile; ChatHub batches the ops to the renderer.
 
 const HISTORY_PAGE = 300
@@ -172,12 +172,12 @@ export interface ChatSessionDeps {
   setTimer?: (fn: () => void, ms: number) => unknown
   clearTimer?: (h: unknown) => void
   log?: (line: string) => void
-  // Called after each successful spawn (Operant attaches the usage feed and the Agents panel here).
+  // Called after each successful spawn (Foreman attaches the usage feed and the Agents panel here).
   onStart?: (sessionId: string) => void
   // Initial values for the pickers (the tile's saved settings).
   effort?: string | null
   bypassAllowed?: boolean
-  // /keepwarm: the tile's cache lifetime, the aux budget and where the setting is saved (Operant passes these).
+  // /keepwarm: the tile's cache lifetime, the aux budget and where the setting is saved (Foreman passes these).
   keepWarm?: {
     ttlMs: () => number
     // Settings > Mods > Keep warm: off hides /keepwarm and stops it.
@@ -682,7 +682,7 @@ export class ChatSession {
     const text = (input.text ?? '').trim()
     const images = (input.images ?? []).filter((i) => i && typeof i.base64 === 'string' && /^image\/[a-z0-9.+-]+$/i.test(i.mediaType))
     if (!text && !images.length) return
-    // Operant's own commands: handled here, never sent to Claude as text.
+    // Foreman's own commands: handled here, never sent to Claude as text.
     if (!images.length && /^\/clear\s*$/i.test(text)) return void this.clear()
     const kw = images.length ? null : parseKeepWarm(text)
     if (kw) {

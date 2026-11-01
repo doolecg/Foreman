@@ -18,7 +18,7 @@ This skill is the route map for the other engineering skills. It decides which s
    - Tiny (one file, clear cause or clear change): `build` or `diagnose`, check, `ship`.
    - Small (a few files, clear goal): a short `spec`, then `build`, check, `ship`.
    - Anything bigger or vague: every stage, in the order below.
-2. Create the task folder `.operant/engineering/<task-name>/` in the project. It is gitignored. It holds spec.html, slices.html and notes.html.
+2. Create the task folder `.foreman/engineering/<task-name>/` in the project. It is gitignored. It holds spec.html, slices.html and notes.html.
 3. Run `frame` if the goal is unclear. Look facts up yourself and ask the user only the decisions. Then run `spec` to write the spec, then `slice` to write the checklist of thin slices.
 4. Show the plan in this shape, then wait for the user's OK. This is the only approval gate. Do not write code before it.
    ```
@@ -46,7 +46,7 @@ This skill is the route map for the other engineering skills. It decides which s
 - Verify budget: three passes (one run of checks plus the fix) on the same problem. After the third, stop and ask.
 - Keep to the plan. A new idea gets one line in the summary, not a new feature. If scope grows, stop and say what grew and why.
 - Keep context small. Read only what you need and run noisy commands so only the answer comes back.
-- If the session gets long, write a short handoff note in `.operant/engineering/<task-name>/notes.html`: goal, done, next, open risks. A fresh session can then pick up from the folder.
+- If the session gets long, write a short handoff note in `.foreman/engineering/<task-name>/notes.html`: goal, done, next, open risks. A fresh session can then pick up from the folder.
 - Do not compress or restart in the middle of a slice. Do it between slices, when the notes are up to date.
 - One build or test run at a time. Check the PC is not already busy before heavy work. No dev servers unless the user asks.
 - Use helper agents only for big or parallel jobs, never more than three, and never two on the same file. If your tool cannot start helpers, do the steps yourself in order.

@@ -1,7 +1,7 @@
 // Learning loop UI e2e (R16, R18): the Memory page (lessons, Hindsight, CodeGraph notes, personal memory, skill drafts),
 // the learning status panel, the header badge and the Learning settings. The Learning AI Test button runs the real claude on Haiku (one tiny turn); lessons, skill drafts and a learn run are seeded into the database, since nothing in the app triggers a learn step on demand. Hindsight points at a closed port, so it is skipped and says why.
 // Runs in the background with throwaway data. Usage: node e2e/memory.mjs [outDir]  (default docs/specs/screenshots)
-// Set OPERANT_E2E_EXE to a packaged executable to test a build instead of the dev app.
+// Set FOREMAN_E2E_EXE to a packaged executable to test a build instead of the dev app.
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -14,9 +14,9 @@ import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
-const dataDir = mkdtempSync(join(tmpdir(), 'operant-memory-'))
-const project = mkdtempSync(join(tmpdir(), 'operant-memory-proj-'))
-const claudeRoot = mkdtempSync(join(tmpdir(), 'operant-memory-claude-'))
+const dataDir = mkdtempSync(join(tmpdir(), 'foreman-memory-'))
+const project = mkdtempSync(join(tmpdir(), 'foreman-memory-proj-'))
+const claudeRoot = mkdtempSync(join(tmpdir(), 'foreman-memory-claude-'))
 const claudeDir = claudeHome(claudeRoot)
 process.on('exit', () => rmSync(claudeRoot, { recursive: true, force: true }))
 writeFileSync(join(project, 'app.ts'), 'export function main() { return helper() }\nfunction helper() { return 1 }\n')
@@ -24,7 +24,7 @@ writeFileSync(join(project, 'app.ts'), 'export function main() { return helper()
 const env = e2eEnv({ dataDir, claudeDir })
 // The real opencode, not the fixtures/bin stand-in: the OpenCode learning AI is tested against a real model.
 for (const k of Object.keys(env).filter((k) => k.toUpperCase() === 'PATH')) env[k] = env[k].split(delimiter).filter((d) => resolve(d) !== resolve('e2e/fixtures/bin')).join(delimiter)
-const packaged = process.env.OPERANT_E2E_EXE
+const packaged = process.env.FOREMAN_E2E_EXE
 
 const consoleNotes = []
 let app = null
@@ -45,10 +45,10 @@ async function launch() {
   page.on('pageerror', (e) => consoleNotes.push(`pageerror: ${e.message}`))
   page.setDefaultTimeout(60_000)
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.waitForFunction(() => !!window.operant)
-  await page.evaluate(() => window.operant.invoke('settings:set', { setupDone: true }))
+  await page.waitForFunction(() => !!window.foreman)
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
 }
-const inv = (channel, ...args) => page.evaluate(([c, a]) => window.operant.invoke(c, ...a), [channel, args])
+const inv = (channel, ...args) => page.evaluate(([c, a]) => window.foreman.invoke(c, ...a), [channel, args])
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 async function until(label, fn, timeout = 60_000) {
   const end = Date.now() + timeout
@@ -96,11 +96,11 @@ async function step(name, fn) {
 const ids = {}
 try {
   await launch()
-  await page.getByText('Welcome to Operant').waitFor()
+  await page.getByText('Welcome to Foreman').waitFor()
 
   await step('set up a project with seeded lessons, drafts and a learn run', async () => {
     ids.crew = (await inv('crews:create', { name: 'alpha', folder: project })).id
-    const db = new DatabaseSync(join(dataDir, 'operant.db'))
+    const db = new DatabaseSync(join(dataDir, 'foreman.db'))
     db.exec('PRAGMA busy_timeout = 5000')
     const now = Date.now()
     const addLesson = db.prepare(
@@ -116,7 +116,7 @@ try {
     for (const row of db.prepare('SELECT id, kind FROM lessons WHERE crew_id = ?').all(ids.crew)) ids[row.kind] = row.id
     db.close()
     await page.reload()
-    await page.waitForFunction(() => !!window.operant)
+    await page.waitForFunction(() => !!window.foreman)
     // The Playground stays selected after a reload, so pick the seeded project.
     await page.locator('[data-crew-row]').getByText('alpha', { exact: true }).click({ position: { x: 4, y: 4 } })
     await page.getByRole('heading', { name: 'alpha', level: 1 }).waitFor()

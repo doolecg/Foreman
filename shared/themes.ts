@@ -361,7 +361,7 @@ export function updateCustomTheme(list: CustomTheme[], id: string, patch: Partia
 export const deleteCustomTheme = (list: CustomTheme[], id: string): CustomTheme[] => list.filter((t) => t.id !== id)
 
 export function exportTheme(t: CustomTheme): string {
-  return JSON.stringify({ operantTheme: 1, name: t.name, base: t.base, colors: t.colors }, null, 2)
+  return JSON.stringify({ foremanTheme: 1, name: t.name, base: t.base, colors: t.colors }, null, 2)
 }
 
 // Parses an exported theme into a new entry of the list (a fresh id); throws a readable message when it is not one.
@@ -373,7 +373,7 @@ export function importTheme(json: string, list: CustomTheme[]): CustomTheme[] {
     throw new Error('That is not a theme file (invalid JSON)')
   }
   const r = raw as Record<string, unknown> | null
-  if (!r || typeof r !== 'object' || r.operantTheme !== 1 || typeof r.colors !== 'object') throw new Error('That is not an Operant theme file')
+  if (!r || typeof r !== 'object' || (r.foremanTheme ?? r.operantTheme) !== 1 || typeof r.colors !== 'object') throw new Error('That is not a Foreman theme file')
   return addCustomTheme(list, { name: String(r.name ?? ''), base: String(r.base ?? DEFAULT_THEME), colors: sanitizeCustomTheme({ id: 'custom-x', colors: r.colors })!.colors })
 }
 

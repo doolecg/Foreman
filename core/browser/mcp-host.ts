@@ -94,7 +94,7 @@ export function defaultLoader(): McpLoader {
 export interface McpHostOptions {
   hub: BrowserHub
   auth: McpAuth
-  // Operant.identify: the project of a tile, or null when the tile is gone.
+  // Foreman.identify: the project of a tile, or null when the tile is gone.
   crewOf(tileId: number): number | null
   aiAllowed(): boolean
   // The CdpProxy URL (with its secret) for a project. Never logged and never sent to a client.
@@ -154,7 +154,7 @@ function readBody(req: IncomingMessage): Promise<unknown> {
 }
 
 // The MCP endpoint for Claude tiles: Streamable HTTP on 127.0.0.1, bearer token = the tile's
-// OPERANT_TOKEN. Each MCP session is one @playwright/mcp connection to the project's CDP proxy,
+// FOREMAN_TOKEN. Each MCP session is one @playwright/mcp connection to the project's CDP proxy,
 // behind the Take control gate. Tokens and the proxy secret are never logged.
 export class McpHost {
   private readonly o: McpHostOptions

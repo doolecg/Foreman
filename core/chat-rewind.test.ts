@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ChatSession, type ChatChild, type ChatSpawnSpec } from './claude-chat'
 
-const root = mkdtempSync(join(tmpdir(), 'operant-rewind-'))
+const root = mkdtempSync(join(tmpdir(), 'foreman-rewind-'))
 process.on('exit', () => rmSync(root, { recursive: true, force: true }))
 
 class FakeChild extends EventEmitter {

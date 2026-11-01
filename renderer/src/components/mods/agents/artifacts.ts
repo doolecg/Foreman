@@ -7,7 +7,7 @@ import { fileOfTool } from './rightNow'
 
 export type ArtifactKind = 'image' | 'html' | 'markdown' | 'pdf' | 'document' | 'file' | 'url'
 
-// image: Operant's image viewer. browser: the project's browser tile. system: the default app. external: the system browser.
+// image: Foreman's image viewer. browser: the project's browser tile. system: the default app. external: the system browser.
 export type ArtifactAction = 'image' | 'browser' | 'system' | 'external'
 
 export interface Artifact {
@@ -149,7 +149,7 @@ export function capArtifacts(list: readonly Artifact[], showAll: boolean, max = 
 
 export const ACTION_LABEL: Record<ArtifactAction, string> = {
   image: 'View image',
-  browser: "Open in Operant's browser",
+  browser: "Open in Foreman's browser",
   system: 'Open with default app',
   external: 'Open in your web browser',
 }

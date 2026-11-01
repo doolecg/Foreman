@@ -159,7 +159,7 @@ export function SettingsPage({ initialSection, onClose }: { initialSection?: str
                 </section>
               )
             })}
-            <p className="text-muted-foreground pb-4 text-center text-xs">Operant {info.data?.version ?? ''}</p>
+            <p className="text-muted-foreground pb-4 text-center text-xs">Foreman {info.data?.version ?? ''}</p>
           </div>
         </ScrollArea>
       </div>

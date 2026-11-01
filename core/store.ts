@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import type { AgentKind, CacheTtl, Crew, LaunchSettings, McpMode, OperantEvent, Preset, ScratchSpend, ScratchTerminal, ScratchView, Team, TeamInput, TeamPatch, Usage } from '../shared/types'
+import type { AgentKind, CacheTtl, Crew, LaunchSettings, McpMode, ForemanEvent, Preset, ScratchSpend, ScratchTerminal, ScratchView, Team, TeamInput, TeamPatch, Usage } from '../shared/types'
 import type { SeatFields } from '../shared/types'
 import { LEARN_AI_MIGRATION, LEARN_USAGE_MIGRATION, LESSON_LINKS_MIGRATION, LESSONS_MIGRATION, SKILL_FIX_MIGRATION } from './lessons-store'
 import { BUILTIN_TEAMS, RETIRED_TEAMS, TEAM_RENAMES } from './team-presets'
@@ -346,7 +346,7 @@ export const MIGRATIONS: string[] = [
      created_at INTEGER NOT NULL,
      PRIMARY KEY (bot_id, thread_id)
    );`,
-  // Teams that ship with Operant: a stable key, a description, and whether the user edited it.
+  // Teams that ship with Foreman: a stable key, a description, and whether the user edited it.
   `ALTER TABLE teams ADD COLUMN builtin TEXT;
    ALTER TABLE teams ADD COLUMN description TEXT;
    ALTER TABLE teams ADD COLUMN modified INTEGER NOT NULL DEFAULT 0;
@@ -665,7 +665,7 @@ const CLAUDE_PRESETS: BuiltinPreset[] = [
     cacheTtl: 'auto',
     contextCap: 150_000,
   }),
-  seat({ builtin: 'learn', name: 'Learn', model: 'claude-haiku-5-5', effort: '', permissionMode: 'dontAsk', tools: READ_TOOLS, allow: [...READ_ALLOW, 'Bash(operant memory retain*)'], deny: READ_DENY, cacheTtl: '5m', contextCap: 100_000 }),
+  seat({ builtin: 'learn', name: 'Learn', model: 'claude-haiku-5-5', effort: '', permissionMode: 'dontAsk', tools: READ_TOOLS, allow: [...READ_ALLOW, 'Bash(foreman memory retain*)'], deny: READ_DENY, cacheTtl: '5m', contextCap: 100_000 }),
 ]
 
 // The same stages for OpenCode: the role text and tools carry over, but the model is empty. OpenCode's model ids are
@@ -788,7 +788,7 @@ const toUsage = (r: Row): Usage => ({
   toolUse: Number(r.tool_use) === 1,
   legacy: Number(r.legacy) === 1,
 })
-const toEvent = (r: Row): OperantEvent => ({
+const toEvent = (r: Row): ForemanEvent => ({
   id: Number(r.id),
   crewId: r.crew_id == null ? null : Number(r.crew_id),
   kind: String(r.kind),
@@ -1426,12 +1426,12 @@ export class Store {
   }
 
   // Events
-  addEvent(kind: string, message: string, crewId: number | null = null): OperantEvent {
+  addEvent(kind: string, message: string, crewId: number | null = null): ForemanEvent {
     const row = this.db.prepare('INSERT INTO events (crew_id, kind, message, at) VALUES (?, ?, ?, ?) RETURNING *').get(crewId, kind, message, this.now()) as Row
     return toEvent(row)
   }
 
-  recentEvents(limit: number): OperantEvent[] {
+  recentEvents(limit: number): ForemanEvent[] {
     return (this.db.prepare('SELECT * FROM events ORDER BY at DESC, id DESC LIMIT ?').all(limit) as Row[]).map(toEvent)
   }
 }

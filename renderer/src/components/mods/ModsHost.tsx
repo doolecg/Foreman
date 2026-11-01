@@ -11,8 +11,8 @@ import { ModBoundary } from './ModBoundary'
 import type { ModId } from '@shared/mods'
 import { MODS } from './registry'
 
-const WIDTH_KEY = 'operant.subagentPanelWidth'
-const TAB_KEY = 'operant.railTab'
+const WIDTH_KEY = 'foreman.subagentPanelWidth'
+const TAB_KEY = 'foreman.railTab'
 const DEFAULT_WIDTH = 400
 
 type Tab = 'plan' | 'files' | 'agents'
@@ -51,7 +51,7 @@ function RailButton({ label, icon: Icon, on, dot, onClick }: { label: string; ic
 }
 
 // The right rail of a thread: Plan (while Engineering Mode is on), Files and Agents as icons; a click opens that panel beside the rail, another closes it.
-// Only Operant's own panels live here: native mods draw inside Claude Code. The frame (width and the open tab, kept in localStorage) is the host's;
+// Only Foreman's own panels live here: native mods draw inside Claude Code. The frame (width and the open tab, kept in localStorage) is the host's;
 // a crash in the Agents panel stays inside its ModBoundary.
 export function ModsHost({ tileId, crewId, chat, engineering }: { tileId: number; crewId: number | null; chat?: boolean; engineering?: boolean }) {
   const settings = useSettings().data

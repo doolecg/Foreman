@@ -130,7 +130,7 @@ export function InstallSection() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">First-start setup</CardTitle>
-          <CardDescription>The window that offers the optional installs once, when Operant first starts.</CardDescription>
+          <CardDescription>The window that offers the optional installs once, when Foreman first starts.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="outline" size="sm" disabled={save.isPending} onClick={() => save.mutate({ setupDone: false })}>
@@ -144,7 +144,7 @@ export function InstallSection() {
         description={
           item ? (
             <>
-              <p>Operant will run this command for you:</p>
+              <p>Foreman will run this command for you:</p>
               <p className="bg-muted rounded-md px-2 py-1.5 font-mono text-xs break-all">{commandText(item.id, platform)}</p>
             </>
           ) : null

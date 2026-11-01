@@ -112,7 +112,7 @@ export function buildPreamble(modes: ProjectModes, dirs: PackDirs): string {
   const blocks: string[] = []
   if (modes.engineering) {
     blocks.push(
-      `Engineering Mode is on for this project. For every new task read ${at(dirs.engineeringDir, 'skills/flow/SKILL.md')} and follow it. Read each stage skill file before using that stage. One approval gate: the plan. Never push. Max 3 verify passes then ask. Task files live in .operant/engineering/<task-name>/.`,
+      `Engineering Mode is on for this project. For every new task read ${at(dirs.engineeringDir, 'skills/flow/SKILL.md')} and follow it. Read each stage skill file before using that stage. One approval gate: the plan. Never push. Max 3 verify passes then ask. Task files live in .foreman/engineering/<task-name>/.`,
     )
   }
   if (modes.factory) {

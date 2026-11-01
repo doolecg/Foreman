@@ -72,7 +72,7 @@ export function ModsSection() {
           <Switch id="mods-enabled" aria-label="Pause all mods" checked={!m.enabled} onCheckedChange={(v) => setMods({ enabled: !v })} />
         </Row>
       </div>
-      <p className="text-muted-foreground px-1 text-xs">Operant's status line replaces your own inside Operant Claude tiles.</p>
+      <p className="text-muted-foreground px-1 text-xs">Foreman's status line replaces your own inside Foreman Claude tiles.</p>
       <p className="text-muted-foreground px-1 text-xs">The Engineering and Factory modes are turned on per project with the switches in the top bar. Their skills are in Settings, Tools and installs.</p>
     </>
   )

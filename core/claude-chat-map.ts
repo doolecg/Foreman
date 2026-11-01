@@ -195,7 +195,7 @@ export class ChatMapper {
     return this.drain()
   }
 
-  // Operant's keep-warm message: one compact row instead of a bubble, a reply and a "Done" line.
+  // Foreman's keep-warm message: one compact row instead of a bubble, a reply and a "Done" line.
   notePing(prompt: string): ChatOp[] {
     const id = `ping:${this.now()}:${this.seq++}`
     this.addItem<NoticeItem>({ kind: 'notice', id, parent: null, source: 'ping', tone: 'info', text: prompt, ping: { reply: '', ok: true, running: true, cacheRead: 0, usd: null }, at: this.now() })
@@ -247,7 +247,7 @@ export class ChatMapper {
     return this.compacting
   }
 
-  // The messages Operant holds back until the turn ends (the queue strip).
+  // The messages Foreman holds back until the turn ends (the queue strip).
   setQueue(queue: QueuedMessage[]): ChatOp[] {
     this.meta({ queue })
     return this.drain()

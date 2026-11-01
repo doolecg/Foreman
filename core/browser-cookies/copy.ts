@@ -6,7 +6,7 @@ import { basename, join } from 'node:path'
 // then deletes the whole copy. Browsers keep these files locked while running, so we never open the originals. The temp
 // copy is removed in a finally block even when `use` throws.
 export async function withCookieDbCopy<T>(dbFile: string, use: (copy: string) => Promise<T>): Promise<T> {
-  const dir = mkdtempSync(join(tmpdir(), 'operant-cookies-'))
+  const dir = mkdtempSync(join(tmpdir(), 'foreman-cookies-'))
   try {
     const name = basename(dbFile)
     const dest = join(dir, name)

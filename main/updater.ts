@@ -44,11 +44,11 @@ interface Ready {
 
 const VERSION_RE = /^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/
 
-const HEADERS = { 'User-Agent': 'operant2', Accept: 'application/vnd.github+json' }
+const HEADERS = { 'User-Agent': 'foreman', Accept: 'application/vnd.github+json' }
 
 const lockFile = () => join(tmpdir(), UPDATE_LOCK)
 const resultFile = () => join(tmpdir(), UPDATE_RESULT)
-const installLog = (version: string) => join(tmpdir(), `Operant3-${version}-install.log`)
+const installLog = (version: string) => join(tmpdir(), `Foreman-${version}-install.log`)
 
 // True while an update worker is installing (Windows), so a second copy must not start or install.
 export function updateInstalling(): boolean {
@@ -91,7 +91,7 @@ export function createUpdater({
   beforeInstall?: (version: string) => unknown
 }) {
   const currentVersion = app.getVersion()
-  const enabled = app.isPackaged || process.env.OPERANT_UPDATE_TEST === '1'
+  const enabled = app.isPackaged || process.env.FOREMAN_UPDATE_TEST === '1'
   let ready: Ready | null = null
   let busy = false
   let installing = false
@@ -119,14 +119,14 @@ export function createUpdater({
     }
     if (!Number.isFinite(free) || free >= size * 2) return
     const mb = (n: number) => Math.ceil(n / 1_048_576)
-    throw new Error(`Not enough disk space to download Operant ${version} (needs ${mb(size * 2)} MB, ${mb(free)} MB free)`)
+    throw new Error(`Not enough disk space to download Foreman ${version} (needs ${mb(size * 2)} MB, ${mb(free)} MB free)`)
   }
 
   async function fetchAsset(asset: ReleaseAsset, version: string, kind: InstallKind, onDownload: () => void): Promise<string> {
     // A per-user folder, not the shared temp folder: on Linux another user could plant a file in /tmp.
     const dir = join(app.getPath('userData'), 'updates')
     mkdirSync(dir, { recursive: true })
-    const file = join(dir, `Operant3-${version}.${EXT[kind]}`)
+    const file = join(dir, `Foreman-${version}.${EXT[kind]}`)
     // Only the newest download is kept.
     for (const name of readdirSync(dir)) if (join(dir, name) !== file) rmSync(join(dir, name), { force: true, recursive: true })
     if (!downloaded(file, asset.size)) {
@@ -134,7 +134,7 @@ export function createUpdater({
       onDownload()
       const part = `${file}.part`
       try {
-        const res = await net.fetch(asset.browser_download_url, { headers: { 'User-Agent': 'operant2' } })
+        const res = await net.fetch(asset.browser_download_url, { headers: { 'User-Agent': 'foreman' } })
         if (!res.ok || !res.body) throw new Error(`download ${res.status}`)
         await pipeline(Readable.fromWeb(res.body as unknown as WebReadableStream), createWriteStream(part))
         if (statSync(part).size !== asset.size) throw new Error('download size mismatch')
@@ -230,7 +230,7 @@ export function createUpdater({
     if (r.kind === 'msi') {
       const exe = process.execPath
       // Old per-user install folder, removed by the worker once the new copy is in place (no-op if it is the same folder).
-      const oldDir = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Programs', 'Operant 3') : undefined
+      const oldDir = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Programs', 'Foreman') : undefined
       const worker = msiWorkerScript({
         pid: process.pid,
         exe,
@@ -262,8 +262,8 @@ export function createUpdater({
     if (r.kind === 'dmg') {
       const bundle = resolve(process.execPath, '../../..')
       if (!APP_BUNDLES.includes(basename(bundle)) || bundle.startsWith('/Volumes/') || bundle.includes('/AppTranslocation/'))
-        return fail('Move Operant to Applications, then update')
-      if (!writable(dirname(bundle))) return fail(`Can't write to ${dirname(bundle)}; move Operant somewhere you can write to`)
+        return fail('Move Foreman to Applications, then update')
+      if (!writable(dirname(bundle))) return fail(`Can't write to ${dirname(bundle)}; move Foreman somewhere you can write to`)
       script = macInstallScript({ pid: process.pid, dmg: r.file, bundle, log, relaunch })
     } else if (r.kind === 'appimage') {
       const target = resolve(process.env.APPIMAGE ?? '')
@@ -285,7 +285,7 @@ export function createUpdater({
   function install(relaunch: boolean): boolean {
     if (!ready || installing) return false
     if (updateInstalling()) {
-      report({ state: 'error', version: ready.version, message: 'An update is already installing; Operant reopens when it is done' })
+      report({ state: 'error', version: ready.version, message: 'An update is already installing; Foreman reopens when it is done' })
       return false
     }
     failure = undefined

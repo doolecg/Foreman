@@ -10,8 +10,8 @@ const ctx: LaunchContext = {
   launchDir: '/tmp/launch',
   rolesDir: '/tmp/roles',
   sessionId: '6f1c0f1e-5a4b-4c3d-8e2f-123456789abc',
-  operantCli: '/app/cli/operant',
-  operantNode: '/app/operant',
+  foremanCli: '/app/cli/foreman',
+  foremanNode: '/app/foreman',
 }
 
 const tile = (over: Partial<ScratchTerminal> = {}): ScratchTerminal => ({
@@ -53,9 +53,9 @@ describe('tile launches', () => {
     expect(on.args[i + 1]).toBe('/tmp/launch/browser-mcp.json')
     const f = on.files.find((x) => x.path === '/tmp/launch/browser-mcp.json')
     expect(JSON.parse(f?.content ?? '{}')).toEqual({
-      mcpServers: { 'operant-browser': { type: 'http', url: 'http://127.0.0.1:53817/mcp', headers: { Authorization: 'Bearer ${OPERANT_TOKEN}' } } },
+      mcpServers: { 'foreman-browser': { type: 'http', url: 'http://127.0.0.1:53817/mcp', headers: { Authorization: 'Bearer ${FOREMAN_TOKEN}' } } },
     })
-    expect(f?.content).not.toContain('@@OPERANT_TOKEN@@')
+    expect(f?.content).not.toContain('@@FOREMAN_TOKEN@@')
     const off = buildScratchLaunch(tile(), ctx)
     expect(off.args).not.toContain('--mcp-config')
     expect(off.files.some((x) => x.path.endsWith('browser-mcp.json'))).toBe(false)
@@ -68,11 +68,11 @@ describe('tile launches', () => {
     expect(on.files).toEqual([])
     const content = on.env.OPENCODE_CONFIG_CONTENT ?? ''
     expect(JSON.parse(content)).toEqual({
-      mcp: { servers: { 'operant-browser': { type: 'remote', url: 'http://127.0.0.1:53817/mcp', headers: { Authorization: 'Bearer {env:OPERANT_TOKEN}' }, disabled: false } } },
+      mcp: { servers: { 'foreman-browser': { type: 'remote', url: 'http://127.0.0.1:53817/mcp', headers: { Authorization: 'Bearer {env:FOREMAN_TOKEN}' }, disabled: false } } },
     })
-    expect(content).not.toContain('@@OPERANT_TOKEN@@')
+    expect(content).not.toContain('@@FOREMAN_TOKEN@@')
     expect(on.env.OPENCODE_CLI_CONFIG_CONTENT).toBe(JSON.stringify({ tabs: { mode: 'off' } }))
-    expect(on.env.OPERANT_TOKEN).toBe('@@OPERANT_TOKEN@@')
+    expect(on.env.FOREMAN_TOKEN).toBe('@@FOREMAN_TOKEN@@')
     const off = buildScratchLaunch(tile({ agent: 'opencode' }), ctx)
     expect(off.env).not.toHaveProperty('OPENCODE_CONFIG_CONTENT')
   })
@@ -83,7 +83,7 @@ describe('tile launches', () => {
     expect(merged.theme).toBe('x')
     expect(merged.mcp.other).toBe(1)
     expect(merged.mcp.servers.b).toEqual({ disabled: true })
-    expect(merged.mcp.servers['operant-browser'].type).toBe('remote')
+    expect(merged.mcp.servers['foreman-browser'].type).toBe('remote')
     expect(opencodeConfigContent({}, base)).toBe(base)
     expect(opencodeConfigContent({})).toBeNull()
   })
@@ -106,7 +106,7 @@ describe('tile launches', () => {
     const l = buildScratchLaunch(tile(), ctx)
     expect(l.file).toBe('claude')
     expect(l.args).toEqual(expect.arrayContaining(['--model', 'claude-sonnet-5-5', '--plugin-dir', '/app/plugin', '--session-id']))
-    expect(l.env).toMatchObject({ OPERANT_TOKEN: '@@OPERANT_TOKEN@@', OPERANT_SOCKET: '@@OPERANT_SOCKET@@' })
+    expect(l.env).toMatchObject({ FOREMAN_TOKEN: '@@FOREMAN_TOKEN@@', FOREMAN_SOCKET: '@@FOREMAN_SOCKET@@' })
     expect(l.files).toEqual([])
   })
 
@@ -136,22 +136,22 @@ describe('tile launches', () => {
     expect(buildScratchLaunch(tile(), { ...ctx, modePreamble: '' }).args).not.toContain('--append-system-prompt-file')
   })
 
-  it('passes a --plugin-dir per mode pack and sets OPERANT_FACTORY only when Factory is on', () => {
+  it('passes a --plugin-dir per mode pack and sets FOREMAN_FACTORY only when Factory is on', () => {
     const on = buildScratchLaunch(tile(), { ...ctx, packPlugins: ['/data/engineering/engineering', '/data/engineering/factory'], factory: true })
     const dirs = on.args.flatMap((a, i) => (a === '--plugin-dir' ? [on.args[i + 1]] : []))
     expect(dirs).toEqual(['/app/plugin', '/data/engineering/engineering', '/data/engineering/factory'])
-    expect(on.env.OPERANT_FACTORY).toBe('1')
+    expect(on.env.FOREMAN_FACTORY).toBe('1')
     const eng = buildScratchLaunch(tile(), { ...ctx, packPlugins: ['/data/engineering/engineering'] })
     expect(eng.args.filter((a) => a === '--plugin-dir')).toHaveLength(2)
-    expect(eng.env).not.toHaveProperty('OPERANT_FACTORY')
-    expect(buildScratchLaunch(tile(), ctx).env).not.toHaveProperty('OPERANT_FACTORY')
+    expect(eng.env).not.toHaveProperty('FOREMAN_FACTORY')
+    expect(buildScratchLaunch(tile(), ctx).env).not.toHaveProperty('FOREMAN_FACTORY')
     expect(() => buildScratchLaunch(tile(), { ...ctx, packPlugins: ['/x\ny'] })).toThrow()
   })
 
   it('leaves the mode pack off non-Claude tiles', () => {
     const l = buildScratchLaunch(tile({ agent: 'codex' }), { ...ctx, modePreamble: 'x', packPlugins: ['/p'], factory: true })
     expect(l.args).toEqual(['-m', 'claude-sonnet-5-5'])
-    expect(l.env).not.toHaveProperty('OPERANT_FACTORY')
+    expect(l.env).not.toHaveProperty('FOREMAN_FACTORY')
   })
 
   it('has nothing to type for a shell tile and an OpenCode tile starts its TUI', () => {
@@ -175,17 +175,17 @@ describe('tile launches', () => {
 
   it('forces Haiku for Claude only in an e2e run', () => {
     expect(e2eClaudeModel('claude-sonnet-5-5', {})).toBe('claude-sonnet-5-5')
-    expect(e2eClaudeModel('claude-sonnet-5-5', { OPERANT_E2E: '1' })).toBe('claude-haiku-5-5')
-    expect(e2eClaudeModel(undefined, { OPERANT_E2E: '1' })).toBe('claude-haiku-5-5')
-    const old = process.env.OPERANT_E2E
-    process.env.OPERANT_E2E = '1'
+    expect(e2eClaudeModel('claude-sonnet-5-5', { FOREMAN_E2E: '1' })).toBe('claude-haiku-5-5')
+    expect(e2eClaudeModel(undefined, { FOREMAN_E2E: '1' })).toBe('claude-haiku-5-5')
+    const old = process.env.FOREMAN_E2E
+    process.env.FOREMAN_E2E = '1'
     try {
       expect(buildScratchLaunch(tile(), ctx).args).toEqual(expect.arrayContaining(['--model', 'claude-haiku-5-5']))
       expect(buildClaudeRunLaunch({ cwd: '/code/shop', model: 'claude-sonnet-5-5' }).args).toEqual(expect.arrayContaining(['--model', 'claude-haiku-5-5']))
       expect(buildScratchLaunch(tile({ agent: 'codex', model: 'gpt-5' }), ctx).args).toEqual(['-m', 'gpt-5'])
     } finally {
-      if (old === undefined) delete process.env.OPERANT_E2E
-      else process.env.OPERANT_E2E = old
+      if (old === undefined) delete process.env.FOREMAN_E2E
+      else process.env.FOREMAN_E2E = old
     }
   })
 })

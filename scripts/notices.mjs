@@ -1,4 +1,4 @@
-// Writes out/licenses: Operant's own LICENSE and THIRD_PARTY_NOTICES.txt with the license text of every package the
+// Writes out/licenses: Foreman's own LICENSE and THIRD_PARTY_NOTICES.txt with the license text of every package the
 // app ships, bundled or not. The packages are the runtime dependencies and the ones the source
 // imports, plus everything they depend on.
 // Electron's and Chromium's licenses are added by electron-builder itself.
@@ -110,7 +110,7 @@ const entries = [...seen.entries()]
   .sort((a, b) => a.title.localeCompare(b.title))
 const rule = '\n\n' + '-'.repeat(78) + '\n\n'
 const body = [
-  'Operant includes the third-party software listed below. Each part is under its own license, given in full.',
+  'Foreman includes the third-party software listed below. Each part is under its own license, given in full.',
   'Electron and Chromium licenses are in LICENSE.electron.txt and LICENSES.chromium.html next to the app.',
   SHADCN,
   ...ENGINEERING_CREDITS,

@@ -65,7 +65,7 @@ export interface UserItem {
   steer?: boolean
 }
 
-// A message the owner sent while Claude works: Operant holds it (it is not in `items`) and writes it to Claude when the
+// A message the owner sent while Claude works: Foreman holds it (it is not in `items`) and writes it to Claude when the
 // turn ends, or at once on "Send now". The images stay in core; the strip only needs how many.
 export interface QueuedMessage {
   id: string
@@ -97,7 +97,7 @@ export interface ThinkingItem {
 
 // Any tool call except Agent/Task (those are SubagentItem). `summary` is the one-line target (file path, command,
 // pattern, URL); `verb` the present participle ("Reading"); `label` the past form for finished rows ("Read").
-// The tool name of the row Operant adds while its learn step works on the session (UI only, never sent to Claude).
+// The tool name of the row Foreman adds while its learn step works on the session (UI only, never sent to Claude).
 export const LEARN_TOOL = 'Learn'
 
 export interface ToolItem {
@@ -256,7 +256,7 @@ export interface NoticeItem {
   // The hook or plugin the notice came from (category 'session' and 'skill').
   origin?: string
   // A keep-warm ping turn folded into one row: `text` is the prompt, this the reply and what the call read.
-  // A test screenshot saved by `operant shot`.
+  // A test screenshot saved by `foreman shot`.
   images?: ChatImage[]
   ping?: { reply: string; ok: boolean; running: boolean; cacheRead: number; usd: number | null }
   at: number
@@ -527,11 +527,11 @@ export interface ChatHistoryPage {
   historyStart: number
 }
 
-// Request/response channels. Registered in shared/ipc.ts (IpcApi) and implemented in core/operant.ts.
+// Request/response channels. Registered in shared/ipc.ts (IpcApi) and implemented in core/foreman.ts.
 export interface ChatApi {
   // Current state; for a tile whose process is not running, the transcript's newest items with process 'stopped'.
   'chat:snapshot': (scratchId: number) => ChatState
-  // Writes a user message. While a turn runs Operant holds it in state.queue and writes it when the turn ends. Restarts a
+  // Writes a user message. While a turn runs Foreman holds it in state.queue and writes it when the turn ends. Restarts a
   // stopped or crashed process first (resume), unless it crashed three times within a minute.
   'chat:send': (scratchId: number, input: ChatSendInput) => void
   // Interrupt: the turn ends with an "Interrupted" notice; if Claude Code does not answer within 5 s the process is
