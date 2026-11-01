@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright-core'
 import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
+import { waitProjectOpen } from './fixtures/ui.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
@@ -36,7 +37,7 @@ try {
 
   const crew = await inv('crews:create', { name: 'console-demo', folder: project })
   await page.locator('[data-crew-row]').getByText('console-demo', { exact: true }).click({ position: { x: 4, y: 4 } })
-  await page.getByRole('heading', { name: 'console-demo' }).waitFor()
+  await waitProjectOpen(page, 'console-demo')
   assert.equal(await page.getByTestId('console-drawer').count(), 0, 'the drawer starts closed')
 
   // A background command: the MCP status check runs the real claude CLI and its output must land in the console.

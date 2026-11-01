@@ -12,6 +12,7 @@ import { join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright-core'
 import { shot } from './lib/shot.mjs'
 import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
+import { waitProjectOpen } from './fixtures/ui.mjs'
 
 const phase = process.argv[2] ?? 'after'
 const outDir = resolve(process.argv[3] ?? 'docs/specs/screenshots')
@@ -89,12 +90,18 @@ try {
   await inv('crews:create', { name: 'clip', folder: project })
   await inv('settings:set', { mainCli: 'claude' })
   await page.locator('[data-crew-row]').getByText('clip', { exact: true }).click({ position: { x: 4, y: 4 } })
-  await page.getByRole('heading', { name: 'clip', level: 1 }).waitFor()
-  await page.locator('[data-crew-row]').getByText('clip', { exact: true }).click({ button: 'right', position: { x: 4, y: 4 } })
-  await page.getByRole('menuitem', { name: 'New Claude terminal here' }).click()
-  await page.getByRole('region', { name: /^Claude: / }).waitFor({ timeout: 20_000 })
-  await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Terminal', exact: true }).click() // new Claude tiles open in Chat
-  await page.keyboard.press('Alt+Shift+T') // a shell beside it: a split of two tiles
+  await waitProjectOpen(page, 'clip')
+  // Shells live in the bottom drawer now, so the split of two tiles is two Claude threads. New Claude threads open in Chat
+  // (one at a time in the Thread view): switch each to Terminal from its options menu, then show both in the Tiles view.
+  for (let n = 0; n < 2; n++) {
+    await page.locator('[data-crew-row]').getByText('clip', { exact: true }).click({ button: 'right', position: { x: 4, y: 4 } })
+    await page.getByRole('menuitem', { name: 'New Claude terminal here' }).click()
+    await page.locator('[data-chat="thread-header"]').getByRole('heading', { name: /^Claude: / }).waitFor({ timeout: 20_000 })
+    await page.getByRole('button', { name: 'Thread options' }).click()
+    await page.getByRole('menuitem', { name: 'Show the terminal view' }).click()
+    await page.locator('.xterm').first().waitFor({ timeout: 20_000 })
+  }
+  await page.getByRole('navigation', { name: 'Views' }).getByRole('button', { name: 'Tiles', exact: true }).click()
   await page.locator('[data-tile]').nth(1).waitFor({ timeout: 20_000 })
   await page.locator('.xterm').nth(1).waitFor({ timeout: 20_000 })
 
@@ -121,7 +128,7 @@ try {
   await setScale(1.25)
   await win([1920, 1080])
   await page.waitForTimeout(500)
-  await page.getByRole('region', { name: /^Claude: / }).click({ position: { x: 20, y: 12 } })
+  await page.getByRole('region', { name: /^Claude: / }).first().click({ position: { x: 20, y: 12 } })
   await page.keyboard.press('Alt+Shift+F')
   await page.waitForFunction(() => document.querySelector('[data-tile][data-fullscreen="true"]'))
   await report('fullscreen 1920x1080 scale 1.25', 'fullscreen-1920x1080-scale-1.25')

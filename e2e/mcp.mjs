@@ -23,13 +23,15 @@ writeFileSync(
   join(claudeDir, '.claude.json'),
   JSON.stringify({
     mcpServers: {
-      'files-srv': { type: 'stdio', command: 'npx', args: ['files-mcp', `--api-key=${SECRET}`], env: { API_KEY: SECRET } },
+      'files-srv': { type: 'stdio', command: 'node', args: [resolve('e2e/fixtures/fake-mcp-server.mjs'), `--api-key=${SECRET}`], env: { API_KEY: SECRET } },
       'bad-srv': { type: 'http', url: 'http://127.0.0.1:9/stream' },
       'auth-srv': { type: 'http', url: 'https://mcp.example.test/mcp', headers: { Authorization: `Bearer ${SECRET}` } },
     },
   }),
 )
 writeFileSync(ocFile, JSON.stringify({ mcp: { servers: { 'oc-good': { type: 'local', command: ['node', 'srv.js'] } } } }))
+
+// files-srv is a local stand-in MCP server (fixtures/fake-mcp-server.mjs): the real `claude mcp list` connects to it, so no network or npm package is needed.
 
 // Which runtimes count as installed for the optional integrations: uvx missing, npx present to start. The app reads this
 // file (FOREMAN_E2E_RUNTIMES) instead of probing the machine, and the Check again button re-reads it.
@@ -61,10 +63,13 @@ try {
 
   // The MCP page: statuses from the CLIs, secrets masked.
   await page.keyboard.press('Control+,')
-  await page.getByRole('button', { name: 'MCP servers', exact: true }).click()
+  // MCP servers is a section of the 'Tools and installs' page, not a page of its own.
+  await page.getByRole('navigation', { name: 'Settings pages' }).getByRole('button', { name: 'Tools and installs' }).click()
   await page.getByText(/Read from each CLI/).waitFor()
   await row('files-srv').waitFor({ timeout: 60_000 })
-  await row('files-srv').getByText('Connected').waitFor()
+  // Statuses are not fetched on open (the rows start as 'Not checked'): Refresh asks each CLI.
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click()
+  await row('files-srv').getByText('Connected').waitFor({ timeout: 90_000 })
   await row('bad-srv').getByText('Failed', { exact: true }).waitFor()
   await row('bad-srv').getByText(/ECONNREFUSED/).waitFor()
   await row('auth-srv').getByText('Needs auth').waitFor()

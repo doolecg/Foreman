@@ -88,6 +88,7 @@ try {
     'Move to Work',
     'Move to Play',
     'Move to new group',
+    'Rename or change folder…',
     'Project defaults…',
     'Delete project…',
   ])
@@ -181,11 +182,21 @@ try {
   await page.setViewportSize({ width: 1440, height: 900 })
   await drawer.getByRole('button', { name: 'New shell in this project' }).click()
   await page.waitForFunction(() => document.querySelectorAll('[data-testid="terminal-drawer"] [role="tab"]').length === 2)
+  // Closing a tile asks first (the ask-before-closing setting is on by default).
+  const confirmClose = () => page.getByTestId('close-tile-dialog').locator('button[data-variant="destructive"]').click()
   await drawer.getByRole('button', { name: /^Close Shell: shop/ }).first().click()
-  assert.equal((await inv('scratch:list', crews.shop.id)).length, 1, 'closing a tab removes its tile')
+  await confirmClose()
+  // Closing a tab drops it at once and deletes its tile in the background, so the list is polled.
+  const tileCount = async (want) => {
+    let n
+    for (const end = Date.now() + 10_000; Date.now() < end; await page.waitForTimeout(200)) if ((n = (await inv('scratch:list', crews.shop.id)).length) === want) break
+    return n
+  }
+  assert.equal(await tileCount(1), 1, 'closing a tab removes its tile')
   await drawer.getByRole('button', { name: /^Close Shell: shop/ }).click()
+  await confirmClose()
   await drawer.waitFor({ state: 'detached' })
-  assert.equal((await inv('scratch:list', crews.shop.id)).length, 0)
+  assert.equal(await tileCount(0), 0)
 
   // Shortcuts: Alt+Shift+T opens a shell for the selected project, Alt+B hides and shows the list.
   await row('shop').click()
@@ -198,6 +209,7 @@ try {
   await page.keyboard.press('Alt+b')
   await page.getByRole('complementary', { name: 'Projects' }).waitFor()
   await drawer.getByRole('button', { name: /^Close Shell: shop/ }).click()
+  await confirmClose()
   await drawer.waitFor({ state: 'detached' })
 
   // Project defaults opens Settings at the Projects section.

@@ -1,4 +1,4 @@
-// Top bar (one 38 px row): brand, project block, view switcher, media block, clock and git branch chip, at four window widths and two UI scales,
+// Top bar (one 44 px row): brand, project block, view switcher, media block, clock and git branch chip, at four window widths and two UI scales,
 // with live settings. The media bar (fake helper speaking the real JSON lines). Runs in the background with throwaway data.
 // Usage: node e2e/topbar.mjs [outDir]   (screenshots for the spec go to docs/specs/screenshots when given as that dir)
 import assert from 'node:assert/strict'
@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright-core'
+import { waitProjectOpen } from './fixtures/ui.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'out/e2e')
 mkdirSync(outDir, { recursive: true })
@@ -48,7 +49,7 @@ try {
     await o.invoke('crews:create', { name: 'shop', folder })
   }, project)
   await page.locator('[data-crew-row]').getByText('shop', { exact: true }).click({ position: { x: 4, y: 4 } })
-  await page.getByRole('heading', { name: 'shop' }).waitFor({ state: 'attached' })
+  await waitProjectOpen(page, 'shop')
 
   await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true, uiScale: 1, topBar: { mediaSize: 'compact' } }))
   const bar = page.getByRole('group', { name: 'Media controls' })
@@ -99,8 +100,8 @@ try {
   await page.getByText(/^(Copied|Could not copy)/).first().waitFor()
   await page.mouse.move(5, 500)
 
-  // One row at every width and scale: nothing overflows, no second row, the name stays readable, and the pills
-  // collapse into the status menu before the name is cut.
+  // One row at every width and scale: nothing overflows, no second row, and the groups of the bar never overlap. (The project name,
+  // status pill, branch chip and usage badge no longer live in the bar: the name is in the sidebar, the rest in its footer.)
   const shot = async (name) => {
     const png = await win((w) => w.webContents.capturePage({ x: 0, y: 0, width: 4000, height: 120 }).then((i) => i.toPNG().toString('base64')))
     writeFileSync(join(outDir, name), Buffer.from(png, 'base64'))
@@ -117,21 +118,15 @@ try {
           return kids.some((k, i) => i > 0 && k.getBoundingClientRect().left < kids[i - 1].getBoundingClientRect().right - 0.5)
         }
         const h = document.querySelector('header')
-        const h1 = h.querySelector('h1')
-        return { doc: document.documentElement.scrollWidth, win: window.innerWidth, headScroll: h.scrollWidth, headClient: h.clientWidth, height: h.getBoundingClientRect().height, name: [h1.clientWidth, h1.scrollWidth], chips: !!h.querySelector('[aria-label^="Git: "], [aria-label="Usage"], [aria-label="Status and branch"]'), activity: !!h.querySelector('[aria-label^="Activity"]'), overlap: overlaps(h) }
+        return { doc: document.documentElement.scrollWidth, win: window.innerWidth, headScroll: h.scrollWidth, headClient: h.clientWidth, height: h.getBoundingClientRect().height, chips: !!h.querySelector('[aria-label^="Git: "], [aria-label="Usage"], [aria-label="Status and branch"]'), activity: !!h.querySelector('[aria-label^="Activity"]'), overlap: overlaps(h) }
       })
       const label = `${w}px at ${scale * 100}%`
       assert.ok(m.doc <= m.win, `page overflows at ${label}: ${JSON.stringify(m)}`)
       assert.ok(m.headScroll <= m.headClient + 1, `header overflows at ${label}: ${JSON.stringify(m)}`)
-      assert.equal(Math.round(m.height), 38, `one 38 px row at ${label}: ${JSON.stringify(m)}`)
+      assert.equal(Math.round(m.height), 44, `one 44 px row at ${label}: ${JSON.stringify(m)}`)
       assert.ok(!m.chips, `the git and usage chips live in the sidebar footer at ${label}`)
       assert.ok(!m.overlap, `the groups of the bar overlap at ${label}: ${JSON.stringify(m)}`)
-      if (scale === 1) assert.ok(m.name[0] >= m.name[1], `the project name is readable at ${label}: ${JSON.stringify(m)}`)
-      if (scale === 1) assert.ok(!m.status && m.git, `the status pill and the branch chip stay in the bar at ${label}: ${JSON.stringify(m)}`)
       assert.ok(m.activity, `the activity button stays in the bar at ${label}: ${JSON.stringify(m)}`)
-      if (scale === 1) assert.ok(m.usage, `the usage button stays in the bar at ${label}: ${JSON.stringify(m)}`)
-      if (scale === 2 && w === 1000) assert.ok(!m.usage, 'usage collapsed into the menu at 500 css px')
-      if (scale === 2 && w === 1000) assert.ok(m.status, 'status and branch collapsed into the menu at 500 css px')
       if (scale === 1) await shot(`top-bar-${w}.png`)
     }
   }
@@ -157,7 +152,7 @@ try {
   await foot.getByRole('button', { name: /^Console/ }).waitFor()
   await foot.getByRole('button', { name: /^Provider limits: / }).waitFor()
   assert.match((await foot.getByRole('button', { name: /^Provider limits: / }).textContent()) ?? '', /off/, 'the usage badge says off while plan limits are off')
-  const cog = foot.getByRole('button', { name: 'Settings' })
+  const cog = foot.getByRole('button', { name: 'Settings', exact: true })
   await cog.waitFor()
   await cog.click()
   await page.getByRole('heading', { name: 'Settings' }).waitFor()

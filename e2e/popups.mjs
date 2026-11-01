@@ -32,7 +32,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const openSettingsPage = async (label) => {
   const select = page.getByRole('combobox', { name: 'Settings page' })
   if (await select.isVisible().catch(() => false)) return select.selectOption({ label })
-  await page.locator('main nav button', { hasText: label }).first().click()
+  await page.getByRole('navigation', { name: 'Settings pages' }).getByRole('button', { name: label, exact: true }).click()
 }
 
 let app = null
@@ -53,6 +53,7 @@ const shot = async (name) => {
 const view = () => page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }))
 const box = async (loc) => (await loc.first().boundingBox()) ?? assert.fail('missing box')
 const inside = async (loc, label) => {
+  await sleep(400) // popups animate in (scale and slide): measure once they have settled
   const b = await box(loc)
   const v = await view()
   assert.ok(b.x >= -1 && b.y >= -1 && b.x + b.width <= v.w + 1 && b.y + b.height <= v.h + 1, `${label} fits the window (${JSON.stringify(b)} in ${v.w}x${v.h})`)
@@ -95,10 +96,12 @@ try {
   await page.mouse.down()
   await page.mouse.move(sh.x + sh.width / 2 + 90, sh.y + 300, { steps: 6 })
   await page.mouse.up()
+  await sleep(500) // the panel's width animates: let it settle before measuring
   const sw1 = (await box(side)).width
   assert.ok(sw1 > sw0 + 60, `dragging the project list handle widens it (${sw0} to ${sw1})`)
   await page.getByRole('separator', { name: 'Resize project list' }).focus()
   await page.keyboard.press('ArrowRight')
+  await sleep(500)
   const sw2 = (await box(side)).width
   assert.ok(sw2 > sw1, `an arrow key resizes the sidebar (${sw1} to ${sw2})`)
   await shot('panel-resize')
@@ -148,6 +151,8 @@ try {
     await page.keyboard.press('Escape')
 
     // Settings: the team dialog.
+    await page.keyboard.press('Control+,')
+    await page.getByRole('heading', { name: 'Settings' }).waitFor()
     await openSettingsPage('Presets')
     await page.getByRole('button', { name: /New team/ }).first().click()
     const td = page.getByRole('dialog')
@@ -161,15 +166,21 @@ try {
 
   // Every dialog type: inside the window, nothing sideways, header and footer in view, body scrolled to its end shows its last row.
   const closeAll = async () => {
-    await page.keyboard.press('Escape')
+    // The first Escape can go to an info tip that has focus, so press it until the dialog is gone.
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press('Escape')
+      await sleep(300)
+      if ((await page.getByRole('dialog').count()) === 0) break
+    }
     await page.getByRole('dialog').waitFor({ state: 'detached' }).catch(() => {})
     const close = page.getByRole('button', { name: 'Close settings' })
     if (await close.isVisible().catch(() => false)) await close.click()
     await sleep(200)
   }
   const settingsPage = async (nav) => {
-    await page.keyboard.press('Control+,')
-    await page.getByRole('heading', { name: 'Settings' }).waitFor()
+    // Open Settings from the top bar button (Ctrl+, toggles and can be swallowed by a focused row); click it only when the page is not already showing.
+    if (!(await page.getByRole('button', { name: 'Close settings' }).isVisible().catch(() => false))) await page.getByRole('button', { name: 'Settings', exact: true }).first().click()
+    await page.getByRole('button', { name: 'Close settings' }).waitFor()
     await openSettingsPage(nav)
   }
   const sidebarRight = async (name) => {
@@ -177,7 +188,7 @@ try {
   }
   const dialogTypes = [
     { name: 'mcp add', large: true, open: async () => {
-      await settingsPage('MCP servers')
+      await settingsPage('Tools and installs') // MCP servers is a section of this page
       await page.getByRole('button', { name: 'Add server' }).click()
     } },
     { name: 'team', large: true, open: async () => {

@@ -9,6 +9,7 @@ import { join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright-core'
 import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
 import { BUILTIN_THEMES, tokensFor } from '../shared/themes.ts'
+import { waitProjectOpen } from './fixtures/ui.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'out/e2e')
 mkdirSync(outDir, { recursive: true })
@@ -52,10 +53,10 @@ try {
   await page.keyboard.press('Alt+Shift+T')
   await page.locator('.xterm').first().waitFor()
 
-  // Default: the Dark theme, terminal following it.
-  assert.equal(await attr('theme'), 'dark')
-  assert.equal(await css('--background'), def('dark').bg)
-  assert.equal(await termBg(), rgb(def('dark').card))
+  // Default: the Focus theme (the default since 4.0), terminal following it.
+  assert.equal(await attr('theme'), 'focus')
+  assert.equal(await css('--background'), def('focus').bg)
+  assert.equal(await termBg(), rgb(def('focus').card))
 
   // Each theme sets every variable of its token table, the scheme and the terminal colours.
   for (const id of ['nord', 'paper', 'dracula', 'daylight', 'void']) {
@@ -159,7 +160,7 @@ try {
 
   // Restart: the last theme comes back, and the window is painted in its colour before the page loads.
   await set({ theme: 'gruvbox', accent: '' })
-  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Close settings' }).click() // Esc only closes Settings while focus is inside it
   await poll('terminal after settings closes', async () => (await termBg()) === rgb(def('gruvbox').card))
   await app.close()
   app = await launch()
@@ -168,7 +169,7 @@ try {
   await poll('theme after restart', async () => (await attr('theme')) === 'gruvbox')
   assert.equal(await css('--background'), def('gruvbox').bg)
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.getByRole('heading', { name: 'shop', level: 1 }).waitFor()
+  await waitProjectOpen(page, 'shop')
   await page.keyboard.press('Alt+Shift+T')
   await page.locator('.xterm').first().waitFor()
 

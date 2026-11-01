@@ -90,6 +90,11 @@ describe('parsing real CLI output', () => {
     expect(m.get('userv')).toMatchObject({ state: 'disabled', target: 'node -e 1' })
     expect(m.get('pserv')!.state).toBe('pending')
   })
+  it('reads the marks Windows prints: a root sign for connected and a times sign for failed', () => {
+    const m = parseClaudeList('good: node a.js - √ Connected\nbad: node b.js - × Failed to connect — spawn error\n')
+    expect(m.get('good')!.state).toBe('connected')
+    expect(m.get('bad')).toMatchObject({ state: 'failed', error: 'spawn error' })
+  })
   it('reads OpenCode status lines', () => {
     const m = parseOpencodeList(OPENCODE_LIST)
     expect(m.get('tools')!.state).toBe('connected')

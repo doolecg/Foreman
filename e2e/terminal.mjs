@@ -9,6 +9,7 @@ import { join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright-core'
 import { shot } from './lib/shot.mjs'
 import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
+import { waitProjectOpen } from './fixtures/ui.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
@@ -37,12 +38,15 @@ try {
 
   await page.getByText('Welcome to Foreman').waitFor()
   await inv('crews:create', { name: 'tiles', folder: project })
-  await inv('settings:set', { tiles: { layout: 'dwindle', gaps: 6 } })
+  // Closing a tile asks first by default (projects.mjs covers that dialog); here the ask is off so the close button and key act at once.
+  await inv('settings:set', { tiles: { layout: 'dwindle', gaps: 6 }, confirm: { closeTile: false } })
   await page.locator('[data-crew-row]').getByText('tiles', { exact: true }).click({ position: { x: 4, y: 4 } })
-  await page.getByRole('heading', { name: 'tiles', level: 1 }).waitFor()
+  await waitProjectOpen(page, 'tiles')
+  // Tiles are their own view now (Thread shows one thread full size): switch the top bar to Tiles.
+  await page.getByRole('navigation', { name: 'Views' }).getByRole('button', { name: 'Tiles', exact: true }).click()
 
   // No terminals yet: an empty note, no tile surface.
-  await page.getByText('No terminals open').waitFor()
+  await page.getByText('No threads open').waitFor()
   assert.equal(await tiles().count(), 0)
   await shot(page, 'terminal-tiles-empty')
 
@@ -58,21 +62,24 @@ try {
   await page.getByRole('button', { name: /^Close Claude: / }).click()
   await poll('Claude tile closed', async () => (await tiles().count()) === 0)
 
-  // A new shell opens as a tile, not in the drawer; a second one sits beside it.
-  await page.keyboard.press('Alt+Shift+T')
-  await poll('first shell tile', async () => (await tiles().count()) === 1)
-  await page.keyboard.press('Alt+Shift+T')
-  await poll('second shell tile', async () => (await tiles().count()) === 2)
-  assert.equal(await page.getByTestId('terminal-drawer').count(), 0, 'the project terminals live in the tiles')
+  // Shells now open in the bottom drawer, not as tiles: only the agent threads are tiles. Two Claude tiles (the real CLI, never
+  // prompted) sit side by side.
+  await row.getByText('tiles', { exact: true }).hover()
+  await row.getByRole('button', { name: 'New Claude terminal in tiles' }).click()
+  await poll('first agent tile', async () => (await tiles().count()) === 1)
+  await row.getByText('tiles', { exact: true }).hover()
+  await row.getByRole('button', { name: 'New Claude terminal in tiles' }).click()
+  await poll('second agent tile', async () => (await tiles().count()) === 2)
+  assert.equal(await page.getByTestId('terminal-drawer').count(), 0, 'no shell was started, so the drawer stays closed')
   const surface = page.getByTestId('tile-surface')
   await surface.waitFor()
-  const shells = page.getByRole('region', { name: /^Shell: / })
+  const shells = page.getByRole('region', { name: /^Claude: / })
   const a = tiles().nth(0)
   const b = tiles().nth(1)
   const ra = await rectOf(a)
   const rb = await rectOf(b)
-  assert.ok(ra.x !== rb.x || ra.y !== rb.y, 'the shell tiles have their own rects')
-  await shot(page, 'terminal-tiles-shells')
+  assert.ok(ra.x !== rb.x || ra.y !== rb.y, 'the agent tiles have their own rects')
+  await shot(page, 'terminal-tiles-agents')
 
   // Layout key: the master layout puts the first tile in a left pane of fixed share.
   await page.keyboard.press('Alt+Shift+L')
@@ -94,7 +101,7 @@ try {
   await poll('fullscreen off', async () => (await a.getAttribute('data-fullscreen')) === 'false')
 
   // Close tile: the button and the key each remove a tile.
-  await page.getByRole('button', { name: /^Close Shell: / }).first().click()
+  await page.getByRole('button', { name: /^Close Claude: / }).first().click()
   await poll('one tile closed', async () => (await tiles().count()) === 1)
   await tiles().first().click({ position: { x: 20, y: 12 } })
   await page.keyboard.press('Alt+Shift+W')

@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright-core'
 import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
+import { waitProjectOpen } from './fixtures/ui.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 const prefix = process.argv[3] ?? ''
@@ -84,7 +85,9 @@ try {
   await aside.getByText('Projects', { exact: true }).first().waitFor()
   assert.equal(await aside.getByText('Crews').count(), 0, 'no crews heading')
   assert.ok(Math.abs((await box(page.getByTestId('project-panel-header'))).height - 32) <= 1, 'the header row is 32 px')
-  for (const b of ['Add project', 'New group', 'Refresh projects', 'Hide project list']) await aside.getByRole('button', { name: b, exact: true }).waitFor()
+  for (const b of ['Add project', 'New group', 'Refresh projects']) await aside.getByRole('button', { name: b, exact: true }).waitFor()
+  // The hide button moved to the top bar.
+  await page.locator('header').getByRole('button', { name: 'Hide project list', exact: true }).waitFor()
   assert.ok(Math.abs((await box(row('atlas'))).height - 24) <= 1, 'a project row is 24 px')
   // The branch and changes show on the open project's row only.
   await row('atlas').click()
@@ -124,7 +127,7 @@ try {
   // Enter on a project selects it.
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Enter')
-  await page.getByRole('heading', { name: 'cobalt' }).waitFor()
+  await waitProjectOpen(page, 'cobalt')
   // Alt+Arrow reorders the project in its group (from the row itself, no need to find the grip).
   await page.keyboard.press('Alt+ArrowDown')
   const inWork = async () => (await inv('crews:list')).filter((c) => c.groupId === work.id).map((c) => c.name).join()
@@ -167,6 +170,7 @@ try {
   await page.mouse.up()
   assert.ok((await box(aside)).width <= 601, 'the panel stops at 600 px')
   await grip.dblclick()
+  await sleep(500)
   assert.ok(Math.abs((await box(aside)).width - 250) <= 2, 'double click resets the width')
   console.log('sidebar e2e passed')
 } catch (err) {

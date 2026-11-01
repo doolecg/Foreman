@@ -10,6 +10,7 @@ import { join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright-core'
 import { shot } from './lib/shot.mjs'
 import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
+import { waitProjectOpen } from './fixtures/ui.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
@@ -57,7 +58,7 @@ try {
   await inv('settings:set', { tiles: { layout: 'dwindle', gaps: 6 } })
 
   await page.locator(`[data-crew-row="${crew.id}"]`).getByText('shell', { exact: true }).click({ position: { x: 4, y: 4 } })
-  await page.getByRole('heading', { name: 'shell', level: 1 }).waitFor()
+  await waitProjectOpen(page, 'shell')
 
   await sidebar().waitFor()
 
@@ -85,7 +86,8 @@ try {
   // The choice survives a restart (the project list stays hidden).
   await app.close()
   await launch()
-  await page.getByRole('heading', { name: 'shell', level: 1 }).waitFor()
+  // The project list is hidden here: the top bar offers 'Show project list' once the saved layout has loaded.
+  await page.getByRole('button', { name: 'Show project list' }).waitFor()
   assert.equal(await sidebar().count(), 0, 'the project list stays hidden after a restart')
   await tilesRegion().waitFor()
 

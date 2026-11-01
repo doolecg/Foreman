@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright-core'
 import { shot } from './lib/shot.mjs'
+import { waitProjectOpen } from './fixtures/ui.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
@@ -46,7 +47,7 @@ const env = {
   ...process.env,
   FOREMAN_BACKGROUND: '1', FOREMAN_E2E: '1',
   FOREMAN_DATA_DIR: dataDir,
-  FOREMAN_USER_DATA: legacy,
+  OPERANT_USER_DATA: legacy,
   CLAUDE_CONFIG_DIR: claudeDir,
   HOME: home,
   USERPROFILE: home,
@@ -70,7 +71,7 @@ async function until(label, fn, timeout = 30_000) {
 try {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.waitForFunction(() => !!window.foreman)
-  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true }))
+  await page.evaluate(() => window.foreman.invoke('settings:set', { setupDone: true, claudePlanUsage: true }))
   await page.getByText('Welcome to Foreman').waitFor()
 
   // The Claude plan endpoint is answered in the main process: 5-hour window at 86%, weekly at 41%.
@@ -110,7 +111,7 @@ try {
   db.close()
 
   await page.locator('[data-crew-row]').getByText('shop', { exact: true }).click({ position: { x: 4, y: 4 } })
-  await page.getByRole('heading', { name: 'shop', level: 1 }).waitFor()
+  await waitProjectOpen(page, 'shop')
   // Usage opens as a popout from the sidebar footer's badge; Esc closes it.
   const usageModal = () => page.getByRole('dialog', { name: 'Usage' })
   await page.getByTestId('sidebar-footer').getByRole('button', { name: /^Provider limits: / }).click()

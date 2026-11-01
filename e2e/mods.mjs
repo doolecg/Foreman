@@ -10,6 +10,7 @@ import { join, resolve } from 'node:path'
 import { _electron as electron } from 'playwright-core'
 import { shot } from './lib/shot.mjs'
 import { claudeHome, e2eEnv } from './fixtures/real-claude.mjs'
+import { waitProjectOpen } from './fixtures/ui.mjs'
 
 const outDir = resolve(process.argv[2] ?? 'docs/specs/screenshots')
 mkdirSync(outDir, { recursive: true })
@@ -38,12 +39,14 @@ try {
   await inv('crews:create', { name: 'mods', folder: project })
   await inv('settings:set', { mainCli: 'claude', mods: { enabled: true, mods: { subagents: true } }, infoBar: true })
   await page.locator('[data-crew-row]').getByText('mods', { exact: true }).click({ position: { x: 4, y: 4 } })
-  await page.getByRole('heading', { name: 'mods', level: 1 }).waitFor()
+  await waitProjectOpen(page, 'mods')
 
   // A Claude tile: it opens in the Chat view, with the Agents panel beside it.
   await page.locator('[data-crew-row]').getByText('mods', { exact: true }).click({ button: 'right', position: { x: 4, y: 4 } })
   await page.getByRole('menuitem', { name: 'New Claude terminal here' }).click()
-  await page.getByRole('region', { name: /^Claude: / }).waitFor({ timeout: 20_000 })
+  await page.locator('[data-chat="thread-header"]').getByRole('heading', { name: /^Claude: / }).waitFor({ timeout: 20_000 })
+  // The side panels sit behind a rail of buttons now: Agents opens its panel.
+  await page.getByRole('navigation', { name: 'Side panels' }).getByRole('button', { name: 'Agents' }).click()
   const panel = page.getByTestId('subagent-panel')
   await panel.waitFor()
   assert.match(await panel.innerText(), /Agents/)
@@ -59,12 +62,16 @@ try {
   await panel.getByRole('img', { name: /^(Running|Done)$/ }).first().waitFor({ timeout: 120_000 })
   await shot(page, 'mods-subagent-running')
   await until('the turn to finish', async () => (await snap()).turn.phase === 'idle', 240_000)
-  await panel.getByRole('img', { name: 'Done' }).waitFor({ timeout: 60_000 })
+  await panel.getByRole('img', { name: 'Done' }).first().waitFor({ timeout: 60_000 }) // a summary check and the agent's own row both say Done
   assert.equal(await panel.getByRole('img', { name: 'Running' }).count(), 0, 'no agent runs any more')
   await shot(page, 'mods-subagent-completed')
 
   // The Terminal view (the same session resumed): the status line reports the model and the context into the info bar.
-  await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Terminal', exact: true }).click()
+  // The view switch lives in the thread's options menu now.
+  await page.getByRole('button', { name: 'Thread options' }).click()
+  await page.getByRole('menuitem', { name: 'Show the terminal view' }).click()
+  // The info bar belongs to the tile frame, so it shows in the Tiles view (the Thread view has no frame).
+  await page.getByRole('navigation', { name: 'Views' }).getByRole('button', { name: 'Tiles', exact: true }).click()
   const info = page.getByLabel('Tile info')
   await info.waitFor()
   await info.getByText(/Haiku/).waitFor({ timeout: 60_000 })

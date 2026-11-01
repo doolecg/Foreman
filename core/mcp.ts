@@ -267,7 +267,7 @@ interface Status {
 export function parseClaudeList(out: string): Map<string, Status & { target: string }> {
   const found = new Map<string, Status & { target: string }>()
   for (const raw of out.replace(ANSI, '').split(/\r?\n/)) {
-    const m = /^(.+?): (.+) - ([✔✓✘✗!⚠⏸⊘].*)$/u.exec(raw.trim())
+    const m = /^(.+?): (.+) - ([✔✓√✘✗×!⚠⏸⊘].*)$/u.exec(raw.trim())
     if (!m) continue
     const mark = m[3]!
     let state: McpState = 'unknown'
@@ -276,9 +276,9 @@ export function parseClaudeList(out: string): Map<string, Status & { target: str
     else if (/auth/i.test(mark)) state = 'needs-auth'
     else if (/pending|approval/i.test(mark)) state = 'pending'
     else if (/disabled/i.test(mark)) state = 'disabled'
-    else if (/fail|✘|✗|error/i.test(mark)) {
+    else if (/fail|✘|✗|×|error/i.test(mark)) {
       state = 'failed'
-      error = mark.replace(/^[✘✗]\s*/u, '').replace(/^Failed to connect\s*[—-]?\s*/i, '').trim() || 'Failed to connect'
+      error = mark.replace(/^[✘✗×]\s*/u, '').replace(/^Failed to connect\s*[—-]?\s*/i, '').trim() || 'Failed to connect'
     }
     found.set(m[1]!, { state, error, target: m[2]! })
   }
