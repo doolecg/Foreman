@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { SlidingThumb } from '@/components/ui/sliding-thumb'
-import { hiddenSections } from '@shared/install'
-import { useAppInfo, useInstallStatus, useSettings } from '@/lib/queries'
+import { useAppInfo, useSettings } from '@/lib/queries'
 import { cn } from '@/lib/utils'
 import { SECTION_COMPONENTS } from './sections'
 import { SettingsNavContext } from './nav-context'
@@ -21,7 +20,6 @@ const subsectionHit = (p: Page, q: string) => (q && !p.label.toLowerCase().inclu
 export function SettingsPage({ initialSection, onClose }: { initialSection?: string; onClose: () => void }) {
   const settings = useSettings()
   const info = useAppInfo()
-  const hidden = hiddenSections(useInstallStatus().data)
   const [target, setTarget] = useState<Target>(() => resolveSettingsTarget(initialSection) ?? { page: SETTINGS_PAGES[0]! })
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
@@ -59,9 +57,8 @@ export function SettingsPage({ initialSection, onClose }: { initialSection?: str
     const next = resolveSettingsTarget(section)
     if (next) setTarget(next)
   }
-  const shown = (p: Page) => p.subsections.some((s) => !hidden.includes(s.id))
-  const categories = SETTINGS_CATEGORIES.map((c) => ({ ...c, pages: c.pages.filter((p) => shown(p) && (!q || settingsSearchText(p).includes(q))) })).filter((c) => c.pages.length > 0)
-  const visibleSubsections = current.subsections.filter((s) => !hidden.includes(s.id))
+  const categories = SETTINGS_CATEGORIES.map((c) => ({ ...c, pages: c.pages.filter((p) => (!q || settingsSearchText(p).includes(q))) })).filter((c) => c.pages.length > 0)
+  const visibleSubsections = current.subsections
   const openPage = (p: Page) => setTarget({ page: p, section: subsectionHit(p, q) })
   const multi = visibleSubsections.length > 1
 

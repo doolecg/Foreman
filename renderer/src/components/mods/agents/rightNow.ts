@@ -1,4 +1,4 @@
-import { baseName, LEARN_TOOL, toolTarget, type ChatItem, type DiffFile, type ToolItem, type TurnStatus } from '@shared/claude-chat'
+import { baseName, toolTarget, type ChatItem, type DiffFile, type ToolItem, type TurnStatus } from '@shared/claude-chat'
 
 // The "Right now" card: what Claude is doing and which files this session touched. Everything comes from the chat stream
 // (tool items, turn items) and from git's changed-file list; nothing is guessed.
@@ -73,7 +73,7 @@ export function rightNowHeadline(items: ChatItem[], turn: Pick<TurnStatus, 'phas
   const none = hasFileCalls(items) ? `last: ${lastFileName(items)}` : 'no files touched yet'
   if (turn.pendingCount > 0) return { headline: 'Waiting for you', subline: turn.pendingLabel ?? 'Claude needs your answer', diff: null }
 
-  const running = tools(items).filter((t) => t.parent === null && t.name !== LEARN_TOOL && isRunning(t)).pop()
+  const running = tools(items).filter((t) => t.parent === null && isRunning(t)).pop()
   if (running) {
     const path = fileOfTool(running.name, running.input)
     const folder = folderOf(path)

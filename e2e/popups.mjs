@@ -147,26 +147,6 @@ try {
     await inside(dd, `${tag} dropdown menu`)
     await page.keyboard.press('Escape')
 
-    // Model list: the Learning AI on OpenCode, filter the 300 models.
-    await page.keyboard.press('Control+,')
-    await page.getByRole('heading', { name: 'Settings' }).waitFor()
-    await openSettingsPage('Learning')
-    await page.getByRole('combobox', { name: 'Learning CLI' }).click()
-    await page.getByRole('option', { name: 'OpenCode', exact: true }).click()
-    await sleep(1500)
-    await page.getByRole('button', { name: 'Learning model' }).click()
-    const filter = page.getByRole('combobox', { name: 'Filter' })
-    await filter.waitFor()
-    const pop = page.getByRole('listbox', { name: 'Options' })
-    await inside(page.locator('[data-radix-popper-content-wrapper]').last(), `${tag} model list`)
-    assert.ok((await pop.getByRole('option').count()) >= 300, `${tag}: all 300 models are listed`)
-    await filter.fill('model-299')
-    assert.equal(await pop.getByRole('option').count(), 1, `${tag}: the filter narrows the models to one`)
-    if (scale === 1) await shot('popup-model-search')
-    await filter.press('Enter')
-    await page.getByRole('button', { name: 'Learning model' }).filter({ hasText: 'Model 299 Instruct' }).waitFor()
-    await inv('settings:set', { learn: { cli: 'claude', model: '', effort: '' } })
-
     // Settings: the team dialog.
     await openSettingsPage('Presets')
     await page.getByRole('button', { name: /New team/ }).first().click()

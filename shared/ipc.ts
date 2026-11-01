@@ -1,9 +1,8 @@
 import type { ModelList } from './models'
 import type { Note, NoteColor, NotePatch } from './notes'
 import type { ConsoleLine, ConsoleProcess, ConsoleSource } from './console'
-import type { ConsolidateResult, DraftStatus, LearnAi, LearnChange, LearnChangeStatus, LearnRunInfo, LearnStatus, LearnTestResult, LearnStore, Lesson, LessonFilter, LessonPatch, LessonStatus, MemoryFile, SkillDraft } from './learn'
 import type { InstallId, InstallResult, InstallStatusItem } from './install'
-import type { AuxStatus, BackupEntry, BackupPartName, MemoryDiagnostics, MemoryExport, PresetImportItem, RecallOutput, ResetResult, SuperpowersStatus } from './ops'
+import type { BackupEntry, BackupPartName, PresetImportItem, SuperpowersStatus } from './ops'
 import type { BrowserAction, BrowserCapture, BrowserConfirm, BrowserConfirmEnd, BrowserDevTools, BrowserFound, BrowserHistoryEntry, BrowserNav, BrowserRect, BrowserState, BrowserZoom } from './browser'
 import type { Bookmark, ClearResult, CookieDraft, CookieImportPreview, CookieImportResult, CookieInfo, CookieKey, Emulation, InspectLogs, InspectLogsChanged } from './browser-inspect'
 import type { BrowserPromptAnswer, BrowserPromptsState } from './browser-prompts'
@@ -31,11 +30,6 @@ import type {
   UsageView,
   Crew,
   CrewPatch,
-  IndexStatus,
-  HindsightAdapter,
-  HindsightKeyState,
-  HindsightStatus,
-  HindsightTestResult,
   IpcErrorCode,
   ForemanEvent,
   McpOverview,
@@ -223,71 +217,11 @@ export interface IpcApi extends ChatApi {
   'servers:list': () => ServersResult
 
 
-  'index:status': (crewId: number) => IndexStatus | null
-  'index:run': (crewId: number) => IndexStatus | null
-  'hindsight:status': () => HindsightStatus
-  'hindsight:act': (action: 'start' | 'stop' | 'restart') => HindsightStatus
-  // Network addresses a shared server can bind, Tailscale marked.
-  'hindsight:adapters': () => HindsightAdapter[]
-  // Test connection: reachability, key accepted or refused, bank count, latency, the server's own error.
-  'hindsight:test': () => HindsightTestResult
-  // API keys are write-only: only whether one is saved comes back (slot: shared = this PC's server, remote = another server).
-  'hindsight:keyState': () => HindsightKeyState
-  'hindsight:setKey': (slot: 'shared' | 'remote', key: string) => HindsightKeyState
-  'hindsight:clearKey': (slot: 'shared' | 'remote') => HindsightKeyState
-  // Makes and saves a random shared key; returned once so it can be copied to the other machines.
-  'hindsight:generateKey': () => string
-
-  // Learning loop and Memory Manager. Lessons come from finished jobs and Master conversations.
-  'learn:status': (crewId?: number) => LearnStatus
-  // The AI the learn step asks now (an empty model resolved to the cheap default) and a one-call test of it.
-  'learn:ai': () => LearnAi
-  'learn:test': () => LearnTestResult
-  // The models the local server offers (from /v1/models, else Ollama's /api/tags) and its API key (write-only: only whether one is saved comes back; an empty key clears it).
-  'learn:localModels': () => { models: string[]; error?: string }
-  'learn:localKey': () => boolean
-  'learn:setLocalKey': (key: string) => boolean
-  'learn:lessons': (filter?: LessonFilter) => Lesson[]
-  'learn:editLesson': (id: number, patch: LessonPatch) => Lesson
-  // Folds the lessons in `mergeIds` into `keepId`.
-  'learn:mergeLessons': (keepId: number, mergeIds: number[]) => Lesson
-  // active (also approves a queued one), stale or deleted.
-  'learn:setLessonStatus': (id: number, status: LessonStatus) => Lesson
-  'learn:moveLesson': (id: number, from: LearnStore, to: LearnStore) => Lesson
-  'learn:consolidate': (crewId: number) => ConsolidateResult
-  'learn:hindsightEntries': (crewId: number, query?: string) => { ok: true; items: string[] } | { ok: false; error: string }
-  'learn:memoryFiles': (crewId: number) => MemoryFile[]
-  'learn:drafts': (crewId?: number, status?: DraftStatus) => SkillDraft[]
-  'learn:editDraft': (id: number, patch: { name?: string; body?: string }) => SkillDraft
-  // Installs the skill as a project skill file: only ever on this explicit call.
-  'learn:approveDraft': (id: number) => SkillDraft
-  'learn:rejectDraft': (id: number) => SkillDraft
-  'learn:deleteDraft': (id: number) => void
-  // Runs the learn step on a Claude tile's finished session now; `confirm` lets it pass a budget that asks first.
-  'learn:runNow': (tileId: number, confirm?: boolean) => LearnRunInfo | null
-  // The owner's answer to learn:askOnClose: run the learn step for that closed tile or skip it.
-  'learn:answerClose': (scratchId: number, learn: boolean) => void
-  // Automatic changes (and proposals), newest first; rollback puts the replaced text back.
-  'learn:records': (filter?: { crewId?: number; status?: LearnChangeStatus }) => LearnChange[]
-  'learn:rollback': (changeId: number) => LearnChange
-  'learn:clearRecords': (crewId?: number) => number
-  // Memory: the lessons (Foreman's own, editable), a recall with the policy in settings, export, reset and diagnostics.
-  'memory:recall': (query: string, crewId?: number) => RecallOutput
-  'memory:edit': (id: number, patch: LessonPatch) => Lesson
-  'memory:delete': (id: number) => Lesson
-  'memory:export': () => MemoryExport
-  'memory:reset': (req: { scope: 'soul' | 'project' | 'all'; crewId?: number; confirm: boolean }) => ResetResult
-  'memory:diagnostics': () => MemoryDiagnostics
-  // Model calls of the learn and memory work: today's counts, spend and any limit in force.
-  'aux:status': () => AuxStatus
-  // Rewrites rough composer text with the promptEnhance aux model (counted, capped, retried). `commands` are the chat's own skills.
-  // `context` is what 'aux:enhanceContext' returned (memories and code symbols, capped again before use).
+  // Rewrites rough composer text with a cheap Claude model. `commands` are the chat's own skills.
+  // `context` is what 'aux:enhanceContext' returned (the tile's session, capped again before use).
   'aux:enhancePrompt': (text: string, commands?: Array<{ name: string; description: string }>, context?: EnhanceContext) => string
-  // The small recall and CodeGraph lookups for the tile's project, run in parallel with timeouts (no model call).
-  'aux:enhanceContext': (text: string, scratchId: number) => EnhanceContext
-  // A full rebuild of a project's CodeGraph index (discards it first); only a project Foreman knows.
-  'codegraph:rebuild': (folder: string) => IndexStatus
-  'codegraph:status': (folder: string) => IndexStatus
+  // The tile's folder, git state and recent conversation, for the rewrite (no model call).
+  'aux:enhanceContext': (scratchId: number) => EnhanceContext
   'backup:create': (label?: string) => { name: string; path: string; bytes: number }
   'backup:list': () => BackupEntry[]
   'backup:restore': (name: string, confirm: boolean) => BackupPartName[]
@@ -535,7 +469,6 @@ export interface IpcEvents {
   'scratch:exit': { scratchId: number; exitCode: number; switching?: boolean }
   // A tile's title or last-active time changed.
   'scratch:changed': { crewId: number; scratchId: number }
-  'index:status': { crewId: number; status: IndexStatus }
   // A project's notes changed.
   'notes:changed': { crewId: number }
   // A file in a project's .foreman/engineering folder changed.
@@ -551,8 +484,6 @@ export interface IpcEvents {
   'claudeTile:state': ClaudeTileState
   'media:timeline': MediaTimeline | null
   'media:art': string | null
-  // A Claude tile closed before the learn step ran for it: the renderer asks and answers with learn:answerClose.
-  'learn:askOnClose': { scratchId: number; title: string; crewId: number; sessionId: string }
   // The window asks to close while something runs: the renderer shows the dialog and answers app:closeReply.
   'app:closeRequest': RunningCounts
   // A finished or waiting Claude tile was clicked in a notification: show that tile.
@@ -563,10 +494,6 @@ export interface IpcEvents {
   'turn:finished': { crewId: number }
   // New usage rows were stored for a tile of the project.
   'usage:changed': { crewId: number }
-  // The memory server was started, stopped or failed to; the status is read again.
-  'hindsight:changed': Record<string, never>
-  // The auxiliary-call counts, spend or last error changed.
-  'aux:changed': Record<string, never>
   // A project's browser panel changed (tabs, navigation, AI activity or control).
   'browser:state': BrowserState
   // The project's visited pages changed (address bar suggestions).
@@ -662,7 +589,6 @@ export const CORE_CHANNELS: CoreChannel[] = [
   'teams:export',
   'teams:importPreview',
   'teams:import',
-  'hindsight:status',
   'mcp:list',
   'mcp:add',
   'mcp:update',
@@ -671,48 +597,8 @@ export const CORE_CHANNELS: CoreChannel[] = [
   'mcp:optional',
   'mcp:optionalAdd',
   'mcp:optionalRemove',
-  'hindsight:act',
-  'hindsight:adapters',
-  'hindsight:test',
-  'hindsight:keyState',
-  'hindsight:setKey',
-  'hindsight:clearKey',
-  'hindsight:generateKey',
-  'learn:status',
-  'learn:ai',
-  'learn:test',
-  'learn:localModels',
-  'learn:localKey',
-  'learn:setLocalKey',
-  'learn:lessons',
-  'learn:editLesson',
-  'learn:mergeLessons',
-  'learn:setLessonStatus',
-  'learn:moveLesson',
-  'learn:consolidate',
-  'learn:hindsightEntries',
-  'learn:memoryFiles',
-  'learn:drafts',
-  'learn:editDraft',
-  'learn:approveDraft',
-  'learn:rejectDraft',
-  'learn:deleteDraft',
-  'learn:runNow',
-  'learn:answerClose',
-  'learn:records',
-  'learn:rollback',
-  'learn:clearRecords',
-  'memory:recall',
-  'memory:edit',
-  'memory:delete',
-  'memory:export',
-  'memory:reset',
-  'memory:diagnostics',
-  'aux:status',
   'aux:enhancePrompt',
   'aux:enhanceContext',
-  'codegraph:rebuild',
-  'codegraph:status',
   'backup:create',
   'backup:list',
   'backup:restore',
@@ -754,8 +640,6 @@ export const CORE_CHANNELS: CoreChannel[] = [
   'providers:status',
   'providers:refresh',
   'servers:list',
-  'index:status',
-  'index:run',
   'events:recent',
   'events:clear',
   'capabilities:get',

@@ -1,7 +1,7 @@
 // The optional (and required) tools Foreman can use, how to tell if each is there, and the command that installs it.
 // Pure data and rules; core/install.ts runs the commands and renderer/ shows them.
 
-export const INSTALL_IDS = ['claude', 'opencode', 'uv', 'nodejs', 'hindsight', 'codegraph', 'playwright', 'superpowers', 'dictation'] as const
+export const INSTALL_IDS = ['claude', 'opencode', 'uv', 'nodejs', 'playwright', 'superpowers', 'dictation'] as const
 export type InstallId = (typeof INSTALL_IDS)[number]
 
 export type InstallState = 'installed' | 'missing' | 'unknown'
@@ -30,7 +30,7 @@ export interface InstallItem {
   optional: boolean
   // Offered with a checkbox in the first-start setup.
   firstStart: boolean
-  // True when core can run it. Dictation runs in the app window; Hindsight has no install of its own; Claude Code's route is not confirmed.
+  // True when core can run it. Dictation runs in the app window; Claude Code's route is not confirmed.
   runnable: boolean
   // Shown as the detail line when there is no command to run.
   note?: string
@@ -39,10 +39,8 @@ export interface InstallItem {
 export const INSTALL_ITEMS: InstallItem[] = [
   { id: 'claude', name: 'Claude Code', enables: 'Claude Code terminals and chat; Foreman needs it.', optional: false, firstStart: false, runnable: false, note: 'Install route not confirmed.' },
   { id: 'opencode', name: 'OpenCode CLI', enables: 'OpenCode terminals and chat.', optional: true, firstStart: true, runnable: true },
-  { id: 'uv', name: 'uv', enables: 'The Hindsight memory server and the Git MCP server.', optional: true, firstStart: true, runnable: true },
+  { id: 'uv', name: 'uv', enables: 'The Git MCP server.', optional: true, firstStart: true, runnable: true },
   { id: 'nodejs', name: 'Node.js', enables: 'npx, which runs the Playwright MCP server.', optional: true, firstStart: false, runnable: true },
-  { id: 'hindsight', name: 'Hindsight memory server', enables: 'Shared memory across sessions, run through uv and turned on with the Memory setting.', optional: true, firstStart: false, runnable: false, note: 'Needs uv; there is nothing separate to install.' },
-  { id: 'codegraph', name: 'CodeGraph', enables: 'A code index with symbol search, so agents find code without reading every file.', optional: true, firstStart: true, runnable: true },
   { id: 'playwright', name: 'Playwright MCP and browser', enables: 'A Chromium browser that agents can drive to open pages and test web apps.', optional: true, firstStart: true, runnable: true },
   { id: 'superpowers', name: 'Superpowers skills pack', enables: 'The Superpowers skills that presets can use.', optional: true, firstStart: true, runnable: true },
   { id: 'dictation', name: 'Dictation speech model', enables: 'The microphone button in the composer, with a model that runs on this device.', optional: true, firstStart: true, runnable: true },
@@ -57,7 +55,7 @@ export function toolRowNames(): string[] {
 }
 
 // The runtime each optional MCP server needs, as the Install row that provides it.
-export const MCP_RUNTIME_INSTALL = { git: 'uv', playwright: 'nodejs', codegraph: 'codegraph' } as const satisfies Record<string, InstallId>
+export const MCP_RUNTIME_INSTALL = { git: 'uv', playwright: 'nodejs' } as const satisfies Record<string, InstallId>
 
 // Whether the Install page offers a button: dictation runs in the window, the rest need a command for this platform.
 export function canRunInstall(id: InstallId, platform: string): boolean {
@@ -72,7 +70,7 @@ export function installItem(id: InstallId): InstallItem {
 export const FIRST_START_ITEMS: InstallItem[] = INSTALL_ITEMS.filter((i) => i.firstStart)
 
 // The rows that are programs on PATH, which can be found in their default places or pointed at.
-export const PROGRAM_IDS: InstallId[] = ['claude', 'opencode', 'uv', 'nodejs', 'codegraph']
+export const PROGRAM_IDS: InstallId[] = ['claude', 'opencode', 'uv', 'nodejs']
 
 // The tool the default CLI needs is required and the other CLI is optional; rows that only work through Claude Code
 // (the Superpowers pack installs through `claude plugin install`) are left out when OpenCode is the default and Claude is not installed.
@@ -96,7 +94,7 @@ export function shouldShowSetup(setupDone: boolean | undefined): boolean {
   return setupDone === false
 }
 
-// The commands tried in order until one succeeds. Empty when core runs nothing (dictation, hindsight, claude).
+// The commands tried in order until one succeeds. Empty when core runs nothing (dictation, claude).
 export function installAttempts(id: InstallId, platform: string): InstallCommand[] {
   switch (id) {
     case 'opencode':
@@ -110,8 +108,6 @@ export function installAttempts(id: InstallId, platform: string): InstallCommand
         : [{ file: 'pip', args: ['install', 'uv'] }]
     case 'nodejs':
       return platform === 'win32' ? [{ file: 'winget', args: ['install', '--id', 'OpenJS.NodeJS.LTS', '-e'] }] : []
-    case 'codegraph':
-      return [{ file: 'npm', args: ['i', '-g', '@colbymchenry/codegraph'] }]
     case 'playwright':
       return [{ file: 'npx', args: ['playwright', 'install', 'chromium'] }]
     case 'superpowers':
@@ -146,11 +142,6 @@ export function stateFromVersionRun(id: InstallId, run: RunLike): InstallStatusI
   return { id, state: 'missing' }
 }
 
-// Hindsight is ready exactly when uv is.
-export function hindsightFromUv(uv: InstallStatusItem): InstallStatusItem {
-  return { id: 'hindsight', state: uv.state, ...(uv.version ? { version: uv.version } : {}) }
-}
-
 export function statusLabel(s: InstallStatusItem | undefined): string {
   if (!s || s.state === 'unknown') return 'Unknown'
   if (s.state === 'missing') return 'Not installed'
@@ -164,12 +155,6 @@ export function lastErrorLine(text: string): string {
     .map((l) => l.trim())
     .filter(Boolean)
   return (lines[lines.length - 1] ?? 'The install failed').slice(0, 300)
-}
-
-// Settings sections that need a tool which is known to be missing. While the status is still loading nothing is hidden.
-// The Skills section stays: it is where Superpowers is installed.
-export function hiddenSections(statuses: InstallStatusItem[] | undefined): string[] {
-  return toolMissing(statuses, 'uv') ? ['hindsight'] : []
 }
 
 // A feature that needs a tool is shown unless the tool is known to be missing; unknown never hides.

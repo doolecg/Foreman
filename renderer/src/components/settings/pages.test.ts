@@ -4,7 +4,7 @@ import { SETTINGS_CATEGORIES, SETTINGS_PAGES, SETTINGS_SECTION_IDS, resolveSetti
 // The section ids the settings page had before it was grouped. Each must still open a page (deep links).
 const OLD_SECTION_IDS = [
   'general', 'appearance', 'projects', 'topbar', 'terminals', 'terminal', 'tiles', 'mods', 'tokens', 'budgets', 'presets', 'teams',
-  'lessons', 'learning', 'memory', 'aux', 'hindsight', 'codegraph', 'backups', 'superpowers', 'mcp', 'import', 'shortcuts', 'browser', 'reset', 'install',
+  'backups', 'superpowers', 'mcp', 'import', 'shortcuts', 'browser', 'reset', 'install',
 ]
 
 describe('settings page registry', () => {
@@ -14,9 +14,9 @@ describe('settings page registry', () => {
   })
 
   it('opens the page that holds an old section and names the section to scroll to', () => {
-    expect(resolveSettingsTarget('hindsight')).toMatchObject({ page: { id: 'memory' }, section: { id: 'hindsight' } })
-    expect(resolveSettingsTarget('codegraph')).toMatchObject({ page: { id: 'memory' }, section: { id: 'codegraph' } })
-    expect(resolveSettingsTarget('aux')).toMatchObject({ page: { id: 'learning' }, section: { id: 'aux' } })
+    expect(resolveSettingsTarget('hindsight')).toBeUndefined()
+    expect(resolveSettingsTarget('codegraph')).toBeUndefined()
+    expect(SETTINGS_PAGES.some((p) => p.id === 'memory')).toBe(false)
     expect(resolveSettingsTarget('teams')).toMatchObject({ page: { id: 'presets' }, section: { id: 'teams' } })
     expect(resolveSettingsTarget('import')).toMatchObject({ page: { id: 'data' }, section: { id: 'import' } })
     expect(resolveSettingsTarget('mods')).toMatchObject({ page: { id: 'mods' } })
@@ -36,8 +36,7 @@ describe('settings page registry', () => {
     expect(new Set(SETTINGS_PAGES.map((p) => p.label)).size).toBe(SETTINGS_PAGES.length)
     const sectionIds = SETTINGS_PAGES.flatMap((p) => p.subsections.map((s) => s.id))
     expect(new Set(sectionIds).size).toBe(sectionIds.length)
-    // hindsight and codegraph live inside the Memory page's Tools block and resolve to it as anchors.
-    expect(sectionIds.sort()).toEqual(SETTINGS_SECTION_IDS.filter((id) => id !== 'hindsight' && id !== 'codegraph').sort())
+    expect(sectionIds.sort()).toEqual([...SETTINGS_SECTION_IDS].sort())
     for (const p of SETTINGS_PAGES) expect(p.subsections.length, p.id).toBeGreaterThan(0)
   })
 

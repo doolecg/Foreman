@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { setActiveClaudeTile } from './activeClaudeTile'
 import { ModsHost } from '@/components/mods/ModsHost'
 import { Sparkles, SquareTerminal } from 'lucide-react'
 import type { MainCli } from '@shared/settings'
@@ -59,9 +58,6 @@ export function TerminalView({ crewId, scratch, active, onCloseScratch, onStart,
   const [focusedId, setFocusedId] = useState<string | null>(null)
   // The Claude tile the Subagent Panel follows: the focused one, else the first Claude tile.
   const claudeTile = scratchTiles.find((t) => t.id === focusedId && t.scratch.kind === 'claude') ?? scratchTiles.find((t) => t.scratch.kind === 'claude')
-  const claudeScratchId = claudeTile?.scratch.scratchId ?? null
-  // The Learning settings learn from this session when asked to run now.
-  useEffect(() => setActiveClaudeTile(claudeScratchId), [claudeScratchId])
   // The focused tile is the one on screen: its finished turn does not raise a Windows notification.
   const focusedScratchId = scratchTiles.find((t) => t.id === focusedId)?.scratch.scratchId ?? null
   useEffect(() => {

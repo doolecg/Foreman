@@ -26,32 +26,19 @@ import type {
   TeamInput,
   TeamPatch,
 } from '../shared/types'
-import type { IndexStatus, CrewIndexes } from './codegraph'
 import { ProjectGroups } from './groups'
 import { ProjectActions } from './actions'
 import { BUDGETS_KEY, BudgetMonitor, mergeBudgets, sanitizeBudgets, WINDOW_LABEL, type BudgetDecision } from './usage-budgets'
-import { HindsightService, bankFor, setSharedBanks } from './hindsight'
-import { generateApiKey, listAdapters } from './hindsight-net'
-import { LearnError, LearnService, claudeLearnModel, realGit, type LearnModel } from './learn'
-import { AuxBudget, resolveAux } from './aux-budget'
 import type { KeepWarmPersisted } from './keepwarm'
-import { LearnChangesDb } from './learn-changes'
 import { Ops } from './ops'
 import { claudeDir as claudeDirOf } from './paths'
 import { applySetup, planView, setupLibraryDir } from './setup-service'
 import { Installer, systemInstallDeps } from './install'
-import { ENHANCE_MAX_MEMORY_TOKENS, ENHANCE_MAX_SYMBOL_LINES, buildEnhancePrompt, mergeSkills, normalizeEnhanceContext, parseEnhanceReply, type EnhanceContext } from '../shared/prompt-enhance'
+import { buildEnhancePrompt, mergeSkills, normalizeEnhanceContext, parseEnhanceReply, type EnhanceContext } from '../shared/prompt-enhance'
 import { gatherEnhanceContext, recentMessages } from './enhance-context'
-import { recallMemory } from './memory-recall'
-import { learnOutcomeText, type LearnRunInfo } from '../shared/learn'
-import { recallFile, writeRecallFor } from './session-recall'
-import { readOpenCodeSessionText } from './opencode-session'
+import { claudeEnhanceModel, type EnhanceModel } from './enhance-model'
 import { installedSkills } from './installed-skills'
 import { SETTINGS_SECTIONS, resetSettings } from '../shared/settings'
-import type { AuxTask } from '../shared/aux-settings'
-import type { LearnSettings } from '../shared/learn'
-import { LessonsDb } from './lessons-store'
-import { checkOpencodeIds, learnModelList, notListedError, resolveLearnAi } from './learn-ai'
 import { LaunchError, buildChatLaunch, buildScratchLaunch, commandLine, shellOf, validateLaunchSettings, writeLaunchFiles, SOCKET_PLACEHOLDER, TOKEN_PLACEHOLDER, type LaunchContext, type LaunchResult, type ShellKind } from './launch'
 import { McpError, McpService } from './mcp'
 import { listModels } from './models'
@@ -85,7 +72,6 @@ import { looksLikeServerStart, type TileRoot } from '../shared/servers'
 import { cleanFilter, queryUsage, querySeries } from './usage-query'
 import { exportView } from './usage-export'
 import { isColdTurn } from './usage'
-import { MemorySecretStore, type SecretStore } from './secrets'
 import { randomUUID } from 'node:crypto'
 import { DocsServer, resolveDocFile } from './docs-server'
 import { readProjectImage } from './image-file'
@@ -132,8 +118,6 @@ export interface LaunchOptions {
   cliDir?: string
   // The binary the wrapper runs the CLI with (FOREMAN_NODE).
   foremanNode?: string
-  // The CodeGraph MCP server is offered only when the `codegraph` CLI is on PATH.
-  codegraphOnPath?: () => boolean
   baseEnv?: NodeJS.ProcessEnv
   supported?: ReadonlySet<string>
 }
@@ -146,7 +130,6 @@ export interface LaunchWriter {
 export interface ForemanOptions {
   store: Store
   sessions: SessionManager
-  indexes: CrewIndexes
   pluginDir: string
   // Where backups are written (the app passes <userData>/backups); the default is a folder under the temp dir.
   backupDir?: string
@@ -164,12 +147,8 @@ export interface ForemanOptions {
   // Each is built from the store when not given.
   cliServer?: (target: CliTarget) => CliAccess
   scheduler?: Scheduler
-  // API keys (the OS keychain in the app).
-  secrets?: SecretStore
-  // The learning loop; the real one when not given.
-  learn?: LearnService
-  // The cheap model the learn step asks; Claude Haiku when not given.
-  learnModel?: LearnModel
+  // The model that rewrites prompts (Enhance prompt); Claude Haiku when not given.
+  enhanceModel?: EnhanceModel
   mcp?: McpService
   // Plan limits and provider usage; real pollers when not given.
   providers?: ProviderMonitor
@@ -202,8 +181,6 @@ const HOUR = 60 * 60 * 1000
 // Transcripts are polled rather than watched: fs.watch is unreliable across platforms for appends.
 const USAGE_POLL_MS = 2_000
 const PROVIDER_TICK_MS = 30_000
-// How long a tile that has the finished flag must sit still before the idle learn runs.
-const FINISHED_QUIET_MS = 5_000
 
 // A running Claude tile's transcript, followed so its spend counts.
 interface ScratchFeed {
@@ -212,10 +189,6 @@ interface ScratchFeed {
   prevContext: number | null
   current: { messageId: string; toolUse: boolean } | null
   currentContext: number
-  // When the transcript last grew; null once learned from (until it grows again).
-  activityAt: number | null
-  // The tile's turn went from working to idle (the finished flag) and has not started again.
-  finished: boolean
 }
 
 function shellKind(file: string, platform: NodeJS.Platform): ShellKind {
@@ -223,13 +196,6 @@ function shellKind(file: string, platform: NodeJS.Platform): ShellKind {
   const base = (file.split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.exe$/, '')
   if (base === 'cmd') return 'cmd'
   return base === 'pwsh' || base === 'powershell' ? 'powershell' : 'sh'
-}
-
-function onPath(name: string, env: NodeJS.ProcessEnv, platform: NodeJS.Platform): boolean {
-  const key = Object.keys(env).find((k) => k.toLowerCase() === 'path')
-  const dirs = (key ? (env[key] ?? '') : '').split(platform === 'win32' ? ';' : ':').filter(Boolean)
-  const exts = platform === 'win32' ? ['.exe', '.cmd', '.bat', ''] : ['']
-  return dirs.some((d) => exts.some((e) => existsSync(join(d, name + e))))
 }
 
 // A refusal the dashboard can show: a code to branch on and a message fit for the user.
@@ -243,14 +209,6 @@ export class ForemanError extends Error {
   }
 }
 
-// Where the Hindsight API keys live in the secret store; the settings never hold them.
-const LOCAL_LLM_KEY = 'learn-local-key'
-const HINDSIGHT_KEY = { shared: 'hindsight-shared-key', remote: 'hindsight-remote-key' } as const
-const slotOf = (slot: unknown): keyof typeof HINDSIGHT_KEY => {
-  if (slot === 'shared' || slot === 'remote') return slot
-  throw new ForemanError('BAD_ARGS', 'Key slot must be shared or remote')
-}
-
 const bad = (message: string) => new ForemanError('BAD_ARGS', message)
 const notFound = (message: string) => new ForemanError('NOT_FOUND', message)
 const conflict = (message: string) => new ForemanError('CONFLICT', message)
@@ -259,7 +217,6 @@ const conflict = (message: string) => new ForemanError('CONFLICT', message)
 export function ipcErrorOf(err: unknown): { code: IpcErrorCode; message: string } {
   if (err instanceof ForemanError) return { code: err.code, message: err.message }
   if (err instanceof LaunchError) return { code: 'BAD_ARGS', message: err.message }
-  if (err instanceof LearnError) return { code: err.code, message: err.message }
   const message = err instanceof Error ? err.message : String(err)
   if (err instanceof TypeError || err instanceof RangeError || err instanceof ReferenceError) return { code: 'INTERNAL', message }
   if (/UNIQUE constraint failed/i.test(message)) return { code: 'CONFLICT', message: 'That name is already in use' }
@@ -298,18 +255,11 @@ function threadTitle(text: string): string | null {
 export class Foreman extends EventEmitter<PushEvents> {
   readonly handlers: Handlers
   readonly budgets: BudgetMonitor
-  readonly learn: LearnService
-  // Every learn and memory model call is counted and limited here.
-  readonly aux: AuxBudget
-  private readonly changes: LearnChangesDb
   private readonly ops: Ops
   readonly mcp: McpService
   readonly providers: ProviderMonitor
-  private readonly secrets: SecretStore
-  private readonly hindsight: HindsightService
   private readonly store: Store
   private readonly sessions: SessionManager
-  private readonly indexes: CrewIndexes
   private readonly groups: ProjectGroups
   private readonly actions: ProjectActions
   private readonly pluginDir: string
@@ -346,13 +296,8 @@ export class Foreman extends EventEmitter<PushEvents> {
   private readonly docs: DocsServer
   // Chat items already opened in the browser (tool or plan ids), so a later update of the item opens nothing again.
   private readonly docsOpened = new Set<string>()
-  // Tiles switching between the Chat and Terminal views (their end is not a closed session: no learning) and tiles the
-  // owner closed (a chat process that ends then is the end of the session).
+  // Tiles switching between the Chat and Terminal views (their end is not a closed session).
   private readonly switching = new Set<number>()
-  private readonly closing = new Set<number>()
-  // Tiles the learn step already ran for in this app run, and closed tiles waiting for the owner's answer.
-  private readonly learnedTiles = new Set<number>()
-  private readonly learnAsks = new Map<number, { crewId: number; sessionId: string }>()
   private settings: Settings
   private budgetConfig: BudgetConfig
   private readonly fileDialogs: FileDialogs | undefined
@@ -361,10 +306,9 @@ export class Foreman extends EventEmitter<PushEvents> {
 
   constructor(opts: ForemanOptions) {
     super()
-    const { store, sessions, indexes } = opts
+    const { store, sessions } = opts
     this.store = store
     this.sessions = sessions
-    this.indexes = indexes
     this.groups = new ProjectGroups(store.db)
     this.actions = new ProjectActions(store.db)
     this.pluginDir = opts.pluginDir
@@ -421,59 +365,9 @@ export class Foreman extends EventEmitter<PushEvents> {
       projectSpend: (crewId, since) => store.spendSince(since, crewId),
       globalSpend: (since) => store.spendSince(since),
     })
-    this.secrets = opts.secrets ?? new MemorySecretStore()
-    // Shared mode sends and requires the shared key; remote sends the remote key; local sends none.
-    this.hindsight = new HindsightService({
-      url: () => (this.settings.hindsight.mode === 'remote' ? this.settings.hindsight.url : ''),
-      lan: () => {
-        const h = this.settings.hindsight
-        return h.mode === 'lan' ? { host: h.bindHost, port: h.port, openBind: h.openBind } : null
-      },
-      key: () => (this.settings.hindsight.mode === 'local' ? null : this.secrets.get(HINDSIGHT_KEY[this.settings.hindsight.mode === 'lan' ? 'shared' : 'remote'])),
-      llmEnv: () => ({ HINDSIGHT_API_LLM_PROVIDER: 'claude-code' }),
-      onChange: () => this.emit('hindsight:changed', {}),
-    })
-    this.aux = new AuxBudget({
-      now: this.now,
-      sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
-      // The learn budget's daily USD cap applies too: the lower of the two caps that are set.
-      settings: () => {
-        const a = this.settings.aux
-        const learnCap = this.settings.learn.dailyUsdBudget
-        const maxUsdPerDay = learnCap > 0 && a.maxUsdPerDay > 0 ? Math.min(learnCap, a.maxUsdPerDay) : learnCap > 0 ? learnCap : a.maxUsdPerDay
-        return { ...a, maxUsdPerDay }
-      },
-      store: { load: () => store.getJson('aux.usage'), save: (v) => store.setJson('aux.usage', v) },
-      onChange: () => this.emit('aux:changed', {}),
-    })
-    this.enhanceModel = opts.learnModel ?? claudeLearnModel(opts.launch?.supported, { settings: () => this.auxLearn('promptEnhance'), local: this.localLlm() })
-    this.changes = new LearnChangesDb(store.db, this.now)
-    this.learn =
-      opts.learn ??
-      new LearnService({
-        store,
-        db: new LessonsDb(store.db, this.now),
-        hindsight: this.hindsight,
-        git: realGit,
-        model: this.budgetedModel(opts.learnModel ?? claudeLearnModel(opts.launch?.supported, { settings: () => this.auxLearn('extraction'), local: this.localLlm() }), () => this.learnAiProblem('extraction')),
-        consolidationModel: this.budgetedModel(opts.learnModel ?? claudeLearnModel(opts.launch?.supported, { settings: () => this.auxLearn('consolidation'), local: this.localLlm() }), () => this.learnAiProblem('consolidation')),
-        settings: () => this.settings.learn,
-        log: (message, crewId) => this.log('learn', message, crewId || null),
-        changes: this.changes,
-        onRunStart: (crewId, sessionId) => this.learnRowStart(crewId, sessionId),
-        onRunEnd: (crewId, info) => {
-          this.learnRowEnd(crewId, info ?? null)
-          void this.refreshRecall(crewId)
-        },
-      })
-    // Lessons and skill drafts left pending by an older version or setting apply themselves now.
-    if (typeof this.learn.settleAllPending === 'function') void this.learn.settleAllPending()
+    this.enhanceModel = opts.enhanceModel ?? claudeEnhanceModel(opts.launch?.supported)
     this.ops = new Ops({
       store,
-      learn: this.learn,
-      hindsight: this.hindsight,
-      aux: this.aux,
-      indexes: this.indexes,
       settings: () => this.settings,
       saveSettings: (next) => this.saveSettings(next),
       backupDir: opts.backupDir ?? join(tmpdir(), 'foreman', 'backups'),
@@ -491,14 +385,6 @@ export class Foreman extends EventEmitter<PushEvents> {
             return Array.isArray(v) ? v.map(String) : []
           },
           set: (keys) => this.store.setJson('mcp.written', keys),
-        },
-        builtin: async (name) => {
-          if (name === 'codegraph') {
-            const ok = onPath('codegraph', this.launch.baseEnv ?? process.env, process.platform)
-            return { ok, error: ok ? undefined : 'the codegraph CLI is not on PATH' }
-          }
-          const h = await this.hindsightStatus()
-          return { ok: h.state === 'running', error: h.detail }
         },
       })
     this.cli = opts.cliServer?.({ identify: (id) => this.identify(id), run: (who, req) => this.runCli(who, req) }) ?? null
@@ -1157,26 +1043,12 @@ export class Foreman extends EventEmitter<PushEvents> {
     }
   }
 
-  // The local model server client's key, read per call from the encrypted store.
-  private localLlm() {
-    return { apiKey: () => this.secrets.get(LOCAL_LLM_KEY) }
-  }
-
-  // Memory, aux, CodeGraph rebuild, backup and superpowers: thin calls into Ops (core/ops.ts).
-  private opsHandlers(): Group<'memory'> & Group<'aux'> & Group<'codegraph'> & Group<'backup'> & Group<'superpowers'> {
+  // Prompt enhance, backup and superpowers: thin calls into Ops (core/ops.ts).
+  private opsHandlers(): Group<'aux'> & Group<'backup'> & Group<'superpowers'> {
     const ops = this.ops
     return {
-      'memory:recall': (query, crewId) => ops.recall(query, crewId),
-      'memory:edit': (id, patch) => this.learn.editLesson(id, patch),
-      'memory:delete': (id) => this.learn.setLessonStatus(id, 'deleted'),
-      'memory:export': () => ops.exportMemory(),
-      'memory:reset': (req) => ops.reset(req),
-      'memory:diagnostics': async () => ops.diagnostics(await this.learn.status()),
-      'aux:status': () => ops.aux(),
       'aux:enhancePrompt': (text, commands, context) => this.enhancePrompt(text, commands, context),
-      'aux:enhanceContext': (text, scratchId) => this.enhanceContext(text, scratchId),
-      'codegraph:rebuild': (folder) => ops.codegraphRebuild(folder),
-      'codegraph:status': (folder) => ops.codegraphStatus(folder),
+      'aux:enhanceContext': (scratchId) => this.enhanceContext(scratchId),
       'backup:create': (label) => ops.createBackup(label),
       'backup:list': () => ops.listBackups(),
       'backup:restore': (name, confirm) => ops.restoreBackup(name, confirm),
@@ -1259,87 +1131,9 @@ export class Foreman extends EventEmitter<PushEvents> {
     }
   }
 
-  private miscHandlers(): Group<'health'> & Group<'hindsight'> & Group<'learn'> & Group<'index'> & Group<'events'> & Group<'settings'> {
+  private miscHandlers(): Group<'health'> & Group<'events'> & Group<'settings'> {
     const store = this.store
-    const indexes = this.indexes
     return {
-      'index:status': (crewId) => {
-        const crew = store.getCrew(crewId)
-        return crew ? indexes.status(crew.folder) : null
-      },
-      'index:run': (crewId) => this.runIndex(crewId),
-      'hindsight:status': () => this.hindsightStatus(),
-      'learn:status': (crewId) => this.learn.status(crewId),
-      'learn:ai': () => resolveLearnAi(this.settings.learn, learnModelList(() => this.settings.learn, this.localLlm())),
-      'learn:localModels': async () => {
-        const r = await learnModelList(() => this.settings.learn, this.localLlm())('local')
-        return { models: r.models, ...(r.error ? { error: r.error } : {}) }
-      },
-      'learn:localKey': () => this.secrets.get(LOCAL_LLM_KEY) !== null,
-      'learn:setLocalKey': (key) => {
-        const k = String(key ?? '').trim()
-        if (k) this.secrets.set(LOCAL_LLM_KEY, k)
-        else this.secrets.delete(LOCAL_LLM_KEY)
-        return this.secrets.get(LOCAL_LLM_KEY) !== null
-      },
-      'learn:test': () => this.learn.testAi(),
-      'learn:lessons': (filter) => this.learn.lessons(filter),
-      'learn:editLesson': (id, patch) => this.learn.editLesson(id, patch),
-      'learn:mergeLessons': (keepId, mergeIds) => this.learn.mergeLessons(keepId, mergeIds),
-      'learn:setLessonStatus': (id, status) => this.learn.setLessonStatus(id, status),
-      'learn:moveLesson': (id, from, to) => this.learn.moveLesson(id, from, to),
-      'learn:consolidate': (crewId) => this.learn.consolidateNow(crewId),
-      'learn:hindsightEntries': (crewId, query) => this.learn.hindsightEntries(crewId, query),
-      'learn:memoryFiles': (crewId) => this.learn.memoryFiles(crewId),
-      'learn:drafts': (crewId, status) => this.learn.drafts(crewId).filter((d) => !status || d.status === status),
-      'learn:editDraft': (id, patch) => this.learn.editDraft(id, patch),
-      'learn:approveDraft': (id) => this.learn.approveDraft(id),
-      'learn:rejectDraft': (id) => this.learn.rejectDraft(id),
-      'learn:deleteDraft': (id) => this.learn.deleteDraft(id),
-      'learn:runNow': (tileId, confirm) => {
-        const tile = this.store.getScratch(tileId)
-        if (!tile) throw notFound(`Tile ${tileId} not found`)
-        if (!tile.sessionId) throw bad('This tile has no session to learn from yet')
-        this.learnedTiles.add(tile.id)
-        return this.learnFrom(tile, confirm === true)
-      },
-      'learn:answerClose': (scratchId, learn) => {
-        const ask = this.learnAsks.get(scratchId)
-        if (!ask) return
-        this.learnAsks.delete(scratchId)
-        if (learn === true && !this.learnedTiles.has(scratchId)) {
-          this.learnedTiles.add(scratchId)
-          const tile = this.store.getScratch(scratchId)
-          if (tile?.agent === 'opencode') void this.learnFrom({ ...tile, sessionId: ask.sessionId })
-          else void this.learn.learnNow(ask.crewId, ask.sessionId)
-        }
-      },
-      'learn:records': (filter) => this.learn.changeRecords(filter ?? {}),
-      'learn:rollback': (changeId) => this.learn.rollback(changeId),
-      'learn:clearRecords': (crewId) => this.learn.clearRecords(crewId),
-      'hindsight:act': (action) => {
-        if (action !== 'start' && action !== 'stop' && action !== 'restart') throw new ForemanError('BAD_ARGS', 'Action must be start, stop or restart')
-        return this.hindsightAct(action)
-      },
-      'hindsight:adapters': () => listAdapters(),
-      'hindsight:test': () => this.hindsight.test(),
-      'hindsight:keyState': () => this.hindsightKeys(),
-      'hindsight:setKey': (slot, key) => {
-        const k = typeof key === 'string' ? key.trim() : ''
-        if (k.length < 8 || /\s/.test(k)) throw bad('An API key is at least 8 characters with no spaces')
-        this.secrets.set(HINDSIGHT_KEY[slotOf(slot)], k)
-        return this.hindsightKeys()
-      },
-      'hindsight:clearKey': (slot) => {
-        this.secrets.delete(HINDSIGHT_KEY[slotOf(slot)])
-        return this.hindsightKeys()
-      },
-      // The one time a key is shown: right after it is made, so it can be copied to the other machines.
-      'hindsight:generateKey': () => {
-        const key = generateApiKey()
-        this.secrets.set(HINDSIGHT_KEY.shared, key)
-        return key
-      },
       'events:recent': (limit) => store.recentEvents(limit),
       'events:clear': () => void store.db.prepare('DELETE FROM events').run(),
       'settings:get': () => this.settings,
@@ -1351,29 +1145,8 @@ export class Foreman extends EventEmitter<PushEvents> {
     }
   }
 
-  private hindsightKeys() {
-    return { shared: this.secrets.get(HINDSIGHT_KEY.shared) !== null, remote: this.secrets.get(HINDSIGHT_KEY.remote) !== null }
-  }
-
-  async hindsightStatus() {
-    return this.hindsight.status()
-  }
-
-  async hindsightAct(action: 'start' | 'stop' | 'restart') {
-    return this.hindsight.act(action)
-  }
-
-  // An OpenCode model the patch sets must be listed by `opencode models`; with no catalogue (OpenCode missing) nothing is refused.
   private async setSettings(patch: SettingsPatch): Promise<Settings> {
-    const next = mergeSettings(this.settings, patch)
-    const ids: string[] = []
-    if (patch.learn && ('model' in patch.learn || 'cli' in patch.learn) && next.learn.cli === 'opencode') ids.push(next.learn.model)
-    for (const task of Object.keys(patch.auxModels ?? {}) as AuxTask[]) if (next.auxModels[task].cli === 'opencode') ids.push(next.auxModels[task].model)
-    if (ids.some(Boolean)) {
-      const { all, missing } = await checkOpencodeIds(ids, learnModelList(() => this.settings.learn, this.localLlm()))
-      if (missing && all.models.length) throw new Error(notListedError(missing))
-    }
-    return this.saveSettings(next)
+    return this.saveSettings(mergeSettings(this.settings, patch))
   }
 
   private saveSettings(next: Settings): Settings {
@@ -1466,24 +1239,6 @@ export class Foreman extends EventEmitter<PushEvents> {
     return this.settings
   }
 
-  // Startup seeds from .env (loaded by main): the Hindsight URL and key fill settings that are still unset.
-  // Nothing already stored is overwritten.
-  seedFromEnv(env: NodeJS.ProcessEnv): void {
-    const url = (env.HINDSIGHT_URL ?? '').trim()
-    if (url && !this.settings.hindsight.url) {
-      const next = sanitizeSettings({ ...this.settings, hindsight: { ...this.settings.hindsight, mode: 'remote', url } })
-      if (next.hindsight.url) this.saveSettings(next)
-    }
-    const key = (env.HINDSIGHT_API_KEY ?? '').trim()
-    if (key && this.settings.hindsight.mode === 'remote' && this.secrets.get(HINDSIGHT_KEY.remote) === null) {
-      try {
-        this.secrets.set(HINDSIGHT_KEY.remote, key)
-      } catch {
-        this.log('hindsight', 'Hindsight key from .env could not be stored: the encrypted store is unavailable')
-      }
-    }
-  }
-
   // Lifecycle
 
   // Opens the CLI socket (a failure is logged, the timers start anyway), sweeps once and starts the timers.
@@ -1500,7 +1255,6 @@ export class Foreman extends EventEmitter<PushEvents> {
     this.timers.push(this.scheduler.every(() => this.pollUsage(), USAGE_POLL_MS))
     this.timers.push(this.scheduler.every(() => void this.providers.refresh().catch(() => undefined), PROVIDER_TICK_MS))
     this.checkBudgets()
-    void this.startMemory()
   }
 
   stopTimers(): void {
@@ -1534,7 +1288,6 @@ export class Foreman extends EventEmitter<PushEvents> {
     let rows = 0
     for (const id of [...this.scratchFeeds.keys()]) rows += this.pollScratch(id)
     if (rows > 0) this.checkBudgets()
-    this.learnIdle()
   }
 
   // Activity on a tile moves its updatedAt. A message also names a tile that still has its default title ("Claude: <project>",
@@ -1549,7 +1302,7 @@ export class Foreman extends EventEmitter<PushEvents> {
     this.emit('scratch:changed', { crewId: cur.crewId, scratchId })
   }
 
-  // The finished flag: a turn going from working to idle sets it, the next turn starting clears it.
+  // A turn going from working to idle: the project's files may have changed.
   private noteTurn(phases: Map<number, string>, scratchId: number, phase: string): void {
     const prev = phases.get(scratchId)
     phases.set(scratchId, phase)
@@ -1558,81 +1311,6 @@ export class Foreman extends EventEmitter<PushEvents> {
       if (crewId !== undefined) this.emit('turn:finished', { crewId })
       this.touchScratch(scratchId)
     }
-    const feed = this.scratchFeeds.get(scratchId)
-    if (!feed) return
-    if (phase === 'working') feed.finished = false
-    else if (prev === 'working' && phase === 'idle') feed.finished = true
-  }
-
-  // The app's own timer: a Claude tile whose transcript has not grown for learn.idleMinutes (or a few seconds when the tile has
-  // the finished flag) and is not mid-turn is learned from once, until it grows again.
-  private learnIdle(): void {
-    const l = this.settings.learn
-    if (!l.enabled || l.mode === 'off' || l.idleMinutes <= 0) return
-    const now = this.now()
-    for (const [id, feed] of this.scratchFeeds) {
-      if (feed.activityAt === null) continue
-      if (now - feed.activityAt < (feed.finished ? FINISHED_QUIET_MS : l.idleMinutes * 60_000)) continue
-      const phase = this.chat.get(id)?.snapshot().turn.phase
-      if (phase && phase !== 'idle') continue
-      const scratch = this.store.getScratch(id)
-      if ((scratch?.agent !== 'claude' && scratch?.agent !== 'opencode') || !scratch.sessionId) continue
-      feed.activityAt = null
-      feed.finished = false
-      // Claude tiles wait for enough new messages (OpenCode's transcript is read at run time, so it learns as before).
-      if (scratch.agent === 'claude' && l.everyTurns > 0) {
-        const fresh = this.learn.newTurns(scratch.crewId, scratch.sessionId)
-        if (fresh !== null && fresh < l.everyTurns) continue
-      }
-      void this.learnFrom(scratch)
-    }
-  }
-
-  // The Chat-view Claude tiles whose "Learn" row is running, by project.
-  private readonly learnRows = new Map<number, Array<{ tileId: number; itemId: string }>>()
-
-  // A learn run started: each Chat-view Claude tile of the project on that session with a live chat gets a running row.
-  private learnRowStart(crewId: number, sessionId: string | null): void {
-    const l = this.settings.learn
-    if (!sessionId || !l.enabled || l.mode === 'off') return
-    const subject = this.store.getCrew(crewId)?.name ?? 'this project'
-    const rows: Array<{ tileId: number; itemId: string }> = []
-    for (const t of this.store.listScratch(crewId)) {
-      if (t.agent !== 'claude' || t.view !== 'chat' || t.sessionId !== sessionId) continue
-      const session = this.chat.get(t.id)
-      if (!session) continue
-      const itemId = `learn:${this.now()}:${t.id}`
-      session.addLearnRow(itemId, subject)
-      rows.push({ tileId: t.id, itemId })
-    }
-    if (rows.length) this.learnRows.set(crewId, rows)
-  }
-
-  private learnRowEnd(crewId: number, info: LearnRunInfo | null): void {
-    const rows = this.learnRows.get(crewId)
-    if (!rows) return
-    this.learnRows.delete(crewId)
-    const text = learnOutcomeText(info)
-    const failed = !!info?.error && !info.error.startsWith('Skipped')
-    for (const r of rows) this.chat.get(r.tileId)?.finishLearnRow(r.itemId, text, failed)
-  }
-
-  // One learn run for a tile. An OpenCode tile has no Claude transcript, so its latest session for the folder is read from
-  // OpenCode's database; with nothing readable the step runs on the git diff alone.
-  private learnFrom(tile: ScratchTerminal, confirm = false): Promise<LearnRunInfo | null> {
-    if (tile.agent === 'opencode') {
-      const text = readOpenCodeSessionText(openCodeDbPath(), tile.cwd)
-      if (text) return this.learn.onConversationEnd(tile.crewId, tile.sessionId, text)
-    }
-    return this.learn.learnNow(tile.crewId, tile.sessionId, confirm)
-  }
-
-  // A closed Claude tile not learned from yet is learned from at once, then the project is tidied and merged; nobody is asked.
-  private askLearnOnClose(scratch: ScratchTerminal): void {
-    if (!scratch.sessionId || !this.settings.learn.enabled || this.settings.learn.mode === 'off' || this.learnedTiles.has(scratch.id)) return
-    if (scratch.agent === 'claude' && this.learn.newTurns(scratch.crewId, scratch.sessionId) === 0) return
-    this.learnedTiles.add(scratch.id)
-    void this.learnFrom(scratch)
   }
 
   // Notices
@@ -1643,106 +1321,23 @@ export class Foreman extends EventEmitter<PushEvents> {
     const { file, args } = this.settings.shell
     this.sessions.setShell(file ? { file, args: args.split(/\s+/).filter(Boolean) } : null)
     this.sessions.setSoftPrompt(this.settings.terminal.softPrompt && this.hookPaths ? dirname(this.hookPaths.eventsDir) : null)
-    setSharedBanks(this.settings.hindsight.mode !== 'local')
     if (!this.settings.mods.enabled) this.claudeAgents?.dispose()
     if (!this.settings.mods.keepWarm) this.chat?.stopAllKeepWarm()
-    if (this.timers.length > 0) void this.startMemory()
-  }
-
-  // Session-start memory files live next to the events folder, in the app data folder.
-  private recallDir(): string | null {
-    return this.hookPaths ? join(dirname(this.hookPaths.eventsDir), 'recall') : null
-  }
-
-  // Whether Claude sessions get the recall hook: Hindsight switched on, recall set to session start.
-  private sessionRecallOn(): boolean {
-    return this.settings.learn.hindsight && this.settings.memory.recallMode === 'session-start'
-  }
-
-  // The project's recall file when session-start recall is on and the file exists (OpenCode tiles load it as an instructions file).
-  private recallFileFor(folder: string): string | undefined {
-    const dir = this.recallDir()
-    if (!dir || !this.sessionRecallOn()) return undefined
-    const file = recallFile(dir, folder)
-    return existsSync(file) ? file : undefined
-  }
-
-  // Rewrites the recall file of one project, or of every project. Needs Hindsight on; otherwise the files are cleared.
-  private async refreshRecall(crewId?: number): Promise<void> {
-    const dir = this.recallDir()
-    if (!dir) return
-    const memory = this.sessionRecallOn() ? this.settings.memory : { ...this.settings.memory, recallMode: 'off' as const }
-    for (const crew of this.store.listCrews()) {
-      if (crewId != null && crew.id !== crewId) continue
-      await writeRecallFor(dir, crew.folder, this.hindsight, memory, this.learn.lessonLookup()).catch((e) => this.log('learn', `Session memory file not written (${e instanceof Error ? e.name : 'error'})`, crew.id))
-    }
-  }
-
-  // With Hindsight switched on, starts its local server when uv is there (a missing uv is left alone: the settings warn),
-  // then writes the recall files.
-  private async startMemory(): Promise<void> {
-    if (this.settings.learn.hindsight) {
-      const st = await this.hindsight.status().catch(() => null)
-      if (st && st.state === 'stopped') await this.hindsight.act('start').catch(() => undefined)
-    }
-    await this.refreshRecall()
   }
 
   // The hooks and status line for Claude tiles, or undefined when mods are off. Factory Mode adds its subagent cap hook
   // even then.
   private hooksConfig(factory = false): Record<string, unknown> | undefined {
     if (!this.hookPaths) return undefined
-    return hooksConfig(this.hookPaths, this.settings.mods, this.sessionRecallOn(), factory) ?? undefined
+    return hooksConfig(this.hookPaths, this.settings.mods, factory) ?? undefined
   }
 
-  // The learn AI for one aux task: the learn settings, with the task's own CLI and model where it has them.
-  private auxLearn(task: AuxTask): LearnSettings {
-    return { ...this.settings.learn, ...resolveAux(task, this.settings.auxModels, this.settings.learn) }
-  }
-
-  // Every learn and memory model call goes through the aux budget: counts, spend, bounded retries and limits.
-  // A model the settings name that OpenCode does not list is refused before any call is counted or made.
-  private budgetedModel(base: LearnModel, problem?: () => Promise<string | null>): LearnModel {
-    return async (prompt, onUsed, opts) => {
-      const bad = await problem?.()
-      if (bad) throw new Error(bad)
-      // The daily counts get the CLI's own tokens and cost, else an estimate (about four characters a token).
-      const r = await this.aux.call(
-        'learn',
-        async () => {
-          let used: { tokens: number; usd: number } | null = null
-          const text = await base(prompt, onUsed, {
-            ...opts,
-            onUsage: (u) => {
-              used = u
-              opts?.onUsage?.(u)
-            },
-          })
-          const u = used as { tokens: number; usd: number } | null
-          return { text, tokens: u ? u.tokens : Math.ceil((prompt.length + text.length) / 4), usd: u?.usd ?? 0 }
-        },
-        { confirm: opts?.confirm },
-      )
-      return r.text
-    }
-  }
-
-  // Chat view "Enhance prompt": one counted, capped, retried call to the promptEnhance aux model.
-  private readonly enhanceModel: LearnModel
-  // The lookups for a tile's project: memories, soul.md, CodeGraph symbols, git and the recent conversation. Not model calls, so they are not counted.
-  private async enhanceContext(text: string, scratchId: number): Promise<EnhanceContext> {
+  // Chat view "Enhance prompt": one call to a cheap Claude model.
+  private readonly enhanceModel: EnhanceModel
+  // The lookups for a tile's project: git and the recent conversation. Not model calls, so they are not counted.
+  private async enhanceContext(scratchId: number): Promise<EnhanceContext> {
     const folder = this.store.getCrew(this.requireScratch(scratchId).crewId)?.folder ?? null
-    const memory = this.settings.memory
-    return gatherEnhanceContext(String(text ?? ''), {
-      recall: (q) => recallMemory(this.hindsight, folder, q, { ...memory, maxTokens: Math.min(memory.maxTokens, ENHANCE_MAX_MEMORY_TOKENS) }, this.learn.lessonLookup()),
-      symbols: async (q) => (folder ? this.indexes.symbols(folder, q, ENHANCE_MAX_SYMBOL_LINES) : null),
-      soul: () => {
-        try {
-          return readFileSync(join(claudeDirOf(), 'soul.md'), 'utf8')
-        } catch {
-          return null
-        }
-      },
+    return gatherEnhanceContext({
       git: async () => {
         if (!folder) return null
         const r = await runHidden('git', ['status', '--porcelain=v1', '--branch'], { cwd: folder, timeoutMs: 5000, source: 'git', quiet: true }).catch(() => null)
@@ -1756,22 +1351,15 @@ export class Foreman extends EventEmitter<PushEvents> {
   private async enhancePrompt(text: string, commands: Array<{ name: string; description: string }> = [], context?: EnhanceContext): Promise<string> {
     const rough = String(text ?? '').trim()
     if (!rough) throw new Error('Write something in the box first')
-    const bad = await this.learnAiProblem('promptEnhance')
-    if (bad) throw new Error(bad)
     const model = this.enhanceModel
     const skills = mergeSkills(rough, installedSkills(claudeDirOf()), commands.filter((c) => c && typeof c.name === 'string').map((c) => ({ name: c.name, description: String(c.description ?? '') })))
     const prompt = buildEnhancePrompt(rough, skills, normalizeEnhanceContext(context))
-    const r = await this.aux.call('promptEnhance', async () => ({ text: await model(prompt) }))
-    const out = parseEnhanceReply(r.text)
+    const out = parseEnhanceReply(await model(prompt))
     if (!out) throw new Error('The model returned no text, or only an answer instead of a rewrite')
     return out
   }
 
-  private async learnAiProblem(task: AuxTask): Promise<string | null> {
-    return (await resolveLearnAi(this.auxLearn(task), learnModelList(() => this.settings.learn, this.localLlm()))).error ?? null
-  }
-
-  // Called by the updater before an install: a snapshot of the settings, presets, teams and learn data.
+  // Called by the updater before an install: a snapshot of the settings, presets and teams.
   snapshotBeforeUpdate(toVersion: string): string {
     return this.ops.snapshotBeforeUpdate(toVersion)
   }
@@ -1780,7 +1368,7 @@ export class Foreman extends EventEmitter<PushEvents> {
     this.emit('event', this.store.addEvent(kind, message, crewId))
   }
 
-  // The CLI: a tile's token identifies its project; the memory commands use that project's Hindsight bank.
+  // The CLI: a tile's token identifies its project.
 
   private identify(tileId: number): Identity | null {
     const tile = this.store.getScratch(tileId)
@@ -1791,17 +1379,6 @@ export class Foreman extends EventEmitter<PushEvents> {
     const crew = this.store.getCrew(who.crewId)
     if (!crew) return { exit: EXIT.FORBIDDEN, error: 'forbidden' }
     const args = req.args ?? {}
-    if (req.cmd === 'memory.recall') {
-      const query = typeof args.query === 'string' ? args.query : ''
-      const r = await this.hindsight.recall(bankFor(crew.folder), query)
-      return r.ok ? { exit: EXIT.OK, out: r.items?.join('\n') ?? '' } : { exit: EXIT.ERROR, error: r.error ?? 'recall failed' }
-    }
-    if (req.cmd === 'memory.retain') {
-      const text = typeof args.text === 'string' ? args.text : ''
-      const tags = Array.isArray(args.tag) ? args.tag.filter((t): t is string => typeof t === 'string') : []
-      const r = await this.hindsight.retain(bankFor(crew.folder), text, tags, 'Foreman agent note')
-      return r.ok ? { exit: EXIT.OK, out: 'retained' } : { exit: EXIT.ERROR, error: r.error ?? 'retain failed' }
-    }
     if (req.cmd === 'shot') {
       const file = typeof args.file === 'string' ? args.file : ''
       const kind = typeof args.kind === 'string' ? args.kind : undefined
@@ -1852,8 +1429,6 @@ export class Foreman extends EventEmitter<PushEvents> {
       modPlugins: this.settings.mods.enabled ? this.modPluginDirs() : [],
       ...modes,
       browserMcp: browserUrl ? { url: browserUrl } : undefined,
-      codegraphMcp: this.settings.learn.codegraph && onPath('codegraph', this.launch.baseEnv ?? process.env, process.platform),
-      recallFile: this.recallFileFor(crewFolder),
     }
   }
 
@@ -1935,7 +1510,6 @@ export class Foreman extends EventEmitter<PushEvents> {
   stopScratch(scratchId: number): void {
     this.sessions.stop(this.scratchKey(scratchId))
     if (this.chat.isRunning(scratchId)) {
-      this.closing.add(scratchId)
       void this.chat.stop(scratchId)
     }
   }
@@ -1979,8 +1553,6 @@ export class Foreman extends EventEmitter<PushEvents> {
     this.emit('servers:changed', {})
     const scratch = this.store.getScratch(scratchId)
     if (scratch) this.log('scratch', `Tile ${scratch.title} closed${exitCode ? ` (exit ${exitCode})` : ''}`, scratch.crewId)
-    // A finished Claude session not learned from yet: the owner is asked (nothing when learning is off).
-    if ((scratch?.agent === 'claude' || scratch?.agent === 'opencode') && !this.switching.has(scratchId)) this.askLearnOnClose(scratch)
   }
 
   // ---- Chat view (claude-chat.ts)
@@ -2011,8 +1583,6 @@ export class Foreman extends EventEmitter<PushEvents> {
           keepWarm: {
             ttlMs: () => this.cacheTtlMs(scratch),
             enabled: () => this.settings.mods.keepWarm,
-            budgetBlocked: () => this.aux.blocked(),
-            recordUsage: (u) => this.aux.record('keepwarm', u),
             load: () => (this.store.getJson(`keepwarm.${id}`) as KeepWarmPersisted | null) ?? null,
             save: (p) => this.store.setJson(`keepwarm.${id}`, p),
           },
@@ -2064,10 +1634,7 @@ export class Foreman extends EventEmitter<PushEvents> {
     this.emit('scratch:exit', { scratchId, exitCode: info.code ?? 0, switching: this.switching.has(scratchId) })
     this.emit('servers:changed', {})
     const scratch = this.store.getScratch(scratchId)
-    const closing = this.closing.delete(scratchId)
     if (scratch) this.log('scratch', `Tile ${scratch.title} ${info.expected ? 'closed' : 'stopped unexpectedly'}${info.code ? ` (exit ${info.code})` : ''}`, scratch.crewId)
-    // The end of a session the owner closed (not a crash, a restart or a view switch) asks whether to run the learn step.
-    if (closing && info.expected && !this.switching.has(scratchId) && (scratch?.agent === 'claude' || scratch?.agent === 'opencode')) this.askLearnOnClose(scratch)
   }
 
   private startChat(scratch: ScratchTerminal, opts: { resume?: boolean }): ScratchStatus {
@@ -2225,7 +1792,7 @@ export class Foreman extends EventEmitter<PushEvents> {
 
   // Tile spend: one usage row per assistant message with scratch_id set.
   private attachScratch(scratchId: number, file: string, sessionId: string): void {
-    this.scratchFeeds.set(scratchId, { tail: new JsonlTail(file), sessionId, prevContext: null, current: null, currentContext: 0, activityAt: null, finished: false })
+    this.scratchFeeds.set(scratchId, { tail: new JsonlTail(file), sessionId, prevContext: null, current: null, currentContext: 0 })
   }
 
   // Reads what is left of a closed or deleted tile's transcript, then stops following it.
@@ -2240,7 +1807,6 @@ export class Foreman extends EventEmitter<PushEvents> {
     if (!feed || !this.store.getScratch(scratchId)) return 0
     let n = 0
     const lines = feed.tail.read()
-    if (lines.length > 0) feed.activityAt = this.now()
     for (const line of lines) {
       const u = parseLine(line)
       if (!u) continue
@@ -2274,25 +1840,4 @@ export class Foreman extends EventEmitter<PushEvents> {
     if (n > 0) this.emit('usage:changed', { crewId: this.store.getScratch(scratchId)!.crewId })
     return n
   }
-
-  private async runIndex(crewId: number): Promise<IndexStatus | null> {
-    const crew = this.store.getCrew(crewId)
-    if (!crew) return null
-    this.emit('index:status', { crewId, status: { ...this.indexes.status(crew.folder), indexing: true } })
-    this.log('index', `Indexing ${crew.name} with CodeGraph`, crewId)
-    const status = await this.indexes.index(crew.folder).catch(
-      (err: unknown): IndexStatus => ({
-        ...this.indexes.status(crew.folder),
-        error: err instanceof Error ? err.message : String(err),
-      }),
-    )
-    this.emit('index:status', { crewId, status })
-    this.log(
-      status.error ? 'error' : 'index',
-      status.error ? `Indexing ${crew.name} failed: ${status.error}` : `${crew.name} indexed: ${status.files} files, ${status.symbols} symbols`,
-      crewId,
-    )
-    return status
-  }
-
 }

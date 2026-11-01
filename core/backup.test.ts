@@ -2,24 +2,18 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_LEARN_SETTINGS } from '../shared/learn'
 import { DEFAULT_SETTINGS, sanitizeSettings, type Settings } from '../shared/settings'
-import { AUTO_PREFIX, KEEP_AUTO, buildBackup, listBackups, pruneAuto, stripSecrets, verifyBackup, writeBackup } from './backup'
-import { AuxBudget } from './aux-budget'
-import { CrewIndexes } from './codegraph'
-import { LearnChangesDb } from './learn-changes'
-import { LearnService } from './learn'
-import { LessonsDb } from './lessons-store'
+import { AUTO_PREFIX, KEEP_AUTO, buildBackup, listBackups, pruneAuto, sha256, stripSecrets, verifyBackup, writeBackup } from './backup'
 import { Ops } from './ops'
 import { Store } from './store'
 
 describe('backup bundle', () => {
   it('drops credentials wherever they sit and keeps the settings sections', () => {
-    const b = buildBackup({ 'settings.json': { tokens: { capWarnPct: 80 }, hindsight: { mode: 'remote', apiKey: 'sk-secret', url: 'http://h' }, authorization: 'Bearer x' } }, 'test', 1)
+    const b = buildBackup({ 'settings.json': { tokens: { capWarnPct: 80 }, remote: { mode: 'remote', apiKey: 'sk-secret', url: 'http://h' }, authorization: 'Bearer x' } }, 'test', 1)
     const text = b.files['settings.json']!
     expect(text).not.toContain('sk-secret')
     expect(text).not.toContain('Bearer')
-    expect(JSON.parse(text)).toEqual({ tokens: { capWarnPct: 80 }, hindsight: { mode: 'remote', url: 'http://h' } })
+    expect(JSON.parse(text)).toEqual({ tokens: { capWarnPct: 80 }, remote: { mode: 'remote', url: 'http://h' } })
     expect(stripSecrets({ password: 'p', name: 'n' })).toEqual({ name: 'n' })
   })
 
@@ -54,7 +48,6 @@ describe('backup and restore through the app services', () => {
   let dir: string
   let settings: Settings
   let ops: Ops
-  let learn: LearnService
   let clock = 0
 
   beforeEach(() => {
@@ -63,26 +56,8 @@ describe('backup and restore through the app services', () => {
     clock = Date.UTC(2026, 9, 9, 10)
     dir = mkdtempSync(join(tmpdir(), 'foreman-backup-'))
     settings = sanitizeSettings({ ...DEFAULT_SETTINGS, dailyBudgetUsd: 7 })
-    learn = new LearnService({
-      store,
-      db: new LessonsDb(store.db),
-      changes: new LearnChangesDb(store.db),
-      hindsight: { retain: async () => ({ ok: true }), recall: async () => ({ ok: true, items: [] }), status: async () => ({ url: '', managed: true, state: 'running', detail: '' }) },
-      git: async () => '',
-      model: async () => '[]',
-      settings: () => DEFAULT_LEARN_SETTINGS,
-    })
     ops = new Ops({
       store,
-      learn,
-      hindsight: {
-        recall: async () => ({ ok: true, items: [] }),
-        status: async () => ({ url: '', managed: true, state: 'running', detail: '' }),
-        test: async () => ({}) as never,
-        deleteBank: async () => ({ ok: true as const }),
-      },
-      aux: new AuxBudget({ now: () => 0, sleep: async () => undefined, settings: () => ({ maxCallsPerDay: 0, maxUsdPerDay: 0, retryLimit: 0, backoffMs: 0, onLimit: 'stop' }) }),
-      indexes: new CrewIndexes(),
       settings: () => settings,
       saveSettings: (next) => (settings = next),
       backupDir: dir,
@@ -109,11 +84,29 @@ describe('backup and restore through the app services', () => {
     store.createTeam({ name: 'extra team', rules: '', description: '' })
 
     const applied = await ops.restoreBackup(entry.name, true)
-    expect(applied).toEqual(['settings.json', 'presets.json', 'teams.json', 'learn.json'])
+    expect(applied).toEqual(['settings.json', 'presets.json', 'teams.json'])
     expect(settings).toEqual(before.settings)
     expect(store.listPresets().map((p) => [p.name, p.roleText]).filter(([n]) => n === 'keep me')).toEqual([['keep me', 'Keep this text.']])
     expect(store.listPresets().some((p) => p.name === 'intruder')).toBe(false)
     expect(store.listTeams().some((t) => t.name === 'extra team')).toBe(false)
+  })
+
+  it('still restores a backup from an older version that holds a learn.json part, and skips that part', async () => {
+    const old = buildBackup({ 'settings.json': { dailyBudgetUsd: 7 } }, 'old', 1)
+    const learnText = JSON.stringify({ lessons: [], drafts: [], changes: [] })
+    old.files['learn.json'] = learnText
+    old.manifest.files['learn.json'] = { sha256: sha256(learnText), bytes: Buffer.byteLength(learnText, 'utf8') }
+    writeFileSync(join(dir, 'foreman-backup-old.json'), JSON.stringify(old))
+    expect(await ops.restoreBackup('foreman-backup-old.json', true)).toEqual(['settings.json'])
+  })
+
+  it('restores a backup whose settings still hold the old hindsight and codegraph keys, and drops them', async () => {
+    const old = buildBackup({ 'settings.json': { dailyBudgetUsd: 7, hindsightUrl: 'http://nas:9077', hindsight: { mode: 'remote', url: 'http://nas:9077' }, codegraph: true } }, 'old', 1)
+    writeFileSync(join(dir, 'foreman-backup-old2.json'), JSON.stringify(old))
+    expect(await ops.restoreBackup('foreman-backup-old2.json', true)).toEqual(['settings.json'])
+    expect(settings.dailyBudgetUsd).toBe(7)
+    expect('hindsight' in settings).toBe(false)
+    expect('hindsightUrl' in settings).toBe(false)
   })
 
   it('refuses a restore that was not confirmed, and changes nothing', async () => {

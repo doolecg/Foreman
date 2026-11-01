@@ -1,6 +1,5 @@
 export type AgentKind = 'claude' | 'codex' | 'shell' | 'opencode'
 export type CacheTtl = 'auto' | '5m' | '1h'
-export type McpMode = 'codegraph' | 'none'
 
 export interface Crew {
   id: number
@@ -35,7 +34,6 @@ export interface LaunchSettings {
   cacheTtl: CacheTtl
   // Auto-compact window in tokens, 0 = default.
   contextCap: number
-  mcp: McpMode
 }
 
 export interface Preset extends LaunchSettings {
@@ -46,10 +44,8 @@ export interface Preset extends LaunchSettings {
   // null = no guidance text.
   roleText: string | null
   updatedAt: number
-  // Local skills the seat may use, hindsight and codegraph on/off for a job that runs this seat.
+  // Local skills the seat may use, and the MCP servers it names, for a job that runs this seat.
   skills: string[]
-  hindsight: boolean
-  codegraph: boolean
   mcpServers: string[]
   // Built-ins only: the lifecycle stage (1 to 8), a one-line summary and when to pick it (see shared/presets.ts).
   stage?: number
@@ -106,28 +102,6 @@ export interface ForemanEvent {
   at: number
 }
 
-export interface IndexStatus {
-  initialized: boolean
-  indexing: boolean
-  files: number
-  symbols: number
-  edges: number
-  error?: string
-}
-
-export interface HindsightStatus {
-  // no-uv: the memory server runs through uvx and it is not installed.
-  state: 'running' | 'stopped' | 'no-uv' | 'error'
-  url: string
-  detail: string
-  // True when Foreman starts and stops the server itself (no remote URL set).
-  managed: boolean
-  // How it is hosted: local, lan (shared from this PC) or remote.
-  mode?: 'local' | 'lan' | 'remote'
-  // Shared mode: the running daemon may not have the current bind settings; a restart applies them.
-  pendingRestart?: boolean
-}
-
 // A saved command of a project, run in a shell tile; keybinding is an accelerator or empty.
 export interface ProjectAction {
   id: number
@@ -135,35 +109,6 @@ export interface ProjectAction {
   name: string
   command: string
   keybinding: string
-}
-
-export interface HindsightAdapter {
-  // The address to bind: an adapter's IPv4, 127.0.0.1 or 0.0.0.0.
-  address: string
-  label: string
-  tailscale: boolean
-  // 0.0.0.0: every adapter, including ones Foreman does not list.
-  all: boolean
-  loopback: boolean
-}
-
-export interface HindsightTestResult {
-  ok: boolean
-  reachable: boolean
-  // ok: the key was accepted (or none is needed); denied: the server answered 401 or 403; unknown: not reachable.
-  auth: 'ok' | 'denied' | 'unknown'
-  url: string
-  latencyMs: number | null
-  // Bank count or the server version, whichever the server reported.
-  info: string
-  // The server answered without any key, so anyone who can reach it can use it.
-  open: boolean
-  error: string
-}
-
-export interface HindsightKeyState {
-  shared: boolean
-  remote: boolean
 }
 
 export interface UpdateStatus {
@@ -194,10 +139,7 @@ export interface CrewPatch {
 
 export interface SeatFields {
   skills: string[]
-  hindsight: boolean
-  codegraph: boolean
-  // The MCP servers the seat gets, by name; 'codegraph' and 'hindsight' are built-in entries. Kept in step with
-  // the older `mcp`, `codegraph` and `hindsight` fields.
+  // The MCP servers the seat gets, by name.
   mcpServers: string[]
 }
 
@@ -272,7 +214,7 @@ export type IpcErrorCode = 'NOT_FOUND' | 'CONFLICT' | 'FORBIDDEN' | 'BAD_ARGS' |
 
 // MCP servers (R19). A server is read from the CLI's own config; values of env and headers never leave core.
 export type McpCli = 'claude' | 'opencode'
-export type McpScope = 'user' | 'project' | 'local' | 'global' | 'plugin' | 'connector' | 'builtin' | 'other'
+export type McpScope = 'user' | 'project' | 'local' | 'global' | 'plugin' | 'connector' | 'other'
 export type McpState = 'connected' | 'failed' | 'needs-auth' | 'disabled' | 'pending' | 'unknown'
 export type McpTransport = 'stdio' | 'http' | 'sse'
 
@@ -294,7 +236,6 @@ export interface McpServer {
   error?: string
   // Add, edit, enable, disable and remove are offered only for servers in the CLI's own config.
   editable: boolean
-  builtin: boolean
 }
 
 export interface McpServerInput {
@@ -317,7 +258,7 @@ export interface McpOverview {
 }
 
 // Optional integrations (Git MCP, Playwright MCP): never installed by Foreman unless the user clicks Add.
-export const OPTIONAL_MCP_IDS = ['git', 'playwright', 'codegraph'] as const
+export const OPTIONAL_MCP_IDS = ['git', 'playwright'] as const
 export type OptionalMcpId = (typeof OPTIONAL_MCP_IDS)[number]
 export interface OptionalMcpTarget {
   cli: McpCli

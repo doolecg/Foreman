@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Brain, GitBranch, Loader2 } from 'lucide-react'
+import { GitBranch } from 'lucide-react'
 import type { ChatItem } from '@shared/claude-chat'
 import { decodeIpcError } from '@shared/ipc'
 import { isDocFile } from '@shared/docs'
-import { learnOutcomeText, type LearnStatus } from '@shared/learn'
 import { cn } from '@/lib/utils'
 import { useChatState } from '@/components/chat/useChat'
-import { call, useGitInfo, useLearnStatus, useRepoStatus } from '@/lib/queries'
+import { call, useGitInfo, useRepoStatus } from '@/lib/queries'
 import { PanelRow, SECTION } from '../PanelRow'
 import { ArtifactsList } from './ArtifactsList'
 import { legendFiles,rightNowHeadline, touchedFiles, type TouchedFile } from './rightNow'
@@ -48,15 +47,6 @@ function FileRow({ file, crewId }: { file: TouchedFile; crewId: number | null })
   )
 }
 
-// The learning row: what the learn step is doing now, else how the last one ended.
-function learnLine(s: LearnStatus): string {
-  if (s.running) return 'Learning from this session…'
-  const r = s.lastRun
-  if (!r) return 'Memory: nothing learned yet'
-  if (r.error) return `Memory: ${r.error}`
-  return learnOutcomeText(r)
-}
-
 // The "Right now" card at the top of the Agents panel. Terminal tiles show only the branch: their conversation is not in
 // the chat stream, so the headline and the file list are left out.
 export function RightNowCard({ tileId, crewId, chat }: { tileId: number; crewId: number | null; chat: boolean }) {
@@ -66,7 +56,6 @@ export function RightNowCard({ tileId, crewId, chat }: { tileId: number; crewId:
   const gitPaths = useMemo(() => (status?.files ?? []).map((f) => f.path), [status?.files])
   const items: ChatItem[] = state?.items ?? []
   const rn = useMemo(() => (state ? rightNowHeadline(items, state.turn) : null), [state, items])
-  const learn = useLearnStatus(crewId ?? undefined).data
   const files = useMemo(() => touchedFiles(items, gitPaths), [items, gitPaths])
   const legend = legendFiles(files)
   const showHeadline = chat && !!rn
@@ -98,29 +87,19 @@ export function RightNowCard({ tileId, crewId, chat }: { tileId: number; crewId:
           />
         </div>
       )}
-      {(git || learn?.enabled) && (
+      {git && (
         <div className={SECTION}>
-          {git && (
-            <PanelRow
-              icon={<GitBranch aria-hidden className="text-info size-4" />}
-              label={<span className="font-mono">{git.branch}</span>}
-              trailing={
-                changes > 0 ? (
-                  <span className="text-warning shrink-0 text-xs font-medium">{changes} changed</span>
-                ) : (
-                  <span className="text-muted-foreground shrink-0 text-xs">clean, nothing changed</span>
-                )
-              }
-            />
-          )}
-          {learn?.enabled && (
-            <PanelRow
-              role="status"
-              aria-label="Learning now"
-              icon={learn.running ? <Loader2 aria-hidden className="text-primary size-4 animate-spin" /> : <Brain aria-hidden className="text-muted-foreground size-4" />}
-              label={learnLine(learn)}
-            />
-          )}
+          <PanelRow
+            icon={<GitBranch aria-hidden className="text-info size-4" />}
+            label={<span className="font-mono">{git.branch}</span>}
+            trailing={
+              changes > 0 ? (
+                <span className="text-warning shrink-0 text-xs font-medium">{changes} changed</span>
+              ) : (
+                <span className="text-muted-foreground shrink-0 text-xs">clean, nothing changed</span>
+              )
+            }
+          />
         </div>
       )}
       {chat && rn && (

@@ -8,17 +8,11 @@ import { toast } from '@/lib/toast'
 import { ConfirmDialog, Row } from '../parts'
 
 const LABELS: Record<keyof Settings, string> = {
-  learn: 'Learning',
-  memory: 'Memory recall',
-  auxModels: 'Auxiliary models',
-  aux: 'Auxiliary calls and limits',
   currency: 'Currency',
   dailyBudgetUsd: 'Daily budget',
   fiveHourBudgetUsd: '5-hour budget',
   weeklyBudgetUsd: 'Weekly budget',
   claudePlanUsage: 'Claude plan limits',
-  hindsightUrl: 'Hindsight URL',
-  hindsight: 'Hindsight server',
   defaultModels: 'Default models',
   defaultEfforts: 'Default effort',
   mainCli: 'Main CLI',
@@ -68,7 +62,7 @@ export function ResetSection() {
       <CardHeader>
         <CardTitle className="text-base">Reset settings</CardTitle>
         <CardDescription>
-          Put a settings group back to its defaults. Memory (it has its own reset) and backups (they are files) are not touched.
+          Put a settings group back to its defaults. Backups (they are files) are not touched.
         </CardDescription>
       </CardHeader>
       <CardContent className="divide-y">

@@ -32,7 +32,7 @@ export function InstallSection() {
     if (!r.ok) setErrors((e) => ({ ...e, [id]: r.error }))
   }
   const mcp = useOptionalMcp(null)
-  const mcpOf = (id: 'git' | 'playwright' | 'codegraph') => mcp.data?.find((m) => m.id === id)
+  const mcpOf = (id: 'git' | 'playwright') => mcp.data?.find((m) => m.id === id)
   const gitEntry = mcpOf('git')
   const installButton = (id: InstallId, label: string, installed: boolean): ReactNode =>
     canRunInstall(id, platform) ? (
@@ -55,7 +55,7 @@ export function InstallSection() {
         <CardContent className="divide-y">
           {installItems(settings.data?.mainCli, status.data).filter((it) => it.id !== 'superpowers').map((it) => {
             const s = status.data?.find((x) => x.id === it.id)
-            const mcpId = it.id === 'codegraph' || it.id === 'playwright' ? it.id : null
+            const mcpId = it.id === 'playwright' ? it.id : null
             const entry = mcpId ? mcpOf(mcpId) : undefined
             const installBtn = installButton(it.id, `Install ${it.name}`, s?.state === 'installed')
             const locate = s && PROGRAM_IDS.includes(it.id) ? <LocateActions item={s} /> : undefined

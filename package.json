@@ -22,7 +22,7 @@
     "build": "vite build -c vite.main.config.ts && vite build -c vite.main.config.ts --mode preload && vite build -c vite.main.config.ts --mode cli && vite build -c vite.config.ts && node scripts/notices.mjs",
     "start": "electron .",
     "test": "vitest run",
-    "test:e2e": "node e2e/mcp.mjs && node e2e/usage.mjs && node e2e/memory.mjs && node e2e/console.mjs && node e2e/projects.mjs && node e2e/sidebar.mjs && node e2e/topbar.mjs && node e2e/git.mjs && node e2e/popups.mjs && node e2e/themes.mjs && node e2e/models.mjs && node e2e/terminal.mjs && node e2e/panels.mjs && node e2e/mods.mjs && node e2e/fill.mjs && node e2e/clip.mjs",
+    "test:e2e": "node e2e/mcp.mjs && node e2e/usage.mjs && node e2e/console.mjs && node e2e/projects.mjs && node e2e/sidebar.mjs && node e2e/topbar.mjs && node e2e/git.mjs && node e2e/popups.mjs && node e2e/themes.mjs && node e2e/models.mjs && node e2e/terminal.mjs && node e2e/panels.mjs && node e2e/mods.mjs && node e2e/fill.mjs && node e2e/clip.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dist": "npm run build && electron-builder",
     "dist:dir": "npm run build && electron-builder --dir"
@@ -34,7 +34,6 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
-    "@colbymchenry/codegraph": "^1.6.2",
     "@dagrejs/dagre": "3.1.1",
     "@huggingface/transformers": "^4.3.1",
     "@tailwindcss/vite": "^4.3.3",

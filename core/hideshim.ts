@@ -5,7 +5,7 @@ import { delimiter, join } from 'node:path'
 // Windows gives a process started with DETACHED_PROCESS no console at all, and a console program that process then
 // starts opens a console of its own, which Windows Terminal (the default terminal on Windows 11) shows as a visible
 // window. Node's detached option and Python's `DETACHED_PROCESS` both do this, so a detached daemon or hook started
-// anywhere under Foreman (the Hindsight plugin's hooks, `hindsight-embed daemon start`) pops windows even though every
+// anywhere under Foreman (a plugin's hooks, a daemon start) pops windows even though every
 // process Foreman starts itself is hidden. These two start-up scripts, loaded through NODE_OPTIONS and PYTHONPATH,
 // fix that on Windows. Python: a detached start becomes a hidden-console start (CREATE_NO_WINDOW), so the tree below
 // keeps a console nobody sees. Node: a detached child must stay detached (a node child that is not detached is killed

@@ -31,7 +31,7 @@ const num = (v: unknown): number | undefined => (typeof v === 'number' && Number
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v !== '' ? v : undefined)
 
 // The command a hook or status line runs. Forward slashes keep it valid in the bash that Claude Code uses on Windows.
-export function modsCommand(paths: ModsPaths, mode: 'hook' | 'status' | 'recall'): string | null {
+export function modsCommand(paths: ModsPaths, mode: 'hook' | 'status'): string | null {
   const parts = [paths.node, paths.script, paths.eventsDir]
   if (parts.some((p) => UNSAFE_PATH.test(p) || p === '')) return null
   const [node, script, dir] = parts.map((p) => `"${p.replace(/\\/g, '/')}"`)
@@ -46,7 +46,6 @@ export function modsCommand(paths: ModsPaths, mode: 'hook' | 'status' | 'recall'
 export function hooksConfig(
   paths: ModsPaths,
   settings: ModsSettings,
-  recall = false,
   factory = false,
 ): { hooks: Record<string, unknown[]>; statusLine?: { type: 'command'; command: string } } | null {
   if (!settings.enabled && !factory) return null
@@ -64,9 +63,6 @@ export function hooksConfig(
     for (const event of ['SubagentStart', 'SubagentStop']) hooks[event] = [entry()]
     hooks.PreToolUse = [entry('Agent|Task')]
   }
-  // Session-start memory: a second SessionStart hook that hands the project's recall file to Claude as context.
-  const recallCmd = settings.enabled && recall ? modsCommand(paths, 'recall') : null
-  if (recallCmd) hooks.SessionStart = [...(hooks.SessionStart ?? []), { hooks: [{ type: 'command', command: recallCmd }] }]
   return { hooks, ...(settings.enabled ? { statusLine: { type: 'command' as const, command: status } } : {}) }
 }
 

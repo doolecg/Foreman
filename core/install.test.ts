@@ -25,10 +25,9 @@ describe('Installer', () => {
     expect((await new Installer(deps(0)).run('dictation')).ok).toBe(false)
   })
 
-  it('reports each tool and ties Hindsight to uv', async () => {
+  it('reports each tool', async () => {
     const list = await new Installer(deps(1)).status()
     expect(list.find((s) => s.id === 'uv')?.state).toBe('missing')
-    expect(list.find((s) => s.id === 'hindsight')?.state).toBe('missing')
     expect(list.find((s) => s.id === 'dictation')?.state).toBe('unknown')
     expect(list.find((s) => s.id === 'playwright')?.state).toBe('missing')
   })

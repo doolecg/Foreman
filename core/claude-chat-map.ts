@@ -1,5 +1,4 @@
 import {
-  LEARN_TOOL,
   diffFromInput,
   diffFromResult,
   emptyChatState,
@@ -277,35 +276,6 @@ export class ChatMapper {
     return this.drain()
   }
 
-  // The learn step started on this session: a running "Learn" tool row. UI only: it never reaches Claude, starts no turn
-  // and is left out of the status word and the Right now headline.
-  noteLearnStart(id: string, subject: string): ChatOp[] {
-    this.addItem<ToolItem>({
-      kind: 'tool',
-      id,
-      parent: null,
-      name: LEARN_TOOL,
-      input: { project: subject },
-      partial: '',
-      summary: subject,
-      status: 'running',
-      result: null,
-      diff: null,
-      background: false,
-      startedAt: this.now(),
-      endedAt: null,
-    })
-    return this.drain()
-  }
-
-  // The learn step ended: the row shows its one-line result.
-  noteLearnEnd(id: string, text: string, failed: boolean): ChatOp[] {
-    const item = this.byId.get(id)
-    if (item?.kind !== 'tool') return []
-    this.patch(item, { status: failed ? 'failed' : 'done', endedAt: this.now(), result: { text, summary: text, isError: failed, truncated: false, images: [] } })
-    return this.drain()
-  }
-
   // The process ended or was stopped: nothing can be answered, running tools did not finish.
   noteProcessGone(): ChatOp[] {
     if (this.ping) {
@@ -543,7 +513,7 @@ export class ChatMapper {
     for (let i = this.state.items.length - 1; i >= 0 && i > this.state.items.length - 60; i--) {
       const it = this.state.items[i]!
       if ('parent' in it && it.parent !== null) continue
-      if (it.kind === 'tool' && it.name !== LEARN_TOOL && (it.status === 'running' || it.status === 'preparing') && !tool) tool = { name: it.name, input: it.status === 'preparing' ? { description: it.summary, file_path: it.summary, command: it.summary, pattern: it.summary, url: it.summary, query: it.summary } : it.input }
+      if (it.kind === 'tool' && (it.status === 'running' || it.status === 'preparing') && !tool) tool = { name: it.name, input: it.status === 'preparing' ? { description: it.summary, file_path: it.summary, command: it.summary, pattern: it.summary, url: it.summary, query: it.summary } : it.input }
       else if (it.kind === 'subagent' && (it.status === 'running' || it.status === 'waiting') && !it.background && !tool) tool = { name: 'Agent', input: { description: it.description } }
       else if (it.kind === 'thinking' && it.endedAt === null) thinking = true
       else if (it.kind === 'text' && it.streaming) writing = true

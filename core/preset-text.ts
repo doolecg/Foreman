@@ -1,7 +1,7 @@
 // Guidance text for the eight stage presets: one agent's role, its rules and what it reports. Not orchestration: no preset
 // here starts, splits or hands work to another agent. Kept short, since it is sent with every turn.
 // Keyed by the stage key (an OpenCode copy uses the same text under its "-opencode" key).
-const START = 'If the project has a .codegraph folder, start with `codegraph explore "<symbols or question>"` (or the codegraph tool) before grep or file reads. Stay inside the project folder.'
+const START = 'Stay inside the project folder.'
 const STATUS = 'Status: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT'
 const text = (purpose: string, rules: string, report: string) => [`Purpose: ${purpose}`, `Rules: ${rules}`, START, `Report: start with "${STATUS}", then ${report}`].join('\n')
 

@@ -58,7 +58,7 @@ export function BackupsSection() {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Backups</CardTitle>
-        <CardDescription>Snapshots of your settings, presets, teams and lessons. Foreman also takes one before each update.</CardDescription>
+        <CardDescription>Snapshots of your settings, presets and teams. Foreman also takes one before each update.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
@@ -124,7 +124,7 @@ export function BackupsSection() {
         {confirm?.kind === 'delete' ? (
           <p>The backup file is removed. This cannot be undone.</p>
         ) : (
-          <p>Your current settings, presets, teams and lessons are replaced by the ones in this backup.</p>
+          <p>Your current settings, presets and teams are replaced by the ones in this backup.</p>
         )}
       </ConfirmDialog>
     </Card>

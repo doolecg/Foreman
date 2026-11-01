@@ -117,8 +117,8 @@ describe('status section', () => {
     expect(tiles[3]).toMatchObject({ prefix: null, short: 'context7', state: 'Connected', tone: 'success', attention: false, reason: null })
   })
   it('lists SessionStart notices and keeps them out of the chat rows', () => {
-    const items = [notice({ id: 'n1', category: 'session', origin: 'SessionStart:startup', text: 'SessionStart hook · Hindsight is tracking' }), notice({ id: 'n2', category: 'mcp', text: '1 MCP server failed' }), notice({ id: 'n3', text: 'Effort set to Medium' })]
-    expect(sessionRows(items)).toEqual([{ origin: 'startup', text: 'Hindsight is tracking' }])
+    const items = [notice({ id: 'n1', category: 'session', origin: 'SessionStart:startup', text: 'SessionStart hook · Tracker is tracking' }), notice({ id: 'n2', category: 'mcp', text: '1 MCP server failed' }), notice({ id: 'n3', text: 'Effort set to Medium' })]
+    expect(sessionRows(items)).toEqual([{ origin: 'startup', text: 'Tracker is tracking' }])
     expect(buildRows(items).map((r) => (r.type === 'item' ? r.item.id : r.id))).toEqual(['n3'])
   })
   it('makes one skill tile per skill, newest first, with its state', () => {
@@ -134,7 +134,7 @@ describe('status section', () => {
     expect(tiles[0]).toMatchObject({ short: 'plugin-authoring', state: 'Loading…', tone: 'muted', attention: false })
     expect(tiles[1]).toMatchObject({ prefix: 'superpowers', short: 'brainstorming', state: 'Failed', tone: 'destructive', attention: true, reason: 'Skill not found' })
     expect(skillSummary(tiles)).toBe('Skills · 0 loaded')
-    expect(skillSummary(skillTiles([skill('t5', 'hindsight-coding-agent', 'done')]))).toBe('Skills · 1 loaded')
+    expect(skillSummary(skillTiles([skill('t5', 'coding-agent', 'done')]))).toBe('Skills · 1 loaded')
   })
 })
 

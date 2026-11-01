@@ -24,7 +24,6 @@ export function exportPresets(presets: Preset[], filename?: string): ExportText 
     deny: p.deny,
     cacheTtl: p.cacheTtl,
     contextCap: p.contextCap,
-    mcp: p.mcp,
     roleText: p.roleText,
   }))
   const one = presets.length === 1 ? presets[0]!.name.replace(/[^\w-]+/g, '-').toLowerCase() : 'presets'
@@ -75,7 +74,6 @@ export function parsePresetFile(text: string, existingNames: string[]): PresetIm
         deny: list(p.deny),
         cacheTtl: str(p.cacheTtl, 10, 'auto'),
         contextCap,
-        mcp: str(p.mcp, 40, 'off'),
         roleText,
       },
     }

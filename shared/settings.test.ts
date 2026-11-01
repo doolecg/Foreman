@@ -14,7 +14,7 @@ describe('settings', () => {
     expect(s.defaultModels).toEqual({ claude: 'opus' })
     expect(s.updates).toEqual({ channel: 'stable', checkHours: 24, installOnQuit: true })
     expect(s.keybinds.newCrew).toBe('Mod+Shift+N')
-    expect(Object.keys(s.keybinds).sort()).toEqual(['dictate', 'indexCrew', 'mediaNext', 'mediaPlayPause', 'mediaPrev', 'mediaShuffle', 'newCrew', 'newShell', 'newThread', 'openInIde', 'openPlayground', 'openSettings', 'searchThreads', 'tileClose', 'tileFocusNext', 'tileFocusPrev', 'tileFullscreen', 'tileLayout', 'tileSplit', 'toggleAllPanels', 'toggleConsole', 'toggleNotes', 'toggleSidebar', 'zoomIn', 'zoomOut', 'zoomReset'])
+    expect(Object.keys(s.keybinds).sort()).toEqual(['dictate', 'mediaNext', 'mediaPlayPause', 'mediaPrev', 'mediaShuffle', 'newCrew', 'newShell', 'newThread', 'openInIde', 'openPlayground', 'openSettings', 'searchThreads', 'tileClose', 'tileFocusNext', 'tileFocusPrev', 'tileFullscreen', 'tileLayout', 'tileSplit', 'toggleAllPanels', 'toggleConsole', 'toggleNotes', 'toggleSidebar', 'zoomIn', 'zoomOut', 'zoomReset'])
     expect('defaultReview' in s).toBe(false)
   })
 
@@ -26,13 +26,6 @@ describe('settings', () => {
     expect(mergeSettings(DEFAULT_SETTINGS, { defaultEfforts: { claude: 'max' } }).defaultEfforts).toEqual({ claude: 'max' })
     expect(mergeSettings(DEFAULT_SETTINGS, { defaultModels: { claude: 'opus' } }).defaultEfforts).toEqual({ claude: '' })
   })
-
-  it('sanitises the learning AI choice', () => {
-    expect(sanitizeSettings({}).learn).toMatchObject({ cli: 'claude', model: '', effort: '' })
-    expect(sanitizeSettings({ learn: { cli: 'opencode', model: 'openai/gpt-5-mini', effort: 'low' } }).learn).toMatchObject({ cli: 'opencode', model: 'openai/gpt-5-mini', effort: 'low' })
-    expect(sanitizeSettings({ learn: { cli: 'codex', model: '--evil flag', effort: '-x' } }).learn).toMatchObject({ cli: 'claude', model: '', effort: '' })
-  })
-
 
   it('sanitises the dragged panel widths', () => {
     expect(sanitizeSettings({ layout: { sidebarWidth: 301.4 } }).layout).toMatchObject({ sidebarWidth: 301 })
@@ -58,38 +51,20 @@ describe('settings', () => {
 
 
   it('merges nested patches without dropping sibling values', () => {
-    const s = mergeSettings(DEFAULT_SETTINGS, { updates: { channel: 'beta' }, keybinds: { indexCrew: '' }, dailyBudgetUsd: 25 })
+    const s = mergeSettings(DEFAULT_SETTINGS, { updates: { channel: 'beta' }, keybinds: { newThread: '' }, dailyBudgetUsd: 25 })
     expect(s.updates).toEqual({ channel: 'beta', checkHours: 3, installOnQuit: true })
-    expect(s.keybinds.indexCrew).toBe('')
+    expect(s.keybinds.newThread).toBe('')
     expect(s.keybinds.newCrew).toBe('Mod+N')
     expect(s.dailyBudgetUsd).toBe(25)
   })
 
 
-  it('keeps only an http(s) Hindsight URL', () => {
-    expect(sanitizeSettings({ hindsightUrl: ' http://nas:9077 ' }).hindsightUrl).toBe('http://nas:9077')
-    expect(sanitizeSettings({ hindsightUrl: 'file:///x' }).hindsightUrl).toBe('')
-    expect(DEFAULT_SETTINGS.hindsightUrl).toBe('')
-  })
-
-  it('migrates the legacy hindsightUrl into the hosting settings and keeps it mirrored', () => {
-    const m = sanitizeSettings({ hindsightUrl: 'http://nas:9077' })
-    expect(m.hindsight).toMatchObject({ mode: 'remote', url: 'http://nas:9077' })
-    expect(m.hindsightUrl).toBe('http://nas:9077')
-    expect(DEFAULT_SETTINGS.hindsight).toMatchObject({ mode: 'local', url: '', port: 9077, bindHost: '127.0.0.1', openBind: false })
-    expect(sanitizeSettings({}).hindsight.mode).toBe('local')
-    // switching away from remote keeps the URL for later but stops mirroring it
-    const lan = mergeSettings(m, { hindsight: { mode: 'lan' } })
-    expect(lan.hindsight).toMatchObject({ mode: 'lan', url: 'http://nas:9077' })
-    expect(lan.hindsightUrl).toBe('')
-    expect(mergeSettings(lan, { hindsight: { mode: 'local' } }).hindsight.mode).toBe('local')
-  })
-
-  it('sanitises the hosting settings', () => {
-    const h = sanitizeSettings({ hindsight: { mode: 'weird', bindHost: 'bad host!', port: 99999, url: 'ftp://x', openBind: 'yes' } }).hindsight
-    expect(h).toEqual({ mode: 'local', bindHost: '127.0.0.1', port: 65535, url: '', openBind: false })
-    const ok = sanitizeSettings({ hindsight: { mode: 'lan', bindHost: '100.101.102.103', port: 9100, openBind: true } }).hindsight
-    expect(ok).toMatchObject({ mode: 'lan', bindHost: '100.101.102.103', port: 9100, openBind: true })
+  it('silently drops the old hindsight and codegraph keys', () => {
+    const s = sanitizeSettings({ hindsightUrl: 'http://nas:9077', hindsight: { mode: 'remote', url: 'http://x' }, codegraph: true, keybinds: { indexCrew: 'Mod+I' } }) as Record<string, any>
+    expect('hindsight' in s).toBe(false)
+    expect('hindsightUrl' in s).toBe(false)
+    expect('codegraph' in s).toBe(false)
+    expect('indexCrew' in s.keybinds).toBe(false)
   })
 
   it('sanitises the hide flag, terminal and tiles settings', () => {

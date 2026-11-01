@@ -91,11 +91,6 @@ export interface LaunchContext {
   factory?: boolean
   // The embedded browser's MCP endpoint. The config file holds no secret: Claude expands ${FOREMAN_TOKEN} from the tile's env.
   browserMcp?: { url: string }
-  // The CodeGraph MCP server for this session (Settings, Memory, Use CodeGraph, with the codegraph command installed). Passed as
-  // a launch file, so no config of the user's is written or changed.
-  codegraphMcp?: boolean
-  // The project's session-start memory file (session-recall.ts), set only when it exists and recall is on. OpenCode loads it as an instructions file.
-  recallFile?: string
 }
 
 const MODEL_RE = /^[a-z0-9][a-z0-9.\-[\]]{0,63}$/
@@ -315,11 +310,6 @@ function claudeCore(parts: ClaudeParts, ctx: LaunchContext): LaunchResult {
     files.push(f)
     add('--mcp-config', f.path)
   }
-  if (ctx.codegraphMcp && (!supported || supported.has('--mcp-config'))) {
-    const f: LaunchFile = { path: p.join(ctx.launchDir, 'codegraph-mcp.json'), content: stable({ mcpServers: { codegraph: { command: 'codegraph', args: ['serve', '--mcp'] } } }) }
-    files.push(f)
-    add('--mcp-config', f.path)
-  }
   // A restricted --tools list drops ToolSearch, so every MCP tool of the user's own config would load in full (about 60k tokens
   // before the first message). The seat only gets the servers added above.
   if (tools.length) add('--strict-mcp-config')
@@ -373,7 +363,6 @@ export function buildScratchLaunch(scratch: ScratchTerminal, ctx: LaunchContext,
     deny: preset?.deny ?? [],
     cacheTtl: preset?.cacheTtl ?? 'auto',
     contextCap: preset?.contextCap ?? 0,
-    mcp: 'none',
   }
   const hasRules = settings.allow.length > 0 || settings.deny.length > 0
   // A preset's guidance text and the project's mode preamble share the one --append-system-prompt-file.
@@ -388,10 +377,9 @@ const OPENCODE_CLI_OVERLAY = JSON.stringify({ tabs: { mode: 'off' } })
 
 // OpenCode's config overlay (OPENCODE_CONFIG_CONTENT): the embedded browser as a remote MCP server. The token never reaches
 // disk or this string: OpenCode expands {env:FOREMAN_TOKEN} from the tile's env. `base` is an existing overlay to merge into.
-export function opencodeConfigContent(ctx: Pick<LaunchContext, 'browserMcp' | 'recallFile' | 'codegraphMcp'>, base?: string): string | null {
-  if (!ctx.browserMcp && !ctx.recallFile && !ctx.codegraphMcp) return base ?? null
+export function opencodeConfigContent(ctx: Pick<LaunchContext, 'browserMcp'>, base?: string): string | null {
+  if (!ctx.browserMcp) return base ?? null
   const url = ctx.browserMcp ? checkPath('browserMcp', ctx.browserMcp.url) : null
-  const recall = ctx.recallFile ? checkPath('recallFile', ctx.recallFile) : null
   let cfg: Record<string, unknown> = {}
   if (base) {
     try {
@@ -405,17 +393,12 @@ export function opencodeConfigContent(ctx: Pick<LaunchContext, 'browserMcp' | 'r
   const servers = mcp.servers && typeof mcp.servers === 'object' && !Array.isArray(mcp.servers) ? (mcp.servers as Record<string, unknown>) : {}
   const added: Record<string, unknown> = {}
   if (url) added['foreman-browser'] = { type: 'remote', url, headers: { Authorization: 'Bearer {env:FOREMAN_TOKEN}' }, disabled: false }
-  if (ctx.codegraphMcp) added.codegraph = { type: 'local', command: ['codegraph', 'serve', '--mcp'] }
   const out: Record<string, unknown> = { ...cfg }
   if (Object.keys(added).length) out.mcp = { ...mcp, servers: { ...servers, ...added } }
-  if (recall) {
-    const prior = Array.isArray(cfg.instructions) ? (cfg.instructions as unknown[]) : []
-    if (!prior.includes(recall)) out.instructions = [...prior, recall]
-  }
   return JSON.stringify(out)
 }
 
-// A one-shot model call (learn, skill drafts): one non-interactive `claude -p` run whose events stream as JSON lines.
+// A one-shot model call: one non-interactive `claude -p` run whose events stream as JSON lines.
 // The prompt is written to its stdin, never put on the command line.
 export interface RunLaunch {
   file: 'claude'
@@ -424,7 +407,7 @@ export interface RunLaunch {
 }
 
 export function buildClaudeRunLaunch(
-  run: { cwd: string; model?: string; effort?: string; permissionMode?: string; settingsFile?: string; mcpConfig?: string; allowedTools?: string },
+  run: { cwd: string; model?: string; effort?: string; permissionMode?: string; settingsFile?: string},
   ctx: Pick<LaunchContext, 'supported'> = {},
 ): RunLaunch {
   const args: string[] = ['-p', '--output-format', 'stream-json', '--verbose']
@@ -437,12 +420,6 @@ export function buildClaudeRunLaunch(
   if (run.permissionMode && run.permissionMode !== 'default') add('--permission-mode', checkMode(run.permissionMode))
   // A settings file that turns every hook off (the user's and plugins'); quoted because the spawn goes through a shell.
   if (run.settingsFile) add('--settings', `"${checkPath('settingsFile', run.settingsFile)}"`)
-  // Read-only tools from one MCP server (the learn step's CodeGraph); only that server loads.
-  if (run.mcpConfig && (!ctx.supported || ctx.supported.has('--mcp-config'))) {
-    add('--mcp-config', `"${checkPath('mcpConfig', run.mcpConfig)}"`)
-    if (!ctx.supported || ctx.supported.has('--strict-mcp-config')) args.push('--strict-mcp-config')
-    if (run.allowedTools && /^[\w*-]+$/.test(run.allowedTools)) add('--allowedTools', run.allowedTools)
-  }
   return { file: 'claude', args, cwd: checkPath('cwd', run.cwd) }
 }
 

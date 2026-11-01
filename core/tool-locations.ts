@@ -4,7 +4,7 @@ import { posix, win32 } from 'node:path'
 import type { InstallId } from '../shared/install'
 
 // The command each program is run by; the other install rows are not programs on PATH.
-export const PROGRAM_BINARY: Partial<Record<InstallId, string>> = { claude: 'claude', opencode: 'opencode', uv: 'uv', nodejs: 'node', codegraph: 'codegraph' }
+export const PROGRAM_BINARY: Partial<Record<InstallId, string>> = { claude: 'claude', opencode: 'opencode', uv: 'uv', nodejs: 'node' }
 
 export interface LocationDeps {
   platform: NodeJS.Platform

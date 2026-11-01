@@ -1,11 +1,9 @@
 import { EventEmitter } from 'node:events'
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CrewIndexes, IndexStatus } from './codegraph'
 import type { ChatChild } from './claude-chat'
-import type { LearnService } from './learn'
 import { Foreman, type CliAccess, type Scheduler } from './foreman'
 import { SessionManager, type Pty, type PtyFactory } from './sessions'
 import { Store } from './store'
@@ -55,8 +53,6 @@ class FakeChatChild extends EventEmitter {
 
 const cli: CliAccess = { address: '/tmp/op.sock', issueToken: (id) => `t${id}`, revokeToken: () => undefined, listen: async () => '/tmp/op.sock', close: async () => undefined }
 const scheduler: Scheduler = { every: () => ({}), cancel: () => undefined }
-const idle: IndexStatus = { initialized: false, indexing: false, files: 0, symbols: 0, edges: 0 }
-const indexes = { status: () => idle, index: async () => idle } as unknown as CrewIndexes
 
 describe('Foreman: Chat view tiles', () => {
   let store: Store
@@ -64,9 +60,6 @@ describe('Foreman: Chat view tiles', () => {
   let ptys: FakePty[]
   let children: Array<{ spawn: { file: string; args: string[]; env: Record<string, string>; shell: boolean }; child: FakeChatChild }>
   let bin: string
-  let learned: Array<[number, string | null]>
-  let freshTurns = 99
-  let consolidated: number[]
   let pushed: Array<{ scratchId: number; ops: ChatOp[] }>
   let target: CliTarget
 
@@ -77,9 +70,6 @@ describe('Foreman: Chat view tiles', () => {
     store = new Store(':memory:')
     ptys = []
     children = []
-    learned = []
-    freshTurns = 99
-    consolidated = []
     pushed = []
     const spawn: PtyFactory = (file, _args, opts) => {
       const p = new FakePty(file, opts)
@@ -89,20 +79,12 @@ describe('Foreman: Chat view tiles', () => {
     op = new Foreman({
       store,
       sessions: new SessionManager(spawn),
-      indexes,
       pluginDir: '/plugin',
       engineeringDir: '/data/engineering',
       transcriptFile: (_cwd, id) => join(bin, `${id}.jsonl`),
       cliServer: (t) => ((target = t), cli),
       scheduler,
       now: () => Date.now(),
-      learnModel: async () => '[]',
-      learn: {
-        learnNow: async (crewId: number, sessionId: string | null) => void learned.push([crewId, sessionId]),
-        newTurns: () => freshTurns,
-        consolidateNow: async (crewId: number) => (consolidated.push(crewId), { merged: 2, improved: 0, proposed: 1, failed: 0, skipped: '' }),
-        lessonLookup: () => ({ isLive: () => true, related: () => [] }),
-      } as unknown as LearnService,
       launch: { platform: 'linux', launchDir: '/data/launch', rolesDir: '/data/roles', cliDir: '/app/cli', foremanNode: '/app/foreman', baseEnv: { PATH: bin }, writer: { mkdir: () => {}, writeFile: () => {} } },
       chatSpawn: (spec) => {
         const child = new FakeChatChild()
@@ -111,7 +93,6 @@ describe('Foreman: Chat view tiles', () => {
       },
     })
     op.on('chat:ops', (e) => pushed.push(e))
-    op.handlers['settings:set']({ learn: { mode: 'advanced' } })
   })
   afterEach(() => {
     store.close()
@@ -230,35 +211,6 @@ describe('Foreman: Chat view tiles', () => {
     expect(() => lastChild().child.emit('close', 0, null)).not.toThrow()
   })
 
-  it('closing the tile learns from it at once, without asking, and only once', async () => {
-    const t = makeTile()
-    op.startScratch(t.id)
-    const sessionId = store.getScratch(t.id)!.sessionId
-    const asks: unknown[] = []
-    op.on('learn:askOnClose', (e) => void asks.push(e))
-    op.stopScratch(t.id)
-    await op.chat.stop(t.id)
-    expect(op.scratchStatus(t.id).running).toBe(false)
-    expect(asks).toEqual([])
-    expect(learned).toEqual([[store.getScratch(t.id)!.crewId, sessionId]])
-  })
-
-  it('a tile learned from already is not learned from again when it closes', async () => {
-    const u = makeTile()
-    op.startScratch(u.id)
-    await op.handlers['learn:runNow'](u.id)
-    const before = learned.length
-    op.stopScratch(u.id)
-    await op.chat.stop(u.id)
-    expect(learned).toHaveLength(before)
-  })
-
-  it('learn:consolidate runs the consolidation pass for the project and returns its result', async () => {
-    const crew = store.createCrew('shop2', '/code/shop2')
-    expect(await op.handlers['learn:consolidate'](crew.id)).toEqual({ merged: 2, improved: 0, proposed: 1, failed: 0, skipped: '' })
-    expect(consolidated).toEqual([crew.id])
-  })
-
   it('queue handlers reorder, refuse, take and remove messages held while Claude works', () => {
     const t = makeTile()
     op.startScratch(t.id)
@@ -277,7 +229,7 @@ describe('Foreman: Chat view tiles', () => {
     expect(op.handlers['chat:queueTake'](t.id, 'gone')).toBeNull()
   })
 
-  it('switches Chat -> Terminal -> Chat between turns on the same session, without learning', async () => {
+  it('switches Chat -> Terminal -> Chat between turns on the same session', async () => {
     const t = makeTile()
     op.startScratch(t.id)
     const sessionId = store.getScratch(t.id)!.sessionId!
@@ -300,7 +252,6 @@ describe('Foreman: Chat view tiles', () => {
     expect(ptys[0]!.written.join('')).toContain('/exit\r')
     expect(children).toHaveLength(2)
     expect(children[1]!.spawn.args).toContain('--resume')
-    expect(learned).toEqual([])
   })
 
   it('switches a fresh tile (no turn yet, no transcript) with the same session id, never --resume', async () => {
@@ -435,90 +386,6 @@ describe('Foreman: Chat view tiles', () => {
       expect(op.handlers['scratch:start'](t.id, true)).toMatchObject({ running: true, sessionId })
       expect(children[1]!.spawn.args).toContain(sessionId)
       expect(store.listScratch(t.crewId).map((s) => s.id)).toContain(t.id)
-    })
-  })
-
-  describe('idle learn', () => {
-    const MIN = 60_000
-    const say = (t: { id: number }, line: unknown) => appendFileSync(join(bin, `${store.getScratch(t.id)!.sessionId}.jsonl`), `${JSON.stringify(line)}\n`)
-    const assistant = (text: string) => ({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
-    const started = () => {
-      const t = makeTile()
-      op.startScratch(t.id)
-      return t
-    }
-    beforeEach(() => vi.useFakeTimers({ toFake: ['Date'] }))
-    afterEach(() => vi.useRealTimers())
-
-    it('learns once after the transcript has been quiet for the idle minutes, and again after it grows', () => {
-      const t = started()
-      say(t, assistant('Working on it'))
-      op.pollUsage()
-      vi.advanceTimersByTime(4 * MIN)
-      op.pollUsage()
-      expect(learned).toEqual([])
-      vi.advanceTimersByTime(MIN)
-      op.pollUsage()
-      op.pollUsage()
-      expect(learned).toEqual([[store.getScratch(t.id)!.crewId, store.getScratch(t.id)!.sessionId]])
-      say(t, assistant('More work'))
-      op.pollUsage()
-      vi.advanceTimersByTime(5 * MIN)
-      op.pollUsage()
-      expect(learned).toHaveLength(2)
-    })
-
-    // A turn through the Chat view: the message starts it (working), the result event finishes it (idle).
-    const flush = () => op.chat.flush()
-    const turn = async (t: { id: number }, finish: boolean) => {
-      const { child } = lastChild()
-      child.out({ type: 'system', subtype: 'init', session_id: store.getScratch(t.id)!.sessionId, model: 'claude-opus-5-5', permissionMode: 'default' })
-      op.handlers['chat:send'](t.id, { text: 'go' })
-      say(t, assistant('working'))
-      await flush()
-      if (finish) {
-        child.out({ type: 'result', subtype: 'success', is_error: false, num_turns: 1, duration_ms: 5, total_cost_usd: 0.01 })
-        await flush()
-      }
-    }
-
-    it('learns a few seconds after a turn finishes, without waiting the idle minutes', async () => {
-      const t = started()
-      await turn(t, true)
-      op.pollUsage()
-      expect(learned).toEqual([])
-      vi.advanceTimersByTime(6_000)
-      op.pollUsage()
-      expect(learned).toHaveLength(1)
-    })
-
-    it('waits for enough new messages before learning on its own', async () => {
-      const t = started()
-      freshTurns = 3
-      await turn(t, true)
-      vi.advanceTimersByTime(6_000)
-      op.pollUsage()
-      expect(learned).toEqual([])
-      op.handlers['settings:set']({ learn: { everyTurns: 0 } })
-      await turn(t, true)
-      op.pollUsage()
-      vi.advanceTimersByTime(6_000)
-      op.pollUsage()
-      expect(learned).toHaveLength(1)
-    })
-
-    it('does not learn while a turn is still working, or when idle learning is off', async () => {
-      const t = started()
-      await turn(t, false)
-      op.pollUsage()
-      vi.advanceTimersByTime(10 * MIN)
-      op.pollUsage()
-      expect(learned).toEqual([])
-      lastChild().child.out({ type: 'result', subtype: 'success', is_error: false, num_turns: 1, duration_ms: 5, total_cost_usd: 0.01 })
-      op.handlers['settings:set']({ learn: { idleMinutes: 0 } })
-      vi.advanceTimersByTime(10 * MIN)
-      op.pollUsage()
-      expect(learned).toEqual([])
     })
   })
 

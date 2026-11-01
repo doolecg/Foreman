@@ -19,14 +19,9 @@ describe('foreman CLI', () => {
     expect(HELP).toContain('foreman shot <file> [--kind K]')
   })
 
-  it('parses memory recall into the query text', () => {
-    const p = parseArgs(['memory', 'recall', 'how', 'we', 'deploy'])
-    expect(p).toEqual({ kind: 'request', cmd: 'memory.recall', args: { query: 'how we deploy' }, json: false, stdin: null })
-  })
-
-  it('collects repeated tags and reads stdin text when asked with -', () => {
-    const p = parseArgs(['memory', 'retain', '-', '--tag', 'a', '--tag', 'b'])
-    expect(p).toMatchObject({ kind: 'request', cmd: 'memory.retain', args: { text: '-', tag: ['a', 'b'] }, stdin: 'text' })
+  it('has no memory command any more', () => {
+    expect(parseArgs(['memory', 'recall', 'x'])).toMatchObject({ kind: 'error' })
+    expect(HELP).not.toContain('memory')
   })
 
   it('refuses commands that were removed with the orchestration', () => {

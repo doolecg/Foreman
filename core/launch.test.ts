@@ -31,14 +31,6 @@ const tile = (over: Partial<ScratchTerminal> = {}): ScratchTerminal => ({
 })
 
 describe('tile launches', () => {
-  it('adds a CodeGraph MCP config file only when codegraphMcp is set', () => {
-    const on = buildScratchLaunch(tile(), { ...ctx, codegraphMcp: true })
-    const f = on.files.find((x) => x.path.endsWith('codegraph-mcp.json'))
-    expect(JSON.parse(f!.content)).toEqual({ mcpServers: { codegraph: { command: 'codegraph', args: ['serve', '--mcp'] } } })
-    expect(on.args).toContain(f!.path)
-    expect(buildScratchLaunch(tile(), ctx).files.some((x) => x.path.endsWith('codegraph-mcp.json'))).toBe(false)
-  })
-
   it('passes one --plugin-dir per enabled native Claude mod, and none when there are none', () => {
     const on = buildScratchLaunch(tile(), { ...ctx, modPlugins: ['/app/plugin/mods/ideaShelf', '/app/plugin/mods/folderTracker'] })
     expect(on.args.filter((a) => a === '--plugin-dir')).toHaveLength(3)
@@ -88,18 +80,13 @@ describe('tile launches', () => {
     expect(opencodeConfigContent({})).toBeNull()
   })
 
-  it('adds the recall file and the CodeGraph server to the OpenCode overlay only when asked', () => {
-    expect(opencodeConfigContent({ recallFile: undefined, codegraphMcp: false })).toBeNull()
-    const both = JSON.parse(opencodeConfigContent({ recallFile: '/data/recall/abc.txt', codegraphMcp: true }) ?? '{}')
-    expect(both.instructions).toEqual(['/data/recall/abc.txt'])
-    expect(both.mcp.servers.codegraph).toEqual({ type: 'local', command: ['codegraph', 'serve', '--mcp'] })
-    const recallOnly = JSON.parse(opencodeConfigContent({ recallFile: '/data/recall/abc.txt' }) ?? '{}')
-    expect(recallOnly.mcp).toBeUndefined()
-    const cgOnly = JSON.parse(opencodeConfigContent({ codegraphMcp: true }, JSON.stringify({ instructions: ['x.md'] })) ?? '{}')
-    expect(cgOnly.instructions).toEqual(['x.md'])
-    expect(cgOnly).not.toHaveProperty('instructions.1')
-    const merged = JSON.parse(opencodeConfigContent({ recallFile: '/r.txt' }, JSON.stringify({ instructions: ['x.md'] })) ?? '{}')
-    expect(merged.instructions).toEqual(['x.md', '/r.txt'])
+  it('adds the browser server to the OpenCode overlay only when asked, and keeps the base', () => {
+    expect(opencodeConfigContent({})).toBeNull()
+    const base = JSON.stringify({ instructions: ['x.md'] })
+    expect(opencodeConfigContent({}, base)).toBe(base)
+    const on = JSON.parse(opencodeConfigContent({ browserMcp: { url: 'http://127.0.0.1:1/mcp' } }, base) ?? '{}')
+    expect(on.instructions).toEqual(['x.md'])
+    expect(Object.keys(on.mcp.servers)).toEqual(['foreman-browser'])
   })
 
   it('starts a Claude tile with the plugin dir and the CLI token placeholders', () => {
@@ -162,15 +149,6 @@ describe('tile launches', () => {
   it('quotes arguments for the shell it types into', () => {
     expect(quoteArg("it's", 'sh')).toBe("'it'" + String.fromCharCode(92) + "''s'")
     expect(commandLine({ file: 'claude', args: ['--model', 'a b'] }, 'powershell')).toBe("claude --model 'a b'")
-  })
-
-  it('adds the MCP config, strict flag and the one allowed tool to a run only when claude supports them', () => {
-    const run = { cwd: '/code/shop', mcpConfig: '/tmp/cg.json', allowedTools: 'mcp__codegraph__codegraph_explore' }
-    expect(buildClaudeRunLaunch(run).args).toEqual(expect.arrayContaining(['--mcp-config', '"/tmp/cg.json"', '--strict-mcp-config', '--allowedTools', 'mcp__codegraph__codegraph_explore']))
-    expect(buildClaudeRunLaunch({ cwd: '/code/shop' }).args).not.toContain('--mcp-config')
-    expect(buildClaudeRunLaunch(run, { supported: new Set(['--mcp-config']) }).args).toEqual(expect.arrayContaining(['--mcp-config']))
-    expect(buildClaudeRunLaunch(run, { supported: new Set(['--mcp-config']) }).args).not.toContain('--allowedTools')
-    expect(buildClaudeRunLaunch(run, { supported: new Set() }).args).not.toContain('--mcp-config')
   })
 
   it('forces Haiku for Claude only in an e2e run', () => {

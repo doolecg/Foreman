@@ -1,4 +1,3 @@
-import { LearningBadge } from '@/components/memory/LearningBadge'
 import { useQuery } from '@tanstack/react-query'
 import { Folder, GitBranch } from 'lucide-react'
 import { runningSubagentCount, tileStatusLabel, type ClaudeSessionStatus, type TileStatusTone } from '@shared/mods'
@@ -116,7 +115,6 @@ export function TileInfoBar({ tile, crew }: { tile: TerminalTab; crew: Crew | un
           'unavailable'
         )}
       </Item>
-      <LearningBadge />
       <Item label="Tokens">
         {claude && status?.currentUsage
           ? `in ${compact(status.currentUsage.inputTokens ?? 0)} out ${compact(status.currentUsage.outputTokens ?? 0)}`

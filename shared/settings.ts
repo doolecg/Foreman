@@ -1,5 +1,3 @@
-import { DEFAULT_LEARN_SETTINGS, type LearnSettings } from './learn'
-import { DEFAULT_AUX_MODELS, DEFAULT_AUX_SETTINGS, DEFAULT_MEMORY_SETTINGS, sanitizeAux, sanitizeAuxModels, sanitizeMemory, type AuxModels, type AuxSettings, type MemorySettings } from './aux-settings'
 import { IDE_IDS, type IdeId } from './projects'
 import type { CacheTtl } from './types'
 import type { ClockFormat, MediaSize, TopBarSettings } from './media'
@@ -12,12 +10,10 @@ import { DEFAULT_CURRENCY, sanitizeCurrency, type CurrencySetting } from './curr
 
 import { sanitizeAccel } from './keybinds'
 
-export type HindsightMode = 'local' | 'lan' | 'remote'
 export type DictationMode = 'toggle' | 'hold'
 
 export type KeyAction =
   | 'newCrew'
-  | 'indexCrew'
   | 'openSettings'
   | 'toggleConsole'
   | 'newShell'
@@ -59,14 +55,6 @@ export interface ModsSettings {
 }
 
 export interface Settings {
-  // The learning loop: lessons from finished jobs, written to Hindsight, CodeGraph notes and personal memory.
-  learn: LearnSettings
-  // Memory recall policy (Soul Bank and project banks): off, on demand, or at session start; how many, how many tokens.
-  memory: MemorySettings
-  // The model each learn or memory task asks; 'learn' follows the learn settings.
-  auxModels: AuxModels
-  // Daily budget for every learn and memory model call (counts, USD), the retries and what a limit does.
-  aux: AuxSettings
   // The currency money is shown in; amounts are stored in USD and shown as USD x rate (the rate is typed by the user).
   currency: CurrencySetting
   // Read the 5-hour and weekly Claude plan limits from Anthropic with the login Claude Code keeps. Off until the owner turns it on: it sends that login's token to Anthropic.
@@ -76,12 +64,6 @@ export interface Settings {
   // The same across the last 5 hours and the last 7 days; 0 turns each off.
   fiveHourBudgetUsd: number
   weeklyBudgetUsd: number
-  // A Hindsight memory server hosted elsewhere (http/https URL); empty runs the local one through uvx.
-  hindsightUrl: string
-  // How the Hindsight memory server is hosted: local (127.0.0.1, Foreman runs it), lan (Foreman runs it bound to
-  // bindHost so other machines can connect) or remote (url; Foreman never starts or stops it). API keys live in the
-  // encrypted secret store, never here. openBind records that the user confirmed a non-loopback bind with no key.
-  hindsight: { mode: HindsightMode; bindHost: string; port: number; url: string; openBind: boolean }
   // The Claude Code default model (older key, still read for new presets and terminals).
   defaultModels: { claude: string }
   // The effort new Claude tiles start with, remembered from the last one picked ('' = no effort, one of CLAUDE_EFFORTS otherwise).
@@ -144,7 +126,6 @@ export interface Settings {
 
 export const KEY_ACTIONS: Array<{ id: KeyAction; label: string }> = [
   { id: 'newCrew', label: 'New project' },
-  { id: 'indexCrew', label: 'Index project with CodeGraph' },
   { id: 'openSettings', label: 'Open settings' },
   { id: 'toggleConsole', label: 'Show or hide the console' },
   { id: 'newShell', label: 'New shell in the project folder' },
@@ -172,10 +153,6 @@ export const KEY_ACTIONS: Array<{ id: KeyAction; label: string }> = [
 ]
 
 export const DEFAULT_SETTINGS: Settings = {
-  learn: DEFAULT_LEARN_SETTINGS,
-  memory: DEFAULT_MEMORY_SETTINGS,
-  auxModels: DEFAULT_AUX_MODELS,
-  aux: DEFAULT_AUX_SETTINGS,
   currency: DEFAULT_CURRENCY,
   claudePlanUsage: false,
   dailyBudgetUsd: 0,
@@ -188,14 +165,11 @@ export const DEFAULT_SETTINGS: Settings = {
   contextWarnPct: 60,
   contextDangerPct: 85,
   setupDone: false,
-  hindsightUrl: '',
-  hindsight: { mode: 'local', bindHost: '127.0.0.1', port: 9077, url: '', openBind: false },
   shell: { file: '', args: '' },
   ide: { default: 'code', custom: '' },
   updates: { channel: 'stable', checkHours: 3, installOnQuit: true },
   keybinds: {
     newCrew: 'Mod+N',
-    indexCrew: 'Mod+I',
     openSettings: 'Mod+,',
     toggleConsole: 'Mod+J',
     newShell: 'Alt+Shift+T',
@@ -256,11 +230,7 @@ const ttl = (v: unknown, fallback: CacheTtl): CacheTtl => (v === 'auto' || v ===
 const num = (v: unknown, fallback: number, min: number, max: number) =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback
 
-// A model id for either CLI (provider/model:tag, claude-haiku-4-5, sonnet[1m]) and an effort name; neither can start with a dash.
-const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:+@/[\]-]*$/
-const EFFORT_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
 const HTTP_URL = /^https?:\/\/[^\s]+$/i
-const HOST_RE = /^[A-Za-z0-9.:_-]{1,100}$/
 
 // Settings from before the mod registry had one `subagentPanel` switch: it becomes mods.subagents when mods has no value for it.
 export function sanitizeMods(raw: unknown): ModsSettings {
@@ -272,27 +242,6 @@ export function sanitizeMods(raw: unknown): ModsSettings {
     if (typeof v === 'boolean') mods[id] = v
   }
   return { enabled: typeof r.enabled === 'boolean' ? r.enabled : true, mods, keepWarm: typeof r.keepWarm === 'boolean' ? r.keepWarm : true, commandMenu: typeof r.commandMenu === 'boolean' ? r.commandMenu : true }
-}
-
-// The legacy hindsightUrl (non-empty means remote) migrates into hindsight.url and mode; hindsightUrl mirrors the
-// remote URL afterwards so older readers keep working.
-function hindsightSettings(r: Record<string, any>): Pick<Settings, 'hindsight' | 'hindsightUrl'> {
-  const h = r.hindsight && typeof r.hindsight === 'object' ? r.hindsight : {}
-  const d = DEFAULT_SETTINGS.hindsight
-  const legacy = HTTP_URL.test(str(r.hindsightUrl, '', 300)) ? str(r.hindsightUrl, '', 300) : ''
-  const own = HTTP_URL.test(str(h.url, '', 300)) ? str(h.url, '', 300) : ''
-  const url = own || legacy
-  let mode: HindsightMode = h.mode === 'lan' || h.mode === 'remote' || h.mode === 'local' ? h.mode : d.mode
-  if (!own && legacy && mode === 'local') mode = 'remote'
-  const bindHost = str(h.bindHost, d.bindHost, 100)
-  const out = {
-    mode,
-    bindHost: HOST_RE.test(bindHost) ? bindHost : d.bindHost,
-    port: Math.round(num(h.port, d.port, 1, 65535)),
-    url,
-    openBind: h.openBind === true,
-  }
-  return { hindsight: out, hindsightUrl: mode === 'remote' ? url : '' }
 }
 
 // Fills in defaults and drops anything malformed, so stored or incoming values can't break the app.
@@ -311,7 +260,6 @@ export function sanitizeSettings(raw: unknown): Settings {
   const confirm = r.confirm ?? {}
   const notify = r.notify ?? {}
   const dictation = r.dictation ?? {}
-  const learn = r.learn ?? {}
   const layout = r.layout ?? {}
   const term = r.terminal ?? {}
   const tiles = r.tiles ?? {}
@@ -323,43 +271,12 @@ export function sanitizeSettings(raw: unknown): Settings {
   }
   const flag = (v: unknown, fallback: boolean) => (typeof v === 'boolean' ? v : fallback)
   return {
-    learn: {
-      enabled: flag(learn.enabled, d.learn.enabled),
-      hindsight: flag(learn.hindsight, d.learn.hindsight),
-      codegraph: flag(learn.codegraph, d.learn.codegraph),
-      memory: flag(learn.memory, d.learn.memory),
-      // Nothing waits for review any more: a saved 'queue' is read as 'auto'.
-      review: 'auto',
-      cli: learn.cli === 'claude' || learn.cli === 'opencode' || learn.cli === 'local' ? learn.cli : d.learn.cli,
-      model: MODEL_ID.test(str(learn.model, '', 200)) ? str(learn.model, '', 200) : '',
-      effort: EFFORT_ID.test(str(learn.effort, '', 40)) ? str(learn.effort, '', 40) : '',
-      localUrl: HTTP_URL.test(str(learn.localUrl, '', 300)) ? str(learn.localUrl, '', 300) : d.learn.localUrl,
-      localInsecureOk: flag(learn.localInsecureOk, d.learn.localInsecureOk),
-      // 'suggest' and 'controlled' (old saved values) held changes for review; they now behave as 'advanced'.
-      mode: learn.mode === 'off' ? 'off' : d.learn.mode,
-      // 3, 60000 and 5 were the old defaults: saved settings that still hold them become "no limit".
-      maxCallsPerReview: learn.maxCallsPerReview === 3 ? 0 : Math.round(num(learn.maxCallsPerReview, d.learn.maxCallsPerReview, 0, 50)),
-      maxTokensPerReview: learn.maxTokensPerReview === 60_000 ? 0 : Math.round(num(learn.maxTokensPerReview, d.learn.maxTokensPerReview, 0, 10_000_000)),
-      maxChangesPerReview: learn.maxChangesPerReview === 5 ? 0 : Math.round(num(learn.maxChangesPerReview, d.learn.maxChangesPerReview, 0, 100)),
-      validationRetries: Math.round(num(learn.validationRetries, d.learn.validationRetries, 0, 3)),
-      dailyUsdBudget: num(learn.dailyUsdBudget, d.learn.dailyUsdBudget, 0, 100_000),
-      onLimit: learn.onLimit === 'confirm' ? 'confirm' : 'stop',
-      minUserTurns: Math.round(num(learn.minUserTurns, d.learn.minUserTurns, 0, 100)),
-      minTokens: Math.round(num(learn.minTokens, d.learn.minTokens, 0, 10_000_000)),
-      idleMinutes: Math.round(num(learn.idleMinutes, d.learn.idleMinutes, 0, 1440)),
-      everyTurns: Math.round(num(learn.everyTurns, d.learn.everyTurns, 0, 1000)),
-      consolidateAt: Math.round(num(learn.consolidateAt, d.learn.consolidateAt, 5, 500)),
-    },
-    memory: sanitizeMemory(r.memory),
-    auxModels: sanitizeAuxModels(r.auxModels),
-    aux: sanitizeAux(r.aux),
     currency: sanitizeCurrency(r.currency),
     claudePlanUsage: flag(r.claudePlanUsage, d.claudePlanUsage),
     dailyBudgetUsd: num(r.dailyBudgetUsd, d.dailyBudgetUsd, 0, 100_000),
     fiveHourBudgetUsd: num(r.fiveHourBudgetUsd, d.fiveHourBudgetUsd, 0, 100_000),
     weeklyBudgetUsd: num(r.weeklyBudgetUsd, d.weeklyBudgetUsd, 0, 100_000),
     setupDone: flag(r.setupDone, d.setupDone),
-    ...hindsightSettings(r),
     defaultModels: { claude: str(models.claude, d.defaultModels.claude) || d.defaultModels.claude },
     defaultEfforts: { claude: CLAUDE_EFFORTS.includes(str(efforts.claude, '', 40)) ? str(efforts.claude, '', 40) : '' },
     mainCli: r.mainCli === 'opencode' || r.mainCli === 'claude' ? r.mainCli : d.mainCli,

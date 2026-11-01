@@ -1,13 +1,15 @@
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import type { AgentKind, CacheTtl, Crew, LaunchSettings, McpMode, ForemanEvent, Preset, ScratchSpend, ScratchTerminal, ScratchView, Team, TeamInput, TeamPatch, Usage } from '../shared/types'
+import type { AgentKind, CacheTtl, Crew, LaunchSettings, ForemanEvent, Preset, ScratchSpend, ScratchTerminal, ScratchView, Team, TeamInput, TeamPatch, Usage } from '../shared/types'
 import type { SeatFields } from '../shared/types'
-import { LEARN_AI_MIGRATION, LEARN_USAGE_MIGRATION, LESSON_LINKS_MIGRATION, LESSONS_MIGRATION, SKILL_FIX_MIGRATION } from './lessons-store'
 import { BUILTIN_TEAMS, RETIRED_TEAMS, TEAM_RENAMES } from './team-presets'
 import { presetTextFor } from './preset-text'
 import { buildBackup, writeBackup } from './backup'
 import { presetInfo } from '../shared/presets'
+
+// A migration slot that no longer does anything.
+const RETIRED_MIGRATION = 'SELECT 1;'
 
 export const MIGRATIONS: string[] = [
   `CREATE TABLE crews (
@@ -312,8 +314,8 @@ export const MIGRATIONS: string[] = [
    CREATE UNIQUE INDEX usage_ext_key ON usage (ext_key);
    CREATE INDEX usage_run ON usage (run_id);
    CREATE INDEX usage_crew_at ON usage (crew_id, at);`,
-  // The learning loop: lessons, skill drafts and learn-run records (all additive).
-  LESSONS_MIGRATION,
+  // Retired (the self-learning tables are no longer created; databases that already have them keep them untouched). The slot stays so later migrations keep their numbers.
+  RETIRED_MIGRATION,
   // Project groups: named, ordered, collapsible; a project is in at most one (deleting a group ungroups its projects).
   `CREATE TABLE project_groups (
      id INTEGER PRIMARY KEY,
@@ -327,8 +329,7 @@ export const MIGRATIONS: string[] = [
   // opens an "Update tracker" board job for the project manager.
   `ALTER TABLE crews ADD COLUMN tracker_file TEXT NOT NULL DEFAULT '';
    ALTER TABLE crews ADD COLUMN tracker_jobs INTEGER NOT NULL DEFAULT 1;`,
-  // Which AI each learn run asked.
-  LEARN_AI_MIGRATION,
+  RETIRED_MIGRATION,
   // Discord threads: a thread per request, named and routed. crew_id and run_id are plain numbers.
   `ALTER TABLE discord_bots ADD COLUMN thread_per_request INTEGER NOT NULL DEFAULT 1;
    ALTER TABLE discord_bots ADD COLUMN thread_names TEXT NOT NULL DEFAULT 'auto';
@@ -467,8 +468,7 @@ export const MIGRATIONS: string[] = [
    DROP TABLE IF EXISTS squads;`,
   // Claude tiles open in the Chat view or the Terminal view; existing tiles keep the Terminal.
   `ALTER TABLE scratch ADD COLUMN view TEXT NOT NULL DEFAULT 'terminal';`,
-  // Skill drafts can fix an installed skill (the file it rewrites and the text it replaced).
-  SKILL_FIX_MIGRATION,
+  RETIRED_MIGRATION,
   // Sticky notes per project.
   `CREATE TABLE notes (
      id INTEGER PRIMARY KEY,
@@ -479,10 +479,8 @@ export const MIGRATIONS: string[] = [
      updated_at INTEGER NOT NULL
    );
    CREATE INDEX notes_crew ON notes (crew_id, sort_order);`,
-  // Lessons link to related lessons and can be folded into one by consolidation.
-  LESSON_LINKS_MIGRATION,
-  // Learn runs keep their token use and the session turns they read.
-  LEARN_USAGE_MIGRATION,
+  RETIRED_MIGRATION,
+  RETIRED_MIGRATION,
   // Engineering Mode and Subagent Factory Mode, per project, off for existing projects.
   `ALTER TABLE crews ADD COLUMN engineering INTEGER NOT NULL DEFAULT 0;
    ALTER TABLE crews ADD COLUMN factory INTEGER NOT NULL DEFAULT 0;`,
@@ -533,7 +531,6 @@ const toLaunch = (r: Row): LaunchSettings => ({
   deny: parseList(r.deny),
   cacheTtl: r.cache_ttl as CacheTtl,
   contextCap: Number(r.context_cap),
-  mcp: r.mcp as McpMode,
 })
 const toPreset = (r: Row): Preset => ({
   ...toLaunch(r),
@@ -543,9 +540,8 @@ const toPreset = (r: Row): Preset => ({
   roleText: r.role_text == null ? null : String(r.role_text),
   updatedAt: Number(r.updated_at),
   skills: parseList(r.skills),
-  hindsight: Number(r.hindsight) === 1,
-  codegraph: Number(r.codegraph) === 1,
-  mcpServers: parseList(r.mcp_servers),
+  // Servers Foreman once built in are not Foreman's to offer; an old seat that names them just loses them.
+  mcpServers: parseList(r.mcp_servers).filter((n) => n !== 'codegraph' && n !== 'hindsight'),
   ...presetInfo(r.builtin == null ? null : String(r.builtin)),
 })
 const toScratch = (r: Row): ScratchTerminal => ({
@@ -566,28 +562,13 @@ const toScratch = (r: Row): ScratchTerminal => ({
 
 type PresetFields = Omit<Preset, 'id' | 'updatedAt'>
 type BuiltinPreset = Omit<PresetFields, keyof SeatFields>
-const SEAT_DEFAULTS: SeatFields = { skills: [], hindsight: true, codegraph: true, mcpServers: ['codegraph', 'hindsight'] }
+const SEAT_DEFAULTS: SeatFields = { skills: [], mcpServers: [] }
 // Stages that recommend an optional server (see mcp-optional.ts). It is named, not required: a launch leaves it out while
 // the CLI does not have it.
 const OPTIONAL_STAGE_MCP: Record<string, string[]> = { test: ['playwright'], review: ['git'], release: ['git'], implement: ['git'] }
 const shippedSeat = (builtin: string): Pick<SeatFields, 'mcpServers'> => ({
   mcpServers: [...SEAT_DEFAULTS.mcpServers, ...(OPTIONAL_STAGE_MCP[builtin.replace(/-opencode$/, '')] ?? [])],
 })
-
-// `mcpServers` and the older mcp, codegraph and hindsight fields describe the same choice. Whichever the change
-// names wins, and the others follow it.
-function syncSeatMcp<T extends Partial<LaunchSettings & SeatFields>>(prev: Partial<LaunchSettings & SeatFields>, patch: T): T {
-  const touched = patch.mcpServers !== undefined || patch.mcp !== undefined || patch.codegraph !== undefined || patch.hindsight !== undefined
-  if (!touched) return patch
-  const list = new Set(patch.mcpServers ?? prev.mcpServers ?? [])
-  const toggle = (name: string, on: boolean) => (on ? list.add(name) : list.delete(name))
-  if (patch.mcpServers === undefined) {
-    if (patch.mcp !== undefined) toggle('codegraph', patch.mcp === 'codegraph')
-    else if (patch.codegraph !== undefined) toggle('codegraph', patch.codegraph)
-    if (patch.hindsight !== undefined) toggle('hindsight', patch.hindsight)
-  }
-  return { ...patch, mcpServers: [...list], codegraph: list.has('codegraph'), hindsight: list.has('hindsight'), mcp: list.has('codegraph') ? 'codegraph' : 'none' }
-}
 
 const toTeam = (r: Row, hidden: string[] = []): Team => ({
   id: Number(r.id),
@@ -612,8 +593,8 @@ const toTeam = (r: Row, hidden: string[] = []): Team => ({
 const EDIT_TOOLS = 'Read,Grep,Glob,Edit,Write,Bash'
 const READ_TOOLS = 'Read,Grep,Glob,Bash'
 const READ_WEB_TOOLS = 'Read,Grep,Glob,Bash,WebFetch'
-// Bash is limited to git reads and CodeGraph; under "Don't ask" anything else is refused.
-const GIT_READS = ['Bash(git diff*)', 'Bash(git status*)', 'Bash(git log*)', 'Bash(git show*)', 'Bash(codegraph *)']
+// Bash is limited to git reads; under "Don't ask" anything else is refused.
+const GIT_READS = ['Bash(git diff*)', 'Bash(git status*)', 'Bash(git log*)', 'Bash(git show*)']
 const EDIT_ALLOW = [...GIT_READS, 'Bash(npm test*)', 'Bash(npm run *)']
 const EDIT_DENY = ['Bash(git commit*)', 'Bash(git push*)']
 // Read-only seats: no edit tool in the list, Edit and Write denied as well, so no permission setting can let them write.
@@ -624,7 +605,6 @@ const TEST_PATHS = ['**/test/**', '**/tests/**', '**/*.test.*', '**/*.spec.*', '
 // One Claude seat. Guidance text comes from preset-text.ts (applied in BUILTIN_PRESETS).
 const seat = (s: Pick<BuiltinPreset, 'builtin' | 'name' | 'model' | 'effort' | 'permissionMode' | 'tools' | 'allow' | 'deny' | 'cacheTtl' | 'contextCap'>): BuiltinPreset => ({
   agent: 'claude',
-  mcp: 'codegraph',
   roleText: null,
   ...s,
 })
@@ -699,7 +679,6 @@ const LAUNCH_COLUMNS = {
   deny: 'deny',
   cacheTtl: 'cache_ttl',
   contextCap: 'context_cap',
-  mcp: 'mcp',
 }
 const PRESET_COLUMNS: Record<string, string> = {
   ...LAUNCH_COLUMNS,
@@ -707,8 +686,6 @@ const PRESET_COLUMNS: Record<string, string> = {
   roleText: 'role_text',
   updatedAt: 'updated_at',
   skills: 'skills',
-  hindsight: 'hindsight',
-  codegraph: 'codegraph',
   mcpServers: 'mcp_servers',
 }
 const SCRATCH_COLUMNS: Record<string, string> = {
@@ -979,8 +956,8 @@ export class Store {
     const row = this.db
       .prepare(
         `INSERT INTO presets (builtin, name, agent, model, effort, permission_mode, tools, allow, deny, cache_ttl,
-           context_cap, mcp, role_text, updated_at, skills, hindsight, codegraph, mcp_servers)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+           context_cap, role_text, updated_at, skills, mcp_servers)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
       )
       .get(
         f.builtin,
@@ -994,12 +971,9 @@ export class Store {
         JSON.stringify(f.deny),
         f.cacheTtl,
         f.contextCap,
-        f.mcp,
         f.roleText,
         this.now(),
         JSON.stringify(f.skills),
-        f.hindsight ? 1 : 0,
-        f.codegraph ? 1 : 0,
         JSON.stringify(f.mcpServers),
       ) as Row
     return toPreset(row)
@@ -1117,9 +1091,6 @@ export class Store {
   }
 
   createPreset(input: NewPreset): Preset {
-    // A preset made from the older fields alone (no list) takes its servers from them.
-    const fromFields = [...((input.mcp ?? 'codegraph') === 'codegraph' && (input.codegraph ?? true) ? ['codegraph'] : []), ...((input.hindsight ?? true) ? ['hindsight'] : [])]
-    const seat = syncSeatMcp({}, { mcpServers: input.mcpServers ?? fromFields })
     return this.insertPreset({
       effort: '',
       tools: '',
@@ -1127,18 +1098,16 @@ export class Store {
       deny: [],
       cacheTtl: 'auto',
       contextCap: 0,
-      mcp: 'codegraph',
       roleText: null,
       ...SEAT_DEFAULTS,
       ...input,
-      ...seat,
       builtin: null,
     })
   }
 
   updatePreset(id: number, patch: PresetPatch): Preset {
     if (!this.getPreset(id)) throw new Error(`Preset ${id} not found`)
-    this.writeColumns('presets', id, { ...syncSeatMcp(this.getPreset(id)!, patch), updatedAt: this.now() }, PRESET_COLUMNS)
+    this.writeColumns('presets', id, { ...patch, updatedAt: this.now() }, PRESET_COLUMNS)
     return this.getPreset(id)!
   }
 

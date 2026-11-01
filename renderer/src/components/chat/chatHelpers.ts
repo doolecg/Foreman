@@ -265,8 +265,7 @@ export function toolIconKey(name: string): ToolIconKey {
   const mcp = mcpParts(name)
   if (mcp) {
     const s = mcp.server.toLowerCase()
-    if (s === 'hindsight' || s.includes('mem')) return 'memory'
-    if (s === 'codegraph') return 'code'
+    if (s.includes('mem')) return 'memory'
     if (s === 'playwright') return 'web'
     return 'plug'
   }

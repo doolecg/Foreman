@@ -53,14 +53,6 @@ if (args[0] === 'models') {
 `)
   process.exit(0)
 }
-if (args[0] === 'run') {
-  // The learn step: answer with CLAUDE_CONFIG_DIR/learn-response.json (like the fake claude) and note the arguments.
-  const dir = process.env.CLAUDE_CONFIG_DIR
-  const answer = dir && existsSync(`${dir}/learn-response.json`) ? readFileSync(`${dir}/learn-response.json`, 'utf8') : '[]'
-  if (dir) writeFileSync(`${dir}/opencode-run-args.json`, JSON.stringify(args))
-  process.stdout.write(answer)
-  process.exit(0)
-}
 if (args[0] !== 'mcp') process.exit(1)
 const file = process.env.OPENCODE_CONFIG
 const cfg = file && existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {}

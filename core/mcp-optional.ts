@@ -46,19 +46,6 @@ export const OPTIONAL_MCP: OptionalMcpDef[] = [
     needsProject: false,
     launch: () => ({ command: 'npx', args: ['@playwright/mcp@latest'] }),
   },
-  {
-    id: 'codegraph',
-    name: 'CodeGraph MCP',
-    server: 'codegraph',
-    aliases: ['codegraph-mcp', 'mcp-codegraph'],
-    package: 'codegraph',
-    description: 'Answers code questions from an index (symbols, callers, impact) so agents read less.',
-    enables: 'Agents look up symbols, callers and impact through CodeGraph tools instead of reading whole files.',
-    runtime: { command: 'codegraph', hint: 'install CodeGraph (npm install -g @colbymchenry/codegraph)' },
-    needsProject: false,
-    recordsWrites: true,
-    launch: () => ({ command: 'codegraph', args: ['serve', '--mcp'] }),
-  },
 ]
 
 const CLI_LABEL: Record<McpCli, string> = { claude: 'Claude Code', opencode: 'OpenCode' }
@@ -86,10 +73,9 @@ export function isAppAdded(def: OptionalMcpDef, s: Pick<McpServer, 'cli' | 'scop
   return def.recordsWrites ? written.includes(writtenKey(s)) : true
 }
 
-// The same server under another name, or added by hand, or a plugin's copy of it. Foreman's built-in CodeGraph is not a
-// config entry, so it is never a copy.
+// The same server under another name, or added by hand, or a plugin's copy of it.
 export function isFoundElsewhere(def: OptionalMcpDef, s: Pick<McpServer, 'cli' | 'scope' | 'name' | 'target' | 'editable'>, written: string[] = []): boolean {
-  if (isAppAdded(def, s, written) || s.scope === 'builtin') return false
+  if (isAppAdded(def, s, written)) return false
   return optionalNames(def).includes(s.name) || s.target.includes(def.package)
 }
 

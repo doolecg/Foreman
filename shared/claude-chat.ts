@@ -97,9 +97,6 @@ export interface ThinkingItem {
 
 // Any tool call except Agent/Task (those are SubagentItem). `summary` is the one-line target (file path, command,
 // pattern, URL); `verb` the present participle ("Reading"); `label` the past form for finished rows ("Read").
-// The tool name of the row Foreman adds while its learn step works on the session (UI only, never sent to Claude).
-export const LEARN_TOOL = 'Learn'
-
 export interface ToolItem {
   kind: 'tool'
   id: string // tool_use_id
@@ -676,10 +673,10 @@ const VERBS: Record<string, [string, string]> = {
   TodoWrite: ['Updating', 'Updated'],
 }
 
-const MCP_SERVERS: Record<string, string> = { codegraph: 'CodeGraph', hindsight: 'Hindsight', playwright: 'Playwright', git: 'Git', coolify: 'Coolify', plugin_playwright_playwright: 'Playwright' }
+const MCP_SERVERS: Record<string, string> = { playwright: 'Playwright', git: 'Git', coolify: 'Coolify', plugin_playwright_playwright: 'Playwright' }
 const titleCase = (s: string): string => s.replace(/[_-]+/g, ' ').trim().replace(/^./, (c) => c.toUpperCase())
 
-// "mcp__codegraph__codegraph_explore" as { server: 'CodeGraph', tool: 'Explore' }; null for a built-in tool.
+// "mcp__git__git_status" as { server: 'Git', tool: 'Status' }; null for a built-in tool.
 export function mcpParts(name: string): { server: string; tool: string } | null {
   const m = /^mcp__(.+?)__(.+)$/.exec(name)
   if (!m) return null
@@ -687,10 +684,10 @@ export function mcpParts(name: string): { server: string; tool: string } | null 
   const server = MCP_SERVERS[raw] ?? titleCase(raw.replace(/^claude_ai_/, ''))
   const stem = raw.replace(/^claude_ai_/, '').toLowerCase()
   const tool = m[2]!.replace(new RegExp(`^${stem}[_-]?`, 'i'), '') || m[2]!
-  return { server, tool: titleCase(tool.replace(/^hindsight[_-]/i, '')) }
+  return { server, tool: titleCase(tool) }
 }
 
-// "Reading" / "Read" for a tool; other tools use their name (an MCP tool as "CodeGraph · Explore").
+// "Reading" / "Read" for a tool; other tools use their name (an MCP tool as "Git · Status").
 export const toolVerb = (name: string, done: boolean): string => {
   const known = VERBS[name]?.[done ? 1 : 0]
   if (known) return known

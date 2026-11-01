@@ -137,7 +137,7 @@ export function ConsoleDrawer({ lines, processes, onClear, onStop, onClose }: Pr
 
       <div ref={body} className="min-h-0 flex-1 overflow-auto px-3 py-1 font-mono text-xs leading-5" role="log" aria-live="off">
         {visible.length === 0 ? (
-          <p className="text-muted-foreground py-2">No output yet. Background commands (memory server, OpenCode, MCP checks, git) log here.</p>
+          <p className="text-muted-foreground py-2">No output yet. Background commands (OpenCode, MCP checks, git) log here.</p>
         ) : (
           visible.map((l) => (
             <div

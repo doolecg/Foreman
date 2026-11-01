@@ -22,7 +22,6 @@ import {
   type SubagentItem,
   type ToolItem,
 } from '../shared/claude-chat'
-import { learnOutcomeText } from '../shared/learn'
 import { ChatMapper, mapTranscript } from './claude-chat-map'
 
 const fixture = (name: string): Array<Record<string, unknown>> =>
@@ -85,13 +84,13 @@ describe('stream mapper: a Write that needs permission (perm.log)', () => {
   it('shows hook messages with ANSI codes stripped, once, and failures with their stderr', () => {
     const m = mapper()
     const hook = (id: string, extra: Record<string, unknown>) => ({ type: 'system', subtype: 'hook_response', hook_id: id, hook_name: 'SessionStart:startup', hook_event: 'SessionStart', exit_code: 0, outcome: 'success', ...extra })
-    const msg = JSON.stringify({ systemMessage: '\u001b[38;2;0;116;217mHindsight\u001b[0m is tracking this repo\n  memory bank' })
+    const msg = JSON.stringify({ systemMessage: '\u001b[38;2;0;116;217mTracker\u001b[0m is tracking this repo\n  memory bank' })
     m.feed(hook('h1', { output: msg }))
     m.feed(hook('h1', { output: msg }))
     m.feed(hook('h2', { output: '', exit_code: 2, outcome: 'error', stderr: 'bad hook', hook_name: 'UserPromptSubmit' }))
     m.feed(hook('h3', { output: JSON.stringify({ hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'no rm' } }) }))
     const ns = of(m, 'notice')
-    expect(ns.map((n) => n.text)).toEqual(['SessionStart hook · Hindsight is tracking this repo memory bank', 'Hook UserPromptSubmit failed (exit 2)', 'Blocked by hook: no rm'])
+    expect(ns.map((n) => n.text)).toEqual(['SessionStart hook · Tracker is tracking this repo memory bank', 'Hook UserPromptSubmit failed (exit 2)', 'Blocked by hook: no rm'])
     expect(ns[1]).toMatchObject({ tone: 'warn', detail: 'bad hook' })
   })
 
@@ -558,35 +557,5 @@ describe('keep-warm ping turn', () => {
     expect(m.state.items.map((i) => i.kind)).toEqual(['notice'])
     expect(m.takePingResult()).toMatchObject({ ok: true, reply: 'warm', cacheRead: 61000 })
     expect(m.takePingResult()).toBeNull()
-  })
-})
-
-describe('Learn row', () => {
-  it('adds a running Learn tool row, then finishes it with the result, without touching the turn', () => {
-    const m = mapper()
-    const start = m.noteLearnStart('learn:1', 'Foreman')
-    expect(start).toHaveLength(1)
-    expect(start[0]).toMatchObject({ op: 'upsert', item: { kind: 'tool', id: 'learn:1', name: 'Learn', summary: 'Foreman', status: 'running' } })
-    expect(m.state.turn.phase).toBe('idle')
-    expect(m.state.items.some((i) => i.kind === 'user')).toBe(false)
-
-    const end = m.noteLearnEnd('learn:1', learnOutcomeText({ error: '', extracted: 3, written: 2, queued: 1 }), false)
-    expect(end[0]).toMatchObject({ op: 'upsert', item: { id: 'learn:1', status: 'done', result: { text: 'Learned 3 lessons: 2 saved, 1 to review', isError: false } } })
-    expect(m.state.turn.phase).toBe('idle')
-  })
-
-  it('marks the row failed and ignores unknown ids', () => {
-    const m = mapper()
-    m.noteLearnStart('learn:2', 'Foreman')
-    expect(m.noteLearnEnd('learn:2', 'Could not extract lessons: x', true)[0]).toMatchObject({ item: { status: 'failed' } })
-    expect(m.noteLearnEnd('nope', 'x', false)).toEqual([])
-  })
-
-  it('formats the result text', () => {
-    expect(learnOutcomeText({ error: '', extracted: 1, written: 1, queued: 0 })).toBe('Learned 1 lesson: 1 saved')
-    expect(learnOutcomeText({ error: 'Skipped: only 1 user turn (minimum 2)', extracted: 0, written: 0, queued: 0 })).toBe('Skipped: only 1 user turn (minimum 2)')
-    expect(learnOutcomeText({ error: '', extracted: 1, written: 1, queued: 0, tokens: 3120, tokensEstimated: true })).toBe('Learned 1 lesson: 1 saved · about 3.1k tokens')
-    expect(learnOutcomeText({ error: '', extracted: 1, written: 1, queued: 0, tokens: 420, usd: 0.0031 })).toBe('Learned 1 lesson: 1 saved · 420 tokens ($0.0031)')
-    expect(learnOutcomeText(null)).toBe('Skipped: nothing to learn from')
   })
 })

@@ -83,7 +83,6 @@ try {
     'New shell here',
     'Open in VS Code',
     process.platform === 'win32' ? 'Open in Explorer' : process.platform === 'darwin' ? 'Reveal in Finder' : 'Open folder',
-    'Index with CodeGraph',
     'Show changes',
     'Copy path',
     'Move to Work',

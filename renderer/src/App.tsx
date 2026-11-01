@@ -14,7 +14,7 @@ import { TerminalView } from '@/components/terminal/TerminalView'
 import { TerminalDrawer } from '@/components/terminal/TerminalDrawer'
 import { BoardView } from '@/components/board/BoardView'
 import { PlansView } from '@/components/plans/PlansView'
-import { LearningBadge, OPEN_SETTINGS_EVENT } from '@/components/memory/LearningBadge'
+import { OPEN_SETTINGS_EVENT } from '@/lib/settingsEvent'
 import { ServersPopover } from '@/components/dashboard/ServersPopover'
 import { ProviderLimitBadge } from '@/components/cost/ProviderBadge'
 import { SettingsPage } from '@/components/settings/SettingsPage'
@@ -33,12 +33,11 @@ import { useBarTier } from '@/components/topbar/useBarTier'
 import { mediaCommand } from '@/components/topbar/useMedia'
 import { matches, matchesMouseEvent, swallowBoundMouse } from '@/lib/keys'
 import { effectiveScale, stepScale, useUiScale } from '@/lib/uiScale'
-import { useCodegraphAvailable, useCrews, useLiveUpdates, useMoveToGroup, useSaveSettings, useSettings } from '@/lib/queries'
+import { useCrews, useLiveUpdates, useMoveToGroup, useSaveSettings, useSettings } from '@/lib/queries'
 import { bridge } from '@/lib/bridge'
 import { toast } from '@/lib/toast'
 import { decodeIpcError } from '@shared/ipc'
 import { CloseAppDialog } from '@/components/terminal/CloseAppDialog'
-import { LearnOnCloseDialog } from '@/components/memory/LearnOnCloseDialog'
 import { SetupDialog } from '@/components/setup/SetupDialog'
 import { useCloseTile } from '@/components/terminal/useCloseTile'
 import type { Crew } from '@shared/types'
@@ -85,7 +84,7 @@ export function App() {
     if (crewId == null || !list.some((r) => r.id === crewId)) setCrewId((list.find((r) => r.kind !== 'playground') ?? list[0])?.id ?? null)
   }, [crews.data, crewId])
 
-  // The small memory button next to the context readout opens its settings page.
+  // Components ask for a settings page by dispatching this event.
   useEffect(() => {
     const open = (e: Event) => openSettingsAt((e as CustomEvent<string>).detail)
     window.addEventListener(OPEN_SETTINGS_EVENT, open)
@@ -107,7 +106,6 @@ export function App() {
     }
   }, [crewId])
 
-  const codegraph = useCodegraphAvailable()
   const settings = useSettings()
   const saveSettings = useSaveSettings()
   useUiScale(settings.data?.uiScale)
@@ -151,8 +149,6 @@ export function App() {
     openIde: (c: Crew) => void projectActions.openIde(c),
     openFolder: (c: Crew) => void projectActions.openFolder(c),
     edit: (c: Crew) => (setCrewId(c.id), setCrewDialog('edit')),
-    index: (c: Crew) => void projectActions.index(c),
-    indexMany: (cs: Crew[]) => void projectActions.indexMany(cs),
     changes: (c: Crew) => setChangesTarget(c),
     copyPath: (c: Crew) => void projectActions.copyPath(c),
     defaults: () => openSettingsAt('projects'),
@@ -174,7 +170,6 @@ export function App() {
     const dash = () => setPage('dashboard')
     const actions: Array<[string, () => void]> = [
         [binds.newCrew, () => (dash(), setNewCrew(true))],
-        [binds.indexCrew, () => crew && codegraph && void projectActions.index(crew)],
         [binds.openSettings, () => setPage((v) => (v === 'settings' ? 'dashboard' : 'settings'))],
         [binds.toggleConsole, () => setConsoleOpen((v) => !v)],
         [binds.newShell, () => crew && (dash(), void terminals.openTab(crew, 'shell'))],
@@ -214,7 +209,7 @@ export function App() {
       window.removeEventListener('mousedown', onMouse)
       unswallow()
     }
-  }, [settings.data?.keybinds, settings.data?.uiScale, saveSettings, crewId, codegraph, crew, terminals.openTab, crews.data, sidebarHidden, notesOpen])
+  }, [settings.data?.keybinds, settings.data?.uiScale, saveSettings, crewId, crew, terminals.openTab, crews.data, sidebarHidden, notesOpen])
 
   return (
     <TooltipProvider>
@@ -278,7 +273,6 @@ export function App() {
                   </TooltipTrigger>
                   <TooltipContent>Settings (Ctrl+,)</TooltipContent>
                 </Tooltip>
-                <LearningBadge variant="footer" />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -408,7 +402,6 @@ export function App() {
       {crewId != null && <GitDialog crewId={crewId} open={gitOpen} onOpenChange={setGitOpen} />}
       {closeTile.dialog}
       <CloseAppDialog />
-      <LearnOnCloseDialog />
       <SetupDialog />
       <Toaster />
     </TooltipProvider>
@@ -424,7 +417,7 @@ function Welcome({ onNewCrew }: { onNewCrew: () => void }) {
         </div>
         <h1 className="text-2xl font-semibold">Welcome to Foreman</h1>
         <p className="text-muted-foreground text-sm">
-          Add a project folder, open shells and coding agents in it, and keep its lessons, usage and git changes in one place.
+          Add a project folder, open shells and coding agents in it, and keep its usage and git changes in one place.
         </p>
         <Button onClick={onNewCrew}>
           <Plus /> Add your first project

@@ -46,9 +46,6 @@ export interface MasterStart {
   effort?: string
   // The project's permission mode; only the OpenCode adapter reads it (to decide on --auto).
   permissionMode?: string
-  // An MCP config file and the one tool it may use (Claude only).
-  mcpConfig?: string
-  allowedTools?: string
   onEvent: (e: MasterEvent) => void
 }
 
@@ -125,7 +122,7 @@ export class ClaudeAdapter implements MasterAdapter {
 
   async start(o: MasterStart): Promise<MasterRun> {
     const launch = buildClaudeRunLaunch(
-      { cwd: o.cwd, model: o.model, effort: o.effort, permissionMode: this.opts.permissionMode ?? 'acceptEdits', mcpConfig: o.mcpConfig, allowedTools: o.allowedTools, ...(this.opts.userHooks?.() ? {} : { settingsFile: noHooksSettingsFile() }) },
+      { cwd: o.cwd, model: o.model, effort: o.effort, permissionMode: this.opts.permissionMode ?? 'acceptEdits', ...(this.opts.userHooks?.() ? {} : { settingsFile: noHooksSettingsFile() }) },
       { supported: this.opts.supported },
     )
     const child = (this.opts.spawn ?? realSpawn)(launch.file, launch.args, { cwd: launch.cwd })

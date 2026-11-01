@@ -22,9 +22,6 @@ export function useReorderCrews() {
   })
 }
 
-export const useIndexStatus = (crewId: number | null) =>
-  useQuery({ queryKey: keys.index(crewId ?? -1), queryFn: () => call('index:status', crewId!), enabled: crewId != null })
-
 export const useEvents = () => useQuery({ queryKey: keys.events, queryFn: () => call('events:recent', 100) })
 
 // Clears the activity feed for every project.
@@ -41,5 +38,4 @@ registerLive((b, qc) => [
     qc.setQueryData<ForemanEvent[]>(keys.events, (old) => [e, ...(old ?? [])].slice(0, 100))
     void qc.invalidateQueries({ queryKey: keys.crews })
   }),
-  b.on('index:status', ({ crewId, status }) => qc.setQueryData(keys.index(crewId), status)),
 ])

@@ -58,8 +58,6 @@ export const summary = (p: Preset) =>
         p.cacheTtl !== "auto" && `${p.cacheTtl} cache`,
         p.skills.length > 0 &&
           `${p.skills.length} skill${p.skills.length === 1 ? "" : "s"}`,
-        p.hindsight && "Hindsight",
-        p.codegraph && "CodeGraph",
       ]
         .filter(Boolean)
         .join(" · ");

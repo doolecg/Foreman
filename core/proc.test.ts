@@ -34,14 +34,14 @@ describe('spawnHidden', () => {
 
   it('logs a missing command as an error and still resolves', async () => {
     consoleLog.clear()
-    const r = await runHidden('foreman-no-such-command', [], { source: 'codegraph' })
+    const r = await runHidden('foreman-no-such-command', [], { source: 'git' })
     expect(r.code).toBeNull()
-    expect(consoleLog.list({ source: 'codegraph' }).some((l) => l.error)).toBe(true)
+    expect(consoleLog.list({ source: 'git' }).some((l) => l.error)).toBe(true)
   })
 
   it('lists a running process and stops only processes it started', async () => {
     consoleLog.clear()
-    const child = spawnHidden(node, ['-e', 'setInterval(() => {}, 1000)'], { source: 'hindsight', stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawnHidden(node, ['-e', 'setInterval(() => {}, 1000)'], { source: 'mcp', stdio: ['ignore', 'pipe', 'pipe'] })
     await new Promise((r) => child.once('spawn', r))
     expect(consoleLog.processes().map((p) => p.pid)).toContain(child.pid)
     expect(stopOwnProcess(process.pid)).toBe(false)
@@ -57,9 +57,8 @@ describe('spawnHidden', () => {
   })
 
   it('names the source from the command', () => {
-    expect(sourceFor('uvx')).toBe('hindsight')
+    expect(sourceFor('uvx')).toBe('mcp')
     expect(sourceFor('C:\\bin\\git.exe')).toBe('git')
-    expect(sourceFor('codegraph')).toBe('codegraph')
     expect(sourceFor('opencode')).toBe('opencode')
     expect(sourceFor('claude')).toBe('claude-run')
   })

@@ -149,7 +149,6 @@ export function McpSection() {
                     <tr key={s.id} className="border-b align-top last:border-0">
                       <td className="py-2 pr-3 font-medium">
                         {s.name}
-                        {s.builtin && <span className="text-muted-foreground ml-1.5 text-[10px] font-normal uppercase">built-in</span>}
                       </td>
                       <td className="py-2 pr-3">{CLI_LABEL[s.cli]}</td>
                       <td className="py-2 pr-3 capitalize">{s.scope}</td>

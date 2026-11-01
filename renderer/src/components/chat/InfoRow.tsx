@@ -40,7 +40,7 @@ function Figure({ name, pct }: { name: string; pct: number }) {
   )
 }
 
-// One compact row at the right of the composer's button row, after Enhance prompt and Learn: the context window as a pixel meter with its percent, the 5-hour
+// One compact row at the right of the composer's button row, after Enhance prompt: the context window as a pixel meter with its percent, the 5-hour
 // plan usage when known, and how many sub-agents are running. The token counts and the 7-day usage are in its tooltip. Model and effort live in the composer.
 export function InfoRow({ state }: { state: ChatState }) {
   const settings = useSettings().data

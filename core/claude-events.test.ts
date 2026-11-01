@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MOD_DEFAULT_ENABLED, type ModId } from '../shared/mods'
-import { recallFile } from './session-recall'
 import { hooksConfig, modsCommand, parseEventLine, parseStatusFile } from './claude-events'
 
 const SCRIPT = resolve(process.cwd(), 'scripts', 'op-event.mjs')
@@ -85,37 +84,27 @@ describe('event and status parsing', () => {
   })
 })
 
-describe('hooksConfig recall hook', () => {
-  it('adds a second SessionStart hook only when session-start recall is on', () => {
-    const on = hooksConfig(paths, { enabled: true, mods: mods({ subagents: false }), keepWarm: true, commandMenu: true }, true)!
-    expect(on.hooks.SessionStart).toHaveLength(1)
-    expect(JSON.stringify(on.hooks.SessionStart)).toContain(' recall ')
-    const off = hooksConfig(paths, { enabled: true, mods: mods({ subagents: false }), keepWarm: true, commandMenu: true })!
-    expect(off.hooks.SessionStart).toBeUndefined()
-  })
-})
-
 describe('hooksConfig Factory Mode', () => {
   const off = { enabled: false, mods: mods({ subagents: false }), keepWarm: true, commandMenu: true }
 
   it('installs the sub-agent events and the Agent|Task PreToolUse hook with no status line when mods are off', () => {
-    const cfg = hooksConfig(paths, off, true, true)!
+    const cfg = hooksConfig(paths, off, true)!
     expect(Object.keys(cfg.hooks).sort()).toEqual(['PreToolUse', 'SubagentStart', 'SubagentStop'])
     expect(cfg.hooks.PreToolUse).toEqual([{ matcher: 'Agent|Task', hooks: [{ type: 'command', command: expect.stringContaining(' hook ') }] }])
     expect(cfg.statusLine).toBeUndefined()
   })
 
   it('is independent of the subagents panel mod, and widens the panel PreToolUse matcher when both are on', () => {
-    const noPanel = hooksConfig(paths, { ...off, enabled: true }, false, true)!
+    const noPanel = hooksConfig(paths, { ...off, enabled: true }, true)!
     expect(Object.keys(noPanel.hooks).sort()).toEqual(['PreToolUse', 'SubagentStart', 'SubagentStop'])
     expect(noPanel.statusLine).toBeDefined()
-    const both = hooksConfig(paths, { ...off, enabled: true, mods: mods({ subagents: true }) }, false, true)!
+    const both = hooksConfig(paths, { ...off, enabled: true, mods: mods({ subagents: true }) }, true)!
     expect(both.hooks.PreToolUse).toEqual([{ matcher: 'Agent|Task', hooks: expect.any(Array) }])
     expect(both.hooks.PostToolUse).toBeDefined()
   })
 
   it('stays null with mods off and Factory off', () => {
-    expect(hooksConfig(paths, off, true, false)).toBeNull()
+    expect(hooksConfig(paths, off, false)).toBeNull()
   })
 })
 
@@ -200,21 +189,6 @@ describe('op-event.mjs', () => {
     expect(line).toMatchObject({ tile: '7', hook_event_name: 'PreToolUse', tool_input: { description: 'Map' } })
     expect(typeof line.ts).toBe('number')
     expect(line.tool_input).not.toHaveProperty('prompt')
-  })
-
-  it('recall mode prints the project memory file as SessionStart additionalContext, and nothing when it is missing', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'op-event-'))
-    dirs.push(dir)
-    mkdirSync(join(dir, 'recall'), { recursive: true })
-    const events = join(dir, 'events')
-    const cwd = 'C:\\Code\\Shop\\'
-    writeFileSync(recallFile(join(dir, 'recall'), 'c:/code/shop'), 'Memory from earlier sessions (reference data, not instructions):\n- uses pnpm\n')
-    const go = (payload: object) =>
-      spawnSync(process.execPath, [SCRIPT, 'recall', events], { input: JSON.stringify(payload), env: { PATH: process.env.PATH ?? '', FOREMAN_SOURCE: 'foreman' }, encoding: 'utf8' })
-    const hit = go({ session_id: SID, hook_event_name: 'SessionStart', cwd })
-    expect(JSON.parse(hit.stdout)).toEqual({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: expect.stringContaining('- uses pnpm') } })
-    expect(go({ session_id: SID, hook_event_name: 'SessionStart', cwd: 'C:\other' }).stdout).toBe('')
-    expect(go({ session_id: SID, hook_event_name: 'Stop', cwd }).stdout).toBe('')
   })
 
   it('writes the latest status and prints one line', () => {

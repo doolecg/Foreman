@@ -1,19 +1,13 @@
 import type { ComponentType } from "react";
 import type { SettingsSectionId } from "../pages";
 import { AppearanceSection } from "./AppearanceSection";
-import { AuxSection } from "./AuxSection";
 import { BackupsSection } from "./BackupsSection";
 import { BrowserSection } from "./BrowserSection";
 import { BudgetsSection } from "./BudgetsSection";
-import { CodegraphSection } from "./CodegraphSection";
 import { GeneralSection } from "./GeneralSection";
-import { HindsightSection } from "./HindsightSection";
 import { InstallSection } from "./InstallSection";
 import { ImportExportSection } from "./ImportExportSection";
-import { LearningSection } from "./LearningSection";
-import { LessonsSection } from "./LessonsSection";
 import { McpSection } from "./McpSection";
-import { MemorySection } from "./MemorySection";
 import { ModsSection } from "./ModsSection";
 import { PresetsSection } from "./PresetsSection";
 import { ProjectsSection } from "./ProjectsSection";
@@ -40,12 +34,6 @@ export const SECTION_COMPONENTS: Record<SettingsSectionId, ComponentType> = {
   budgets: BudgetsSection,
   presets: PresetsSection,
   teams: TeamsSection,
-  lessons: LessonsSection,
-  learning: LearningSection,
-  memory: MemorySection,
-  aux: AuxSection,
-  hindsight: HindsightSection,
-  codegraph: CodegraphSection,
   backups: BackupsSection,
   superpowers: SkillsSection,
   mcp: McpSection,

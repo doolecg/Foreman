@@ -8,7 +8,7 @@ import { useSaveSettings, useSettings } from '@/lib/queries'
 import { KeyRecorder, Row } from '../parts'
 
 const GROUPS: Array<{ title: string; ids: KeyAction[] }> = [
-  { title: 'Projects', ids: ['newCrew', 'indexCrew', 'openSettings', 'toggleConsole', 'openPlayground'] },
+  { title: 'Projects', ids: ['newCrew', 'openSettings', 'toggleConsole', 'openPlayground'] },
   { title: 'Project actions', ids: ['newShell', 'openInIde'] },
   { title: 'Panels', ids: ['toggleSidebar', 'toggleAllPanels'] },
   { title: 'Tiles', ids: ['tileLayout', 'tileSplit', 'tileFullscreen', 'tileFocusNext', 'tileFocusPrev', 'tileClose'] },
@@ -21,7 +21,6 @@ const labelOf = (id: KeyAction) => KEY_ACTIONS.find((a) => a.id === id)?.label ?
 
 const SHORTCUT_INFO: Partial<Record<KeyAction, string>> = {
   newCrew: 'Switches to the project dashboard and opens the New project dialog. Works anywhere in the Foreman window.',
-  indexCrew: 'Starts building a CodeGraph code index for the project you have selected, so Claude can find code faster. It does nothing if no project is selected.',
   openSettings: 'Opens the Settings page, or takes you back to the dashboard if Settings is already showing. Works from anywhere in the Foreman window.',
   toggleConsole: 'Shows or hides the console, the log of what Foreman is doing in the background. Useful when something seems stuck. Press it again to close it.',
   openPlayground: 'Jumps to the Playground, the scratch project pinned at the top of the project list, and shows its terminal view. Handy for quick experiments outside a real project.',

@@ -5,14 +5,13 @@ import { bridge } from '@/lib/bridge'
 import { compact } from '@/lib/format'
 import { useMoney } from '@/lib/useMoney'
 import { cn } from '@/lib/utils'
-import { OPEN_SETTINGS_EVENT } from '@/components/memory/LearningBadge'
+import { OPEN_SETTINGS_EVENT } from '@/lib/settingsEvent'
 import { RUNS_IN_CHAT } from './chatHelpers'
 
 // Commands that only run on Claude Code's own screen, but have a place in Foreman: the Settings page they map to.
 const IN_SETTINGS: Record<string, { section: string; label: string }> = {
   config: { section: 'general', label: 'Settings' },
   theme: { section: 'appearance', label: 'Appearance settings' },
-  memory: { section: 'memory', label: 'Memory settings' },
   usage: { section: 'tokens', label: 'Token settings' },
   hooks: { section: 'mods', label: 'Mods settings' },
   plugin: { section: 'superpowers', label: 'Skills settings' },

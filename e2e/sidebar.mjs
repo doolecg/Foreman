@@ -84,7 +84,7 @@ try {
   await aside.getByText('Projects', { exact: true }).first().waitFor()
   assert.equal(await aside.getByText('Crews').count(), 0, 'no crews heading')
   assert.ok(Math.abs((await box(page.getByTestId('project-panel-header'))).height - 32) <= 1, 'the header row is 32 px')
-  for (const b of ['Add project', 'New group', 'Index all projects with CodeGraph', 'Refresh projects', 'Hide project list']) await aside.getByRole('button', { name: b, exact: true }).waitFor()
+  for (const b of ['Add project', 'New group', 'Refresh projects', 'Hide project list']) await aside.getByRole('button', { name: b, exact: true }).waitFor()
   assert.ok(Math.abs((await box(row('atlas'))).height - 24) <= 1, 'a project row is 24 px')
   // The branch and changes show on the open project's row only.
   await row('atlas').click()

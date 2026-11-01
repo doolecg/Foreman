@@ -13,12 +13,6 @@ export const SETTINGS_SECTION_IDS = [
   'budgets',
   'presets',
   'teams',
-  'lessons',
-  'learning',
-  'memory',
-  'aux',
-  'hindsight',
-  'codegraph',
   'backups',
   'superpowers',
   'mcp',
@@ -99,35 +93,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     ],
   },
   {
-    label: 'Memory & learning',
-    pages: [
-      {
-        id: 'lessons',
-        label: 'Lessons',
-        description: 'Everything Foreman has learned from your sessions, in each place it is kept: lessons, skill drafts, code notes and personal memory.',
-        keywords: 'lessons drafts skills learned memory manager review approve reject codegraph notes personal hindsight',
-        subsections: [{ id: 'lessons', label: 'Lessons and drafts' }],
-      },
-      {
-        id: 'memory',
-        label: 'Memory',
-        description: 'The Hindsight server and the CodeGraph index, lessons, advanced recall, and export and reset.',
-        keywords: 'hindsight codegraph server local shared remote index lessons recall bank soul export reset danger',
-        subsections: [{ id: 'memory', label: 'Tools and recall' }],
-      },
-      {
-        id: 'learning',
-        label: 'Learning',
-        description: 'The learn step that turns finished jobs into lessons: its AI, its mode and budgets, and the records of each change.',
-        keywords: 'learn ai model budget auxiliary records rollback',
-        subsections: [
-          { id: 'learning', label: 'Learning' },
-          { id: 'aux', label: 'Auxiliary models' },
-        ],
-      },
-    ],
-  },
-  {
     label: 'Usage',
     pages: [
       {
@@ -165,7 +130,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         id: 'install',
         label: 'Tools and installs',
         description: 'Every program, skill and MCP server Foreman uses: where it is, and a button to install it, look for it or point Foreman at it.',
-        keywords: 'install setup location path locate find uv opencode codegraph playwright superpowers skills mcp servers dictation claude winget npm',
+        keywords: 'install setup location path locate find uv opencode playwright superpowers skills mcp servers dictation claude winget npm',
         subsections: [
           { id: 'install', label: 'Programs' },
           { id: 'superpowers', label: 'Skills' },
@@ -178,8 +143,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
 
 export const SETTINGS_PAGES: SettingsPage[] = SETTINGS_CATEGORIES.flatMap((c) => c.pages)
 
-const FOLDED_SECTIONS: Record<string, string> = { hindsight: 'Hindsight', codegraph: 'CodeGraph' }
-
 // The page and (when the id names a section inside a shared page) the section to scroll to.
 // Page ids win over section ids, so 'general' opens the General page itself.
 export function resolveSettingsTarget(id?: string): { page: SettingsPage; section?: SettingsSubsection } | undefined {
@@ -189,12 +152,6 @@ export function resolveSettingsTarget(id?: string): { page: SettingsPage; sectio
   for (const p of SETTINGS_PAGES) {
     const section = p.subsections.find((s) => s.id === id)
     if (section) return { page: p, section }
-  }
-  // Sections folded into another section's block: the anchor sits inside the Memory page's Tools block.
-  const folded = FOLDED_SECTIONS[id]
-  if (folded) {
-    const memory = SETTINGS_PAGES.find((p) => p.id === 'memory')
-    if (memory) return { page: memory, section: { id: id as SettingsSectionId, label: folded } }
   }
   return undefined
 }

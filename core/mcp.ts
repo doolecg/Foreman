@@ -16,7 +16,7 @@ import {
   type McpState,
   type McpTransport,
 } from '../shared/types'
-import type { RunResult } from './hindsight'
+import type { RunResult } from './proc'
 import { OPTIONAL_MCP, aliasesOf, isAppAdded, isOptionalMcp, optionalEntry, optionalMcp, writtenKey } from './mcp-optional'
 
 // What the CLIs print and store, as found on this machine (Claude Code 2.x, OpenCode 2.x):
@@ -313,7 +313,6 @@ export function parseOpencodeList(out: string): Map<string, Status> {
 // ---- the service ----
 
 const NAME_RE = /^[A-Za-z0-9_.-]{1,64}$/
-const BUILTINS: Record<string, string> = { codegraph: 'codegraph serve --mcp', hindsight: 'Hindsight memory server (managed by Foreman)' }
 const LIST_TIMEOUT_MS = 30_000
 const WRITE_TIMEOUT_MS = 30_000
 const CACHE_MS = 60_000
@@ -323,8 +322,6 @@ const RUNTIME_CACHE_MS = 10 * 60_000
 export interface McpOptions {
   log?: (message: string) => void
   now?: () => number
-  // Whether a built-in server that is not in any config works right now.
-  builtin?: (name: string) => Promise<{ ok: boolean; error?: string }>
   // The keys (cli:scope:name) of the entries Foreman wrote for optional servers that record them. Kept by the app.
   written?: { get: () => string[]; set: (keys: string[]) => void }
 }
@@ -412,19 +409,7 @@ export class McpService {
     const d = describe(l.raw)
     const state: McpState = l.raw.disabled ? 'disabled' : (status?.state ?? 'unknown')
     const error = state === 'failed' || (state === 'unknown' && status?.error) ? redact(status?.error ?? '', secretsOf(l.raw)) : undefined
-    return { id: l.id, name: l.name, cli: l.cli, scope: l.scope, transport: l.raw.transport, ...d, state, ...(error ? { error } : {}), editable: true, builtin: l.name in BUILTINS }
-  }
-
-  private async builtinView(name: string): Promise<McpServer> {
-    let state: McpState = 'unknown'
-    let error: string | undefined
-    try {
-      const r = await this.opts.builtin?.(name)
-      if (r) [state, error] = [r.ok ? 'connected' : 'failed', r.ok ? undefined : r.error ?? 'not available']
-    } catch (e) {
-      ;[state, error] = ['failed', e instanceof Error ? e.message : String(e)]
-    }
-    return { id: `builtin:${name}`, name, cli: 'claude', scope: 'builtin', transport: 'stdio', target: BUILTINS[name]!, env: {}, headers: {}, state, ...(error ? { error: redact(error) } : {}), editable: false, builtin: true }
+    return { id: l.id, name: l.name, cli: l.cli, scope: l.scope, transport: l.raw.transport, ...d, state, ...(error ? { error } : {}), editable: true }
   }
 
   // Whether a command runs (`uvx --version`, `npx --version`), probed once per command and cached.
@@ -513,10 +498,9 @@ export class McpService {
       for (const [name, s] of cs) {
         if (own.has(name)) continue
         const scope: McpScope = name.startsWith('plugin:') ? 'plugin' : name.startsWith('claude.ai ') ? 'connector' : 'other'
-        servers.push({ id: `claude:${scope}:${name}`, name, cli: 'claude', scope, transport: /^https?:/.test(s.target) ? 'http' : 'stdio', target: maskUrl(s.target.replace(/ \((HTTP|SSE)\)$/, '')), env: {}, headers: {}, state: s.state, ...(s.error ? { error: redact(s.error) } : {}), editable: false, builtin: name in BUILTINS })
+        servers.push({ id: `claude:${scope}:${name}`, name, cli: 'claude', scope, transport: /^https?:/.test(s.target) ? 'http' : 'stdio', target: maskUrl(s.target.replace(/ \((HTTP|SSE)\)$/, '')), env: {}, headers: {}, state: s.state, ...(s.error ? { error: redact(s.error) } : {}), editable: false })
       }
     }
-    for (const name of Object.keys(BUILTINS)) if (!servers.some((s) => s.name === name)) servers.push(await this.builtinView(name))
     const overview: McpOverview = { folder, servers, installed, checkedAt: this.now() }
     this.cache.set(folder ?? '', overview)
     return overview
@@ -755,18 +739,16 @@ export class McpService {
     for (const name of names) {
       const l = located.find((x) => x.cli === 'claude' && x.name === name && !x.raw.disabled)
       if (l) servers[name] = claudeJson(l.raw)
-      else if (name === 'codegraph') servers[name] = { command: 'codegraph', args: ['serve', '--mcp'] }
     }
     return JSON.stringify({ mcpServers: servers }, null, 2) + '\n'
   }
 
   // What a job launches with: the picked servers as launch config, and which of them are down. An optional server
-  // that the CLI does not have is left out silently: presets only recommend it. CodeGraph is also Foreman's built-in,
-  // which a launch runs without any config entry, so it is never left out here.
+  // that the CLI does not have is left out silently: presets only recommend it.
   async forRun(needs: Array<{ seat: string; servers: string[] }>, cli: McpCli, folder: string | null): Promise<RunMcp> {
     const located = this.locate(folder)
     const has = (name: string) => located.some((x) => x.cli === cli && aliasesOf(name).includes(x.name))
-    const wanted = needs.map((n) => ({ seat: n.seat, servers: n.servers.filter((s) => !isOptionalMcp(s) || s in BUILTINS || has(s)) })).filter((n) => n.servers.length > 0)
+    const wanted = needs.map((n) => ({ seat: n.seat, servers: n.servers.filter((s) => !isOptionalMcp(s) || has(s)) })).filter((n) => n.servers.length > 0)
     const names = [...new Set(wanted.flatMap((n) => n.servers))]
     if (!names.length) return { claudeConfig: null, opencodeEnv: null, down: [] }
     const down = await this.down(wanted, folder, { fresh: true, includeMissing: true })
@@ -777,7 +759,6 @@ export class McpService {
       for (const name of names) {
         const l = pick(name)
         if (l) servers[name] = claudeJson(l.raw)
-        else if (name === 'codegraph') servers[name] = { command: 'codegraph', args: ['serve', '--mcp'] }
       }
       return { claudeConfig: JSON.stringify({ mcpServers: servers }, null, 2) + '\n', opencodeEnv: null, down }
     }

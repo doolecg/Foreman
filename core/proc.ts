@@ -25,9 +25,8 @@ export interface RunResult {
 
 export function sourceFor(cmd: string): ConsoleSource {
   const name = (cmd.split(/[\\/]/).pop() ?? cmd).toLowerCase().replace(/\.(exe|cmd|bat)$/, '')
-  if (name === 'uvx' || name === 'uv') return 'hindsight'
+  if (name === 'uvx' || name === 'uv') return 'mcp'
   if (name === 'git') return 'git'
-  if (name === 'codegraph') return 'codegraph'
   if (name === 'opencode') return 'opencode'
   return 'claude-run'
 }
@@ -148,8 +147,7 @@ export function killTree(child: { pid?: number; kill: () => unknown }): void {
   else child.kill()
 }
 
-// Quit path: kills the tree of every background process Foreman started (jobs, learn calls, MCP checks, the Hindsight
-// service), by pid, and waits briefly for the kills so nothing outlives the app holding its pipes open.
+// Quit path: kills the tree of every background process Foreman started (jobs, MCP checks), by pid, and waits briefly for the kills so nothing outlives the app holding its pipes open.
 export async function killAllOwn(waitMs = 3000): Promise<void> {
   const waits: Promise<void>[] = []
   for (const child of children.values()) {

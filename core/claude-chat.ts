@@ -182,8 +182,8 @@ export interface ChatSessionDeps {
     ttlMs: () => number
     // Settings > Mods > Keep warm: off hides /keepwarm and stops it.
     enabled?: () => boolean
-    budgetBlocked: () => string | null
-    recordUsage: (u: { tokens: number; usd: number }) => void
+    budgetBlocked?: () => string | null
+    recordUsage?: (u: { tokens: number; usd: number }) => void
     load: () => KeepWarmPersisted | null
     save: (p: KeepWarmPersisted | null) => void
   }
@@ -283,15 +283,6 @@ export class ChatSession {
 
   addNotice(n: Omit<NoticeItem, 'kind' | 'id' | 'parent' | 'at'>): void {
     this.push(this.mapper.noteNotice(n))
-  }
-
-  // The "Learn" tool row (see ChatMapper.noteLearnStart).
-  addLearnRow(id: string, subject: string): void {
-    this.push(this.mapper.noteLearnStart(id, subject))
-  }
-
-  finishLearnRow(id: string, text: string, failed: boolean): void {
-    this.push(this.mapper.noteLearnEnd(id, text, failed))
   }
 
   private push(ops: ChatOp[]): void {

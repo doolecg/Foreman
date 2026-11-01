@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { INSTALL_IDS, hindsightFromUv, installAttempts, lastErrorLine, stateFromVersionRun, type InstallId, type InstallResult, type InstallStatusItem } from '../shared/install'
+import { INSTALL_IDS, installAttempts, lastErrorLine, stateFromVersionRun, type InstallId, type InstallResult, type InstallStatusItem } from '../shared/install'
 import { detectSuperpowers } from './superpowers'
 import { resolveCli, runHidden, type RunResult } from './proc'
 import { PROGRAM_BINARY } from './tool-locations'
@@ -60,12 +60,11 @@ export class Installer {
 
   async status(): Promise<InstallStatusItem[]> {
     const d = this.d
-    const [claude, opencode, uv, nodejs, codegraph] = await Promise.all([
+    const [claude, opencode, uv, nodejs] = await Promise.all([
       this.version('claude', 'claude'),
       this.version('opencode', 'opencode'),
       this.version('uv', 'uv'),
       this.version('nodejs', 'node'),
-      this.version('codegraph', 'codegraph'),
     ])
     const sp = detectSuperpowers(d.claudeDir)
     const playwright: InstallStatusItem = {
@@ -75,7 +74,7 @@ export class Installer {
     const superpowers: InstallStatusItem = { id: 'superpowers', state: sp.installed ? 'installed' : 'missing', ...(sp.version ? { version: sp.version } : {}) }
     // The speech model is cached by the app window, so core cannot see it: the window fills this one in.
     const dictation: InstallStatusItem = { id: 'dictation', state: 'unknown' }
-    const byId: Record<InstallId, InstallStatusItem> = { claude, opencode, uv, nodejs, hindsight: hindsightFromUv(uv), codegraph, playwright, superpowers, dictation }
+    const byId: Record<InstallId, InstallStatusItem> = { claude, opencode, uv, nodejs, playwright, superpowers, dictation }
     return INSTALL_IDS.map((id) => {
       const binary = PROGRAM_BINARY[id]
       const found = binary ? resolveCli(binary, d.env, d.platform)?.file : id === 'playwright' ? playwrightBrowsersDir(d.env, d.platform, homedir()) : id === 'superpowers' ? sp.path : undefined

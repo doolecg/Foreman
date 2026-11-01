@@ -1,11 +1,11 @@
-import { Code2, Copy, Pencil, FolderInput, FolderOpen, FolderOutput, FolderPlus, GitCompare, Network, Settings2, Sparkles, SquareTerminal, Trash2 } from 'lucide-react'
+import { Code2, Copy, Pencil, FolderInput, FolderOpen, FolderOutput, FolderPlus, GitCompare, Settings2, Sparkles, SquareTerminal, Trash2 } from 'lucide-react'
 import type { ProjectGroup } from '@shared/projects'
 import type { Crew } from '@shared/types'
 import type { MainCli } from '@shared/settings'
 import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { CLI_SHORT, cliBlocked, MAIN_CLIS } from '@/lib/capabilities'
-import { useCapabilities, useCodegraphAvailable } from '@/lib/queries'
+import { useCapabilities } from '@/lib/queries'
 import { folderLabel } from './projectActions'
 
 export interface ProjectMenuHandlers {
@@ -14,8 +14,6 @@ export interface ProjectMenuHandlers {
   openIde: (c: Crew) => void
   openFolder: (c: Crew) => void
   edit: (c: Crew) => void
-  index: (c: Crew) => void
-  indexMany: (crews: Crew[]) => void
   changes: (c: Crew) => void
   copyPath: (c: Crew) => void
   // null = ungrouped, 'new' = a fresh group.
@@ -42,7 +40,6 @@ export function ProjectMenuContent({ kind, crew, groups, ideName, platform, alig
   const others = groups.filter((g) => g.id !== crew.groupId)
   const contentProps = kind === 'dropdown' ? { align } : {}
   const caps = useCapabilities().data
-  const codegraph = useCodegraphAvailable()
   return (
     <K.Content aria-label={`Actions for ${crew.name}`} className="w-60" {...contentProps}>
       {MAIN_CLIS.map((cli) => {
@@ -63,11 +60,6 @@ export function ProjectMenuContent({ kind, crew, groups, ideName, platform, alig
       <K.Item onSelect={() => h.openFolder(crew)}>
         <FolderOpen /> {folderLabel(platform)}
       </K.Item>
-      {codegraph && (
-        <K.Item onSelect={() => h.index(crew)}>
-          <Network /> Index with CodeGraph
-        </K.Item>
-      )}
       <K.Item onSelect={() => h.changes(crew)}>
         <GitCompare /> Show changes
       </K.Item>

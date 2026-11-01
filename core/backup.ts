@@ -14,7 +14,9 @@ export const MANUAL_PREFIX = 'foreman-backup-'
 export const KEEP_AUTO = 5
 
 // The parts a backup holds, restored in this order.
-export const BACKUP_PARTS = ['settings.json', 'presets.json', 'teams.json', 'learn.json'] as const
+export const BACKUP_PARTS = ['settings.json', 'presets.json', 'teams.json'] as const
+// A part older backups hold that this Foreman no longer reads: it is skipped, not refused.
+const RETIRED_PARTS: readonly string[] = ['learn.json']
 export type BackupPart = (typeof BACKUP_PARTS)[number]
 
 export interface BackupBundle {
@@ -76,6 +78,7 @@ export function verifyBackup(text: string): { bundle: BackupBundle; parts: Parti
   }
   const parts: Partial<Record<BackupPart, unknown>> = {}
   for (const name of listed) {
+    if (RETIRED_PARTS.includes(name)) continue
     if (!(BACKUP_PARTS as readonly string[]).includes(name)) throw new Error(`The backup lists an unknown part ${name}. Nothing was restored.`)
     const entry = b.manifest.files[name]!
     const text = b.files[name]

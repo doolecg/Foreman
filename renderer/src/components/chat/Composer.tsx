@@ -6,7 +6,7 @@ import { keyReleases, matches, matchesMouseEvent, mouseButtonOfAccel } from '@/l
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Check, ChevronDown, Command, CornerDownLeft, Loader2, Plus, Sparkles, Square, StickyNote, Undo2, X } from 'lucide-react'
 import type { ChatState } from '@shared/claude-chat'
-import { describeEnhanceContext, enhanceRecallsText } from '@shared/prompt-enhance'
+import { describeEnhanceContext } from '@shared/prompt-enhance'
 import { bridge } from '@/lib/bridge'
 import { useInstallStatus, useSaveSettings, useSettings } from '@/lib/queries'
 import { toast } from '@/lib/toast'
@@ -17,8 +17,6 @@ import { applySuggestion, currentModel, filterCommands, highlightParts, modeLabe
 import { EffortPopover } from './EffortPopover'
 import { setActivity } from './activityStore'
 import { CommandMenu } from './CommandMenu'
-import { LearningBadge } from '@/components/memory/LearningBadge'
-import { LearnPill } from './ComposerPills'
 import { CompactPill } from './CompactPill'
 import { ImageChip } from './ImageChip'
 import { InfoRow } from './InfoRow'
@@ -36,7 +34,7 @@ interface Attachment {
 
 // The box starts as one line and grows up to this share of the tile's height, then scrolls.
 const MAX_SHARE = 0.4
-// Kept while the app runs so a chat bar keeps its text (and the last enhanced prompt) across project, Settings and Memory switches.
+// Kept while the app runs so a chat bar keeps its text (and the last enhanced prompt) across project, and Settings switches.
 const drafts = new Map<number, string>()
 const lastEnhanced = new Map<number, string>()
 // The chats whose owner chose to keep the full history instead of compacting before the next message.
@@ -111,7 +109,7 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
   const [undo, setUndo] = useState<string | null>(null)
   // The last rewrite, when the box changed while it ran: it waits for "Use rewrite" or "Discard".
   const [held, setHeld] = useState<string | null>(null)
-  const [lastRun, setLastRun] = useState<{ recalls: string; note: string } | null>(null)
+  const [lastRun, setLastRun] = useState<{ note: string } | null>(null)
   const enhanceRun = useRef(0)
   const textNow = useRef(text)
   textNow.current = text
@@ -209,12 +207,12 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
     setActivity(scratchId, { phase: 'context' })
     try {
       const commands = state.commands.map((c) => ({ name: c.name, description: c.description }))
-      const context = await bridge().invoke('aux:enhanceContext', original, scratchId).catch(() => undefined)
+      const context = await bridge().invoke('aux:enhanceContext', scratchId).catch(() => undefined)
       if (run !== enhanceRun.current) return
       setActivity(scratchId, { phase: 'rewrite', context: context ?? null })
       const out = await bridge().invoke('aux:enhancePrompt', original, commands, context)
       if (run !== enhanceRun.current) return
-      setLastRun({ recalls: enhanceRecallsText(context), note: describeEnhanceContext(context) })
+      setLastRun({ note: describeEnhanceContext(context) })
       lastEnhanced.set(scratchId, out)
       if (textNow.current.trim() !== original.trim()) {
         setHeld(out)
@@ -567,7 +565,6 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
               </ContextMenuContent>
             </ContextMenu>
           )}
-          {!enhancing && lastRun && <span className="text-muted-foreground text-[13px]">{lastRun.recalls}</span>}
           {!enhancing && held !== null && (
             <>
               <button type="button" onClick={useHeld} title="Put the rewrite in the box" aria-label="Use the enhanced rewrite" className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[13px] underline-offset-2 hover:underline">
@@ -585,8 +582,6 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
           )}
           {!enhancing && lastRun?.note && <span className="text-muted-foreground/70 text-[11px]">{lastRun.note}</span>}
           </div>
-          <LearnPill scratchId={scratchId} />
-          <LearningBadge variant="pill" />
           <KeepWarmLine state={state} />
           {commandMenuOn && (
             <Popover

@@ -8,7 +8,6 @@ export const call = <C extends IpcChannel>(channel: C, ...args: Parameters<IpcAp
 // Every cache key lives here so domain files can invalidate each other's data without importing each other.
 export const keys = {
   crews: ['crews'] as const,
-  index: (crewId: number) => ['index', crewId] as const,
   events: ['events'] as const,
   settings: ['settings'] as const,
   update: ['update'] as const,

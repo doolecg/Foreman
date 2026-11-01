@@ -152,10 +152,9 @@ try {
   await page.keyboard.press('Escape')
   await page.getByTestId('git-page').waitFor({ state: 'detached' })
 
-  // The sidebar's bottom row holds the icons in order: Settings, Console, Learning, Provider usage and the git chip.
+  // The sidebar's bottom row holds the icons in order: Settings, Console, Provider usage and the git chip.
   const foot = page.getByTestId('sidebar-footer')
   await foot.getByRole('button', { name: /^Console/ }).waitFor()
-  await foot.getByRole('button', { name: /^Learning health/ }).waitFor()
   await foot.getByRole('button', { name: /^Provider limits: / }).waitFor()
   assert.match((await foot.getByRole('button', { name: /^Provider limits: / }).textContent()) ?? '', /off/, 'the usage badge says off while plan limits are off')
   const cog = foot.getByRole('button', { name: 'Settings' })

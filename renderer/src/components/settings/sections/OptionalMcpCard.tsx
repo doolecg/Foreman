@@ -26,7 +26,7 @@ const DEFAULT_PICKS: Record<McpCli, { on: boolean; scope: McpScope }> = {
   claude: { on: true, scope: 'user' },
   opencode: { on: false, scope: 'global' },
 }
-const INSTALL_HINT: Record<string, string> = { uvx: 'install uv', npx: 'install Node.js', codegraph: 'install CodeGraph' }
+const INSTALL_HINT: Record<string, string> = { uvx: 'install uv', npx: 'install Node.js' }
 const HIDE_WITHOUT_RUNTIME: OptionalMcpId[] = ['git', 'playwright']
 export const STATUS_LABEL: Record<OptionalMcpEntry['status'], string> = {
   'not-added': 'Not added',

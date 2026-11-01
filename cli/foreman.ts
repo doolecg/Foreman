@@ -18,15 +18,12 @@ interface CommandSpec {
 }
 
 const COMMANDS: Record<string, CommandSpec> = {
-  // The project's Hindsight memory (the project of the tile the command runs in).
-  'memory.recall': { pos: ['query...'], flags: {}, usage: 'foreman memory recall <query|->' },
-  'memory.retain': { pos: ['text...'], flags: { tag: 'strs' }, usage: 'foreman memory retain <text|-> [--tag T ...]' },
   // Saves a screenshot; the app answers with the saved path. The file is sent as an absolute path.
   shot: { pos: ['file'], flags: { kind: 'str' }, usage: 'foreman shot <file> [--kind K]' },
 }
 
 // Text values that may be `-` (read from stdin).
-const TEXT = new Set(['query', 'text'])
+const TEXT = new Set<string>()
 
 export const HELP = [
   'Usage (exit codes: 0 ok, 1 error, 2 usage, 3 not found, 4 conflict, 5 forbidden, 6 limited, 7 Foreman not reachable):',
@@ -44,7 +41,7 @@ const camel = (s: string) => s.replace(/-([a-z])/g, (_, c: string) => c.toUpperC
 // argv (without node and the script) to a request. Pure: stdin is only named, never read here.
 // Options follow the command; a flag's value is the next word whatever it looks like (so `--body -` works);
 // everything after `--` is positional. `--json` counts only where an option could stand, and `--help`/`-h` only
-// before the first positional word (so `memory retain use -h` is text).
+// before the first positional word (so `shot use -h` is a file name).
 export function parseArgs(argv: string[]): Parsed {
   const dd = argv.indexOf('--')
   const head = dd < 0 ? argv : argv.slice(0, dd)
@@ -58,13 +55,13 @@ export function parseArgs(argv: string[]): Parsed {
   const first = words[0]
   if (first === undefined) return tail.length ? { kind: 'error', message: 'Missing command. Run: foreman --help' } : { kind: 'help', text: HELP }
   if (first.startsWith('-')) return { kind: 'error', message: 'Put the command first. Run: foreman --help' }
-  const name = first === 'memory' ? `memory.${words[1] ?? ''}` : first
+  const name = first
   const spec = Object.hasOwn(COMMANDS, name) ? COMMANDS[name] : undefined
-  if (!spec) return { kind: 'error', message: `Unknown command "${first === 'memory' ? `memory ${words[1] ?? ''}`.trim() : first}". Run: foreman --help` }
+  if (!spec) return { kind: 'error', message: `Unknown command "${first}". Run: foreman --help` }
   const args: Record<string, unknown> = {}
   const pos: string[] = []
   try {
-    for (let i = first === 'memory' ? 2 : 1; i < words.length; i++) {
+    for (let i = 1; i < words.length; i++) {
       const a = words[i]!
       if (a === '--json') {
         json = true

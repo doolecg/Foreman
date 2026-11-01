@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn as spawnPty } from '@lydell/node-pty'
-import { app, BrowserWindow, dialog, nativeTheme, safeStorage, screen, shell } from 'electron'
+import { app, BrowserWindow, dialog, nativeTheme, screen, shell } from 'electron'
 import { scrubLogLine } from '../core/agents'
 import { CdpProxy } from '../core/browser/cdp-proxy'
 import { BrowserHub } from '../core/browser/hub'
@@ -10,10 +10,8 @@ import { createExtras, type Extras } from '../core/browser/extras'
 import { McpHost } from '../core/browser/mcp-host'
 import { assessCall, confirmSummary } from '../core/browser/risk'
 import { CliServer, type CliTarget } from '../core/cli-server'
-import { CrewIndexes, globalCodegraph } from '../core/codegraph'
 import { consoleLog } from '../core/console'
 import { syncPack } from '../core/engineering'
-import { FileSecretStore } from '../core/secrets'
 import { Foreman } from '../core/foreman'
 import { copyLegacyData, legacyDataDir } from '../core/legacy-data'
 import { appDataDir } from '../core/paths'
@@ -313,11 +311,9 @@ app.whenReady().then(() => {
     console.error('Engineering skill pack sync failed:', err instanceof Error ? err.message : String(err))
   }
   sessions = new SessionManager((file, args, opts) => spawnPty(file, args, { name: 'xterm-256color', ...opts }))
-  const indexes = new CrewIndexes(app.isPackaged ? globalCodegraph() : undefined)
   const core = new Foreman({
     store,
     sessions,
-    indexes,
     pluginDir,
     // The native mods (plugin/mods/<id>), dev and packaged alike.
     modPluginsDir: join(pluginDir, 'mods'),
@@ -364,19 +360,12 @@ app.whenReady().then(() => {
         return res.canceled ? null : (res.filePaths[0] ?? null)
       },
     },
-    // API keys: encrypted with the OS keychain (DPAPI on Windows), one file each, outside the database.
-    secrets: new FileSecretStore(join(app.getPath('userData'), 'secrets'), {
-      isAvailable: () => safeStorage.isEncryptionAvailable(),
-      encrypt: (plain) => safeStorage.encryptString(plain),
-      decrypt: (blob) => safeStorage.decryptString(blob),
-    }),
   })
   foreman = core
   turns = watchClaudeTurns(core, {
     isWindowFocused: () => !!win && !win.isDestroyed() && win.isFocused(),
     open: openFromNotice,
   })
-  core.seedFromEnv(process.env)
   void core.start()
   // First plan-limit and provider reading now; the core asks again when each is due.
   void core.providers.refresh().catch(() => undefined)

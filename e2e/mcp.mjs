@@ -31,11 +31,11 @@ writeFileSync(
 )
 writeFileSync(ocFile, JSON.stringify({ mcp: { servers: { 'oc-good': { type: 'local', command: ['node', 'srv.js'] } } } }))
 
-// Which runtimes count as installed for the optional integrations: uvx missing, npx and codegraph present to start. The app reads this
+// Which runtimes count as installed for the optional integrations: uvx missing, npx present to start. The app reads this
 // file (FOREMAN_E2E_RUNTIMES) instead of probing the machine, and the Check again button re-reads it.
 const runtimesFile = join(dataDir, 'runtimes.json')
 const setRuntimes = (runtimes) => writeFileSync(runtimesFile, JSON.stringify(runtimes))
-setRuntimes({ uvx: false, npx: true, codegraph: true })
+setRuntimes({ uvx: false, npx: true })
 
 const env = e2eEnv({ dataDir, claudeDir, extra: { FOREMAN_E2E_RUNTIMES: runtimesFile, OPENCODE_CONFIG: ocFile } })
 const packaged = process.env.FOREMAN_E2E_EXE
@@ -134,7 +134,7 @@ try {
   await page.getByText('Not added', { exact: true }).nth(1).waitFor()
 
   // Git needs a project: the Project selector is set to no project first, so the reason shows, then mcp-demo is picked.
-  setRuntimes({ uvx: true, npx: true, codegraph: true })
+  setRuntimes({ uvx: true, npx: true })
   await page.getByRole('button', { name: 'Check optional integrations again' }).click()
   await page.getByText(/uvx is not installed/).waitFor({ state: 'detached' })
   await page.getByRole('combobox', { name: 'Project' }).click()
@@ -151,32 +151,6 @@ try {
   assert.deepEqual(gitArgs.slice(0, 2), ['mcp-server-git', '--repository'], 'Git was not written with its package and folder')
   await page.getByRole('button', { name: 'Remove Git MCP added by Foreman' }).click()
   await row('git').waitFor({ state: 'detached' })
-
-  // CodeGraph: codegraph is present and not in the config, so Add writes it and Remove takes it back. A missing codegraph
-  // command blocks Add. A copy the user wrote by hand (same name, no record) shows as found and is never removed.
-  const cgCard = page.locator('div.rounded-md.border', { hasText: 'CodeGraph MCP' })
-  await cgCard.getByText('Not added', { exact: true }).waitFor()
-  setRuntimes({ uvx: true, npx: true, codegraph: false })
-  await page.getByRole('button', { name: 'Check optional integrations again' }).click()
-  await cgCard.getByText(/codegraph is not installed/).waitFor()
-  assert.ok(await page.getByRole('button', { name: 'Add CodeGraph MCP' }).isDisabled(), 'CodeGraph cannot be added without its command')
-  setRuntimes({ uvx: true, npx: true, codegraph: true })
-  await page.getByRole('button', { name: 'Check optional integrations again' }).click()
-  await cgCard.getByText(/codegraph is not installed/).waitFor({ state: 'detached' })
-  await page.getByRole('button', { name: 'Add CodeGraph MCP' }).click()
-  await page.getByRole('button', { name: 'Write to the chosen CLIs' }).click()
-  await cgCard.getByText('Added by Foreman', { exact: true }).waitFor()
-  assert.deepEqual(JSON.parse(readFileSync(join(claudeDir, '.claude.json'), 'utf8')).mcpServers.codegraph, { type: 'stdio', command: 'codegraph', args: ['serve', '--mcp'] })
-  await page.getByRole('button', { name: 'Remove CodeGraph MCP added by Foreman' }).click()
-  await cgCard.getByText('Not added', { exact: true }).waitFor()
-  assert.ok(!('codegraph' in JSON.parse(readFileSync(join(claudeDir, '.claude.json'), 'utf8')).mcpServers), 'Remove must take the CodeGraph entry back')
-
-  const cfg = JSON.parse(readFileSync(join(claudeDir, '.claude.json'), 'utf8'))
-  cfg.mcpServers.codegraph = { type: 'stdio', command: 'codegraph', args: ['serve', '--mcp'], alwaysLoad: true }
-  writeFileSync(join(claudeDir, '.claude.json'), JSON.stringify(cfg))
-  await page.getByRole('button', { name: 'Check optional integrations again' }).click()
-  await cgCard.getByText(/Found in your config as codegraph/).waitFor()
-  assert.ok(await page.getByRole('button', { name: 'Remove CodeGraph MCP added by Foreman' }).count() === 0, 'a hand-made copy must not show Remove')
 
   console.log('mcp e2e passed; screenshots in', outDir)
 } catch (err) {

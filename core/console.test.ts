@@ -79,7 +79,7 @@ describe('scrubbing', () => {
     ['sk-abcdefghijklmnopqrstuvwx used', 'sk-abcdefghijklmnopqrstuvwx'],
     ['Authorization: Bearer abcdef0123456789abcdef', 'abcdef0123456789abcdef'],
     ['ANTHROPIC_API_KEY=sk_live_notreally1', 'sk_live_notreally1'],
-    ['HINDSIGHT_API_LLM_TOKEN: supersecretvalue', 'supersecretvalue'],
+    ['SOME_API_LLM_TOKEN: supersecretvalue', 'supersecretvalue'],
     ['fetch https://user:p4ssw0rd@host/x', 'p4ssw0rd'],
     ['ghp_abcdefghijklmnopqrstuvwxyz0123', 'ghp_abcdefghijklmnopqrstuvwxyz0123'],
   ])('removes the secret from %s', (line, secret) => {

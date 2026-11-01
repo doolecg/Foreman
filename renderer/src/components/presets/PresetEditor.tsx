@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { decodeIpcError } from '@shared/ipc'
-import { OPTIONAL_MCP_IDS, type AgentKind, type CacheTtl, type LaunchSettings, type McpMode, type Preset, type PresetPatch } from '@shared/types'
+import { OPTIONAL_MCP_IDS, type AgentKind, type CacheTtl, type LaunchSettings, type Preset, type PresetPatch } from '@shared/types'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -33,7 +33,6 @@ interface Form {
   deny: string
   cacheTtl: CacheTtl
   contextCap: string
-  mcp: McpMode
   // Optional servers ticked (recommended, never required).
   optional: string[]
   roleText: string
@@ -46,11 +45,10 @@ const lines = (text: string) =>
     .filter(Boolean)
 
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((v, i) => v === b[i])
-// CodeGraph has its own select above, so it is not one of the optional ticks.
-const isOptional = (s: string) => s !== 'codegraph' && (OPTIONAL_MCP_IDS as readonly string[]).includes(s)
+const isOptional = (s: string) => (OPTIONAL_MCP_IDS as readonly string[]).includes(s)
 
-// The servers a preset names: CodeGraph from its select, the others kept as they are, the optional ones as ticked.
-const serversOf = (f: Form, base: string[]): string[] => [...(f.mcp === 'codegraph' ? ['codegraph'] : []), ...base.filter((s) => s !== 'codegraph' && !isOptional(s)), ...f.optional]
+// The servers a preset names: the others kept as they are, the optional ones as ticked.
+const serversOf = (f: Form, base: string[]): string[] => [...base.filter((s) => !isOptional(s)), ...f.optional]
 
 function toForm(p: Preset | null, role: string, defaultModel: string): Form {
   if (!p)
@@ -65,7 +63,6 @@ function toForm(p: Preset | null, role: string, defaultModel: string): Form {
       deny: '',
       cacheTtl: 'auto',
       contextCap: '0',
-      mcp: 'codegraph',
       optional: [],
       roleText: role,
     }
@@ -80,7 +77,6 @@ function toForm(p: Preset | null, role: string, defaultModel: string): Form {
     deny: p.deny.join('\n'),
     cacheTtl: p.cacheTtl,
     contextCap: String(p.contextCap),
-    mcp: p.mcp,
     optional: p.mcpServers.filter(isOptional),
     roleText: role,
   }
@@ -97,7 +93,6 @@ function launchOf(f: Form): LaunchSettings {
     deny: lines(f.deny),
     cacheTtl: f.cacheTtl,
     contextCap: Number(f.contextCap.trim() === '' ? 0 : f.contextCap),
-    mcp: f.mcp,
   }
 }
 
@@ -150,7 +145,6 @@ function EditorForm({ preset, defaultModel, onClose }: Props) {
     if (!sameList(next.deny, p.deny)) patch.deny = next.deny
     if (next.cacheTtl !== p.cacheTtl) patch.cacheTtl = next.cacheTtl
     if (next.contextCap !== p.contextCap) patch.contextCap = next.contextCap
-    if (next.mcp !== p.mcp) patch.mcp = next.mcp
     const servers = serversOf(form, p.mcpServers)
     if (!sameList(servers, p.mcpServers)) patch.mcpServers = servers
     if (form.roleText !== initialRole) patch.roleText = form.roleText
@@ -162,7 +156,7 @@ function EditorForm({ preset, defaultModel, onClose }: Props) {
     if (form.name.trim() === '') return setError('Give the preset a name.')
     try {
       if (!preset) {
-        await create.mutateAsync([{ ...launchOf(form), name: form.name.trim(), roleText: form.roleText, mcpServers: serversOf(form, ['hindsight']) }])
+        await create.mutateAsync([{ ...launchOf(form), name: form.name.trim(), roleText: form.roleText, mcpServers: serversOf(form, []) }])
       } else {
         const patch = patchOf()
         if (Object.keys(patch).length > 0) await update.mutateAsync([preset.id, patch])
@@ -285,17 +279,6 @@ function EditorForm({ preset, defaultModel, onClose }: Props) {
               </Field>
               <Field id="preset-tools" label="Tools" hint="Comma-separated, like Read,Grep,Bash. Empty keeps Claude Code's default set.">
                 <Input id="preset-tools" className="font-mono" value={form.tools} onChange={(e) => set({ tools: e.target.value })} />
-              </Field>
-              <Field id="preset-mcp" label="MCP servers" hint="CodeGraph answers code questions in one call. None leaves it out.">
-                <Select value={form.mcp} onValueChange={(v) => set({ mcp: v as McpMode })}>
-                  <SelectTrigger id="preset-mcp" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="codegraph">CodeGraph</SelectItem>
-                    <SelectItem value="none">None</SelectItem>
-                  </SelectContent>
-                </Select>
               </Field>
               <Field id="preset-optional" label="Optional servers" hint="Recommended, never required. The preset records the choice; tile launches do not attach MCP servers yet.">
                 <div id="preset-optional" className="space-y-2">

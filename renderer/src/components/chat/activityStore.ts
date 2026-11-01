@@ -4,7 +4,7 @@ import type { EnhanceContext } from '@shared/prompt-enhance'
 export interface TileActivity {
   // What Enhance prompt is doing now.
   phase: 'idle' | 'context' | 'rewrite'
-  // What the last enhance was given: Hindsight memories and CodeGraph symbols.
+  // What the last enhance was given: the tile's session.
   context: EnhanceContext | null
 }
 

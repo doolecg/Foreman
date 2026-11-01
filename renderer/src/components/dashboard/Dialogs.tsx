@@ -321,9 +321,9 @@ export function DeleteCrewDialog({
       }
     >
       <div className="space-y-2 text-sm">
-        <p>Deleting the project stops its running sessions and removes its terminal tiles, lessons and spend history.</p>
+        <p>Deleting the project stops its running sessions and removes its terminal tiles and spend history.</p>
         <p className="text-muted-foreground">
-          Anything already saved outside Foreman (Hindsight, CodeGraph notes, memory files) stays. The project folder and every file in it are not touched. If the project is in a group, the group stays.
+          Anything already saved outside Foreman (memory files) stays. The project folder and every file in it are not touched. If the project is in a group, the group stays.
         </p>
       </div>
     </FormDialog>

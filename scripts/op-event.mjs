@@ -3,15 +3,12 @@
 //
 //   node op-event.mjs hook <eventsDir>    appends one line {ts, tile, ...payload} to <eventsDir>/<session_id>.jsonl
 //   node op-event.mjs status <eventsDir>  writes the latest payload to <eventsDir>/status-<session_id>.json and prints one line
-//   node op-event.mjs recall <eventsDir>  SessionStart only: prints the project's memory file (<eventsDir>/../recall/<key>.txt,
-//                                         written by the app) as hookSpecificOutput.additionalContext; nothing when it is missing
 //
 // With FOREMAN_FACTORY=1 (Subagent Factory Mode), `hook` also prints a PreToolUse deny for the Agent/Task tool while 3
 // helpers are running (SubagentStart minus SubagentStop in the session's events file).
 //
 // Only tiles Foreman launched (FOREMAN_SOURCE=foreman) write anything. It always exits 0, so a failed write never
 // blocks Claude Code.
-import { createHash } from 'node:crypto'
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
@@ -49,22 +46,6 @@ function statusText(payload) {
   const cost = payload.cost?.total_cost_usd
   if (typeof cost === 'number') parts.push(`$${cost.toFixed(2)}`)
   return parts.join(' | ')
-}
-
-// The same key core/session-recall.ts writes the file under: the folder, slashes forward, no trailing slash, lower case.
-const recallKey = (folder) => createHash('sha1').update(folder.replace(/[\\]/g, '/').replace(/\/+$/, '').toLowerCase()).digest('hex').slice(0, 16)
-
-function recall(eventsDir, payload) {
-  if (payload.hook_event_name !== 'SessionStart' || typeof payload.cwd !== 'string' || !payload.cwd) return
-  let text
-  try {
-    text = readFileSync(join(dirname(eventsDir), 'recall', `${recallKey(payload.cwd)}.txt`), 'utf8').trim()
-  } catch {
-    return
-  }
-  if (!text) return
-  process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: text } })}
-`)
 }
 
 const FACTORY_CAP = 3
@@ -106,7 +87,7 @@ function factoryCap(file, payload) {
 
 async function main() {
   const [mode, eventsDir] = process.argv.slice(2)
-  if (process.env.FOREMAN_SOURCE !== 'foreman' || !eventsDir || (mode !== 'hook' && mode !== 'status' && mode !== 'recall')) return
+  if (process.env.FOREMAN_SOURCE !== 'foreman' || !eventsDir || (mode !== 'hook' && mode !== 'status')) return
   let payload
   try {
     payload = JSON.parse(await readStdin())
@@ -114,7 +95,6 @@ async function main() {
     return
   }
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return
-  if (mode === 'recall') return recall(eventsDir, payload)
   const sessionId = payload.session_id
   if (typeof sessionId !== 'string' || !SAFE_ID.test(sessionId)) return
   mkdirSync(eventsDir, { recursive: true })
