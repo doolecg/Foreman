@@ -14,7 +14,10 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { pickFolder, useAction, useDeleteCrew, useUpdateCrew } from '@/lib/queries'
+import { Textarea } from '@/components/ui/textarea'
+import { call, pickFolder, useAction, useDeleteCrew, useUpdateCrew } from '@/lib/queries'
+import { toast } from '@/lib/toast'
+import type { SetupPlanView } from '@shared/setup'
 
 interface ShellProps {
   open: boolean
@@ -94,14 +97,50 @@ export function NewCrewDialog({ open, onOpenChange, onCreated }: { open: boolean
   const [name, setName] = useState('')
   const [folder, setFolder] = useState('')
   const create = useAction('crews:create')
+  // Start new project: the prompt is matched against the catalog, and the person ticks what to switch on.
+  const [prompt, setPrompt] = useState('')
+  const [plan, setPlan] = useState<SetupPlanView | null>(null)
+  // '' means the preset guessed from the prompt.
+  const [preset, setPreset] = useState('')
+  const [ticked, setTicked] = useState<string[]>([])
+  const [planError, setPlanError] = useState('')
+  const key = (i: { kind: string; name: string }) => `${i.kind}:${i.name}`
 
   useEffect(() => {
     if (open) {
       setName('')
       setFolder('')
+      setPrompt('')
+      setPlan(null)
+      setPreset('')
+      setTicked([])
+      setPlanError('')
       create.reset()
     }
   }, [open])
+
+  const suggest = async (chosen = '') => {
+    setPlanError('')
+    try {
+      const p = await call('setup:plan', prompt, chosen || undefined)
+      setPlan(p)
+      setPreset(chosen)
+      setTicked(p.items.map(key))
+    } catch (e) {
+      setPlan(null)
+      setPlanError(errorText(e))
+    }
+  }
+
+  const applySetup = async (crewFolder: string) => {
+    if (!plan || !ticked.length) return
+    try {
+      const res = await call('setup:apply', crewFolder, prompt, plan.items.filter((i) => ticked.includes(key(i))).map(({ kind, name }) => ({ kind, name })), preset || undefined)
+      toast(res.needsRestart ? 'Project set up. Restart Foreman to load the plugins.' : 'Project set up.')
+    } catch (e) {
+      toast(`Project created, but setup failed: ${errorText(e)}`, true)
+    }
+  }
 
   const browse = async () => {
     const picked = await pickFolder()
@@ -122,7 +161,8 @@ export function NewCrewDialog({ open, onOpenChange, onCreated }: { open: boolean
       error={create.error}
       onSubmit={() =>
         create.mutate([{ name, folder }], {
-          onSuccess: (crew) => {
+          onSuccess: async (crew) => {
+            await applySetup(crew.folder)
             onOpenChange(false)
             onCreated(crew.id)
           },
@@ -140,6 +180,36 @@ export function NewCrewDialog({ open, onOpenChange, onCreated }: { open: boolean
       <Field id="crew-name" label="Name">
         <Input id="crew-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="shop" />
       </Field>
+      <Field id="crew-prompt" label="What is this project for? (optional)" hint="Foreman suggests the agents, MCPs, skills and plugins the job needs. Nothing is switched on until you tick it.">
+        <Textarea id="crew-prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="A website for a bakery, with a booking form" rows={3} />
+        <Button type="button" variant="outline" size="sm" disabled={!prompt.trim()} onClick={() => void suggest(preset)}>
+          Suggest tools
+        </Button>
+        {planError && <p className="text-destructive text-xs">{planError}</p>}
+      </Field>
+      {plan && (
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-2 text-sm">
+            Preset
+            <select className="bg-background rounded border px-2 py-1 text-sm" value={plan.preset} onChange={(e) => void suggest(e.target.value)}>
+              {plan.presets.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+          {plan.items.map((i) => (
+            <label key={key(i)} className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-1" checked={ticked.includes(key(i))} onChange={(e) => setTicked(e.target.checked ? [...ticked, key(i)] : ticked.filter((k) => k !== key(i)))} />
+              <span>
+                {i.name} <span className="text-muted-foreground text-xs">({i.kind}, {i.why})</span>
+                {i.needed && <span className="text-muted-foreground block text-xs">{i.needed}</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
     </FormDialog>
   )
 }

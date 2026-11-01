@@ -9,6 +9,7 @@ import type { Bookmark, ClearResult, CookieDraft, CookieImportPreview, CookieImp
 import type { BrowserPromptAnswer, BrowserPromptsState } from './browser-prompts'
 import type { EnhanceContext } from './prompt-enhance'
 import type { ServersResult } from './servers'
+import type { SetupApplyResult, SetupPlanView } from './setup'
 import type {
   AppInfo,
   BudgetConfig,
@@ -101,6 +102,9 @@ export interface IpcApi extends ChatApi {
   'git:info': (crewId: number) => GitInfo | null
   // The Git page. Nothing here commits or pushes by itself: each runs when the person clicks it. Paths are relative to the repository folder.
   'git:status': (crewId: number) => GitStatus | null
+  // Start new project: what a project prompt would switch on (read-only), then writing the ticked items into the project folder.
+  'setup:plan': (prompt: string, preset?: string) => SetupPlanView
+  'setup:apply': (folder: string, prompt: string, selected: Array<{ kind: string; name: string }>, preset?: string) => SetupApplyResult
   'git:diff': (crewId: number, req: GitDiffRequest) => GitDiff
   'git:stage': (crewId: number, paths: string[]) => GitResult
   'git:unstage': (crewId: number, paths: string[]) => GitResult
@@ -618,6 +622,8 @@ export const CORE_CHANNELS: CoreChannel[] = [
   'git:changes',
   'git:info',
   'git:status',
+  'setup:plan',
+  'setup:apply',
   'git:diff',
   'git:stage',
   'git:unstage',

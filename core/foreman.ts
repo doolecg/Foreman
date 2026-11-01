@@ -38,6 +38,7 @@ import type { KeepWarmPersisted } from './keepwarm'
 import { LearnChangesDb } from './learn-changes'
 import { Ops } from './ops'
 import { claudeDir as claudeDirOf } from './paths'
+import { applySetup, planView, setupLibraryDir } from './setup-service'
 import { Installer, systemInstallDeps } from './install'
 import { ENHANCE_MAX_MEMORY_TOKENS, ENHANCE_MAX_SYMBOL_LINES, buildEnhancePrompt, mergeSkills, normalizeEnhanceContext, parseEnhanceReply, type EnhanceContext } from '../shared/prompt-enhance'
 import { gatherEnhanceContext, recentMessages } from './enhance-context'
@@ -521,6 +522,7 @@ export class Foreman extends EventEmitter<PushEvents> {
       ...this.actionHandlers(),
       ...this.presetHandlers(),
       ...this.teamHandlers(),
+      ...this.setupHandlers(),
       ...this.modelHandlers(),
       ...this.tileHandlers(),
       ...this.scratchHandlers(),
@@ -804,6 +806,26 @@ export class Foreman extends EventEmitter<PushEvents> {
         const added = store.restoreBuiltins()
         if (added.length) this.log('preset', `Restored built-in presets: ${added.map((p) => p.name).join(', ')}`)
         return added
+      },
+    }
+  }
+
+  // Start new project: the catalog is read from the .claude/library folder.
+  private setupHandlers(): Group<'setup'> {
+    const lib = () => setupLibraryDir(claudeDirOf())
+    const guard = <T>(fn: () => T): T => {
+      try {
+        return fn()
+      } catch (err) {
+        throw bad(err instanceof Error ? err.message : 'Setup failed')
+      }
+    }
+    return {
+      'setup:plan': (prompt, preset) => guard(() => planView(lib(), String(prompt ?? ''), typeof preset === 'string' ? preset : undefined)),
+      'setup:apply': (folder, prompt, selected, preset) => {
+        if (typeof folder !== 'string' || !isAbsolute(folder) || !existsSync(folder)) throw bad('Choose an existing project folder')
+        const picks = Array.isArray(selected) ? selected.filter((s) => s && typeof s.kind === 'string' && typeof s.name === 'string') : []
+        return guard(() => applySetup(lib(), folder, String(prompt ?? ''), picks, new Date().toISOString().slice(0, 10), typeof preset === 'string' ? preset : undefined))
       },
     }
   }
