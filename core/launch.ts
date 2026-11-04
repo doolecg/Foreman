@@ -89,6 +89,9 @@ export interface LaunchContext {
   modePreamble?: string
   packPlugins?: string[]
   factory?: boolean
+  // Orchestration is on for the project: the tile loads the project's own .claude kit and nothing else of Foreman's, so no
+  // Foreman plugin dir, no mod plugins and no browser MCP (each adds tokens to every turn).
+  orchestration?: boolean
   // The embedded browser's MCP endpoint. The config file holds no secret: Claude expands ${FOREMAN_TOKEN} from the tile's env.
   browserMcp?: { url: string }
 }
@@ -301,7 +304,7 @@ function claudeCore(parts: ClaudeParts, ctx: LaunchContext): LaunchResult {
     add('--append-system-prompt-file', parts.guidance.path)
   }
   if (cap) add('--autocompact', capFlag(cap))
-  if (ctx.browserMcp && (!supported || supported.has('--mcp-config'))) {
+  if (ctx.browserMcp && !ctx.orchestration && (!supported || supported.has('--mcp-config'))) {
     const url = checkPath('browserMcp', ctx.browserMcp.url)
     const f: LaunchFile = {
       path: p.join(ctx.launchDir, 'browser-mcp.json'),
@@ -315,8 +318,8 @@ function claudeCore(parts: ClaudeParts, ctx: LaunchContext): LaunchResult {
   if (tools.length) add('--strict-mcp-config')
   // Helpers are briefed by their lead, so they skip the user's own hooks, plugins, CLAUDE.md and settings (about 9k tokens).
   if (tools.length) add('--setting-sources', 'project,local')
-  add('--plugin-dir', ctx.pluginDir)
-  for (const dir of ctx.modPlugins ?? []) add('--plugin-dir', checkPath('modPlugin', dir))
+  if (!ctx.orchestration) add('--plugin-dir', ctx.pluginDir)
+  for (const dir of ctx.orchestration ? [] : (ctx.modPlugins ?? [])) add('--plugin-dir', checkPath('modPlugin', dir))
   for (const dir of ctx.packPlugins ?? []) add('--plugin-dir', checkPath('packPlugin', dir))
   if (parts.resume) add('--resume', sessionId)
   else add('--session-id', sessionId)

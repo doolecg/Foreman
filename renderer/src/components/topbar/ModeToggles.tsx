@@ -16,7 +16,7 @@ export function ModeToggles({ crew, tier }: { crew: Crew; tier: number }) {
       <Toggle label="Engineering Mode" text="Engineering" showText={tier < 3} on={crew.engineering} onClick={() => toggle('engineering')} tip="Engineering Mode: new tiles follow the engineering workflow (plan, build, review, ship). Applies to new tiles.">
         <Layers />
       </Toggle>
-      <Toggle label="Orchestrator Mode" text="Orchestrator" showText={tier < 2} on={crew.factory} onClick={() => toggle('factory')} tip="Orchestrator Mode: the thread does the work itself and hands parts to helper agents only when that saves context or time. Applies to new tiles.">
+      <Toggle label="Orchestration" text="Orchestration" showText={tier < 2} on={crew.factory} onClick={() => toggle('factory')} tip="Orchestration: installs the Model Engine kit (agents, skills, model rules) into the project's .claude, and new tiles run lean with it. Engineering Mode plans, Orchestration builds. Applies to new tiles.">
         <Box />
       </Toggle>
     </div>

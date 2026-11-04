@@ -73,7 +73,7 @@ export function ModsSection() {
         </Row>
       </div>
       <p className="text-muted-foreground px-1 text-xs">Foreman's status line replaces your own inside Foreman Claude tiles.</p>
-      <p className="text-muted-foreground px-1 text-xs">The Engineering and Factory modes are turned on per project with the switches in the top bar. Their skills are in Settings, Tools and installs.</p>
+      <p className="text-muted-foreground px-1 text-xs">The Engineering and Orchestration modes are turned on per project with the switches in the top bar. Their skills are in Settings, Tools and installs.</p>
     </>
   )
 }

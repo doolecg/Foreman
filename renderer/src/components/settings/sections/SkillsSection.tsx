@@ -55,7 +55,7 @@ export function SkillsSection() {
           />
           <ToolRow
             testId="skills-engineering"
-            name="Engineering and Factory skills"
+            name="Engineering and Orchestration skills"
             badge={<Badge variant="secondary">{pack?.edited.length ? `${pack.edited.length} edited` : 'Built in'}</Badge>}
             tag="required"
             description="The skills the two modes use. Your copy lives in the Foreman data folder; edit it freely. Reset puts the built-in version back and keeps a backup of your edits."
@@ -79,7 +79,7 @@ export function SkillsSection() {
       </ConfirmDialog>
       <ConfirmDialog
         open={confirm === 'reset'}
-        title="Reset the Engineering and Factory skills?"
+        title="Reset the Engineering and Orchestration skills?"
         confirmLabel="Reset"
         busy={reset.isPending}
         onClose={() => setConfirm(null)}

@@ -62,6 +62,10 @@ export function hooksConfig(
   if (factory) {
     for (const event of ['SubagentStart', 'SubagentStop']) hooks[event] = [entry()]
     hooks.PreToolUse = [entry('Agent|Task')]
+    // Orchestration also reads the memory and search tools to count recall calls: one more hook process per such call, so only here.
+    hooks.PostToolUse = [entry('Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*')]
+    // A hook-denied Agent call never starts a helper; this clears its pending entry.
+    hooks.PostToolUseFailure = [entry('Agent|Task')]
   }
   return { hooks, ...(settings.enabled ? { statusLine: { type: 'command' as const, command: status } } : {}) }
 }

@@ -27,6 +27,8 @@ describe('Mods hooks config', () => {
     const cfg = hooksConfig(paths, { enabled: true, mods: mods({ subagents: true }), keepWarm: true, commandMenu: true })!
     expect(Object.keys(cfg.hooks).sort()).toEqual(['Notification', 'PostToolUse', 'PreToolUse', 'SessionEnd', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'])
     expect(cfg.hooks.PreToolUse).toEqual([{ matcher: 'Agent', hooks: [{ type: 'command', command: expect.any(String) }] }])
+    // Without Orchestration the PostToolUse matcher stays Agent-only: no extra process per search or memory call.
+    expect(cfg.hooks.PostToolUse).toEqual([{ matcher: 'Agent', hooks: [{ type: 'command', command: expect.any(String) }] }])
     expect(cfg.hooks.SessionStart).toEqual([{ hooks: [{ type: 'command', command: expect.any(String) }] }])
     expect(cfg.statusLine).toEqual({ type: 'command', command: expect.stringContaining(' status ') })
   })
@@ -89,18 +91,20 @@ describe('hooksConfig Factory Mode', () => {
 
   it('installs the sub-agent events and the Agent|Task PreToolUse hook with no status line when mods are off', () => {
     const cfg = hooksConfig(paths, off, true)!
-    expect(Object.keys(cfg.hooks).sort()).toEqual(['PreToolUse', 'SubagentStart', 'SubagentStop'])
+    expect(Object.keys(cfg.hooks).sort()).toEqual(['PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SubagentStart', 'SubagentStop'])
+    expect(cfg.hooks.PostToolUse).toEqual([{ matcher: 'Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*', hooks: [{ type: 'command', command: expect.any(String) }] }])
+    expect(cfg.hooks.PostToolUseFailure).toEqual([{ matcher: 'Agent|Task', hooks: [{ type: 'command', command: expect.any(String) }] }])
     expect(cfg.hooks.PreToolUse).toEqual([{ matcher: 'Agent|Task', hooks: [{ type: 'command', command: expect.stringContaining(' hook ') }] }])
     expect(cfg.statusLine).toBeUndefined()
   })
 
   it('is independent of the subagents panel mod, and widens the panel PreToolUse matcher when both are on', () => {
     const noPanel = hooksConfig(paths, { ...off, enabled: true }, true)!
-    expect(Object.keys(noPanel.hooks).sort()).toEqual(['PreToolUse', 'SubagentStart', 'SubagentStop'])
+    expect(Object.keys(noPanel.hooks).sort()).toEqual(['PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SubagentStart', 'SubagentStop'])
     expect(noPanel.statusLine).toBeDefined()
     const both = hooksConfig(paths, { ...off, enabled: true, mods: mods({ subagents: true }) }, true)!
     expect(both.hooks.PreToolUse).toEqual([{ matcher: 'Agent|Task', hooks: expect.any(Array) }])
-    expect(both.hooks.PostToolUse).toBeDefined()
+    expect(both.hooks.PostToolUse).toEqual([{ matcher: 'Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*', hooks: expect.any(Array) }])
   })
 
   it('stays null with mods off and Factory off', () => {
@@ -140,6 +144,28 @@ describe('op-event.mjs Factory cap', () => {
         },
       })
     }
+  })
+
+  it('replayed through the hook itself: silent for helpers 1 to 3, denies the 4th Agent call', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'op-event-'))
+    dirs.push(dir)
+    const eventsDir = join(dir, 'events')
+    const send = (hook_event_name: string, extra: Record<string, unknown> = {}) =>
+      spawnSync(process.execPath, [SCRIPT, 'hook', eventsDir], {
+        input: JSON.stringify({ session_id: SID, hook_event_name, ...extra }),
+        env: { PATH: process.env.PATH ?? '', FOREMAN_SOURCE: 'foreman', FOREMAN_TILE_ID: '7', FOREMAN_FACTORY: '1' },
+        encoding: 'utf8',
+      })
+    for (let n = 1; n <= 3; n++) {
+      const call = send('PreToolUse', { tool_name: 'Agent', tool_input: {} })
+      expect([n, call.status, call.stdout]).toEqual([n, 0, ''])
+      expect(send('SubagentStart', { agent_id: `h${n}` }).stdout).toBe('')
+    }
+    const fourth = send('PreToolUse', { tool_name: 'Agent', tool_input: {} })
+    expect(fourth.status).toBe(0)
+    expect(JSON.parse(fourth.stdout).hookSpecificOutput).toMatchObject({ permissionDecision: 'deny' })
+    send('SubagentStop', { agent_id: 'h1' })
+    expect(send('PreToolUse', { tool_name: 'Agent', tool_input: {} }).stdout).toBe('')
   })
 
   it('allows the call under the cap, once helpers have stopped, and for other tools', () => {

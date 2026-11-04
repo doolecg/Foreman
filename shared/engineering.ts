@@ -10,9 +10,8 @@ export interface EngineeringStatus {
 }
 
 export interface PackDirs {
-  // <userData>/engineering/engineering and <userData>/engineering/factory.
+  // <userData>/engineering/engineering.
   engineeringDir: string
-  factoryDir: string
 }
 
 // The newest Engineering task of a project: its folder name, a readable title and where it stands.
@@ -106,18 +105,13 @@ export function taskStages(files: readonly string[], slicesHtml: string | null):
   })
 }
 
-// The block added to a Claude tile's appended system prompt for the project's modes; '' when both are off.
+// The block added to a Claude tile's appended system prompt for the project's modes; '' when Engineering is off.
 export function buildPreamble(modes: ProjectModes, dirs: PackDirs): string {
   const at = (dir: string, rest: string) => `${dir.replace(/[\\/]+$/, '')}/${rest}`
   const blocks: string[] = []
   if (modes.engineering) {
     blocks.push(
       `Engineering Mode is on for this project. For every new task read ${at(dirs.engineeringDir, 'skills/flow/SKILL.md')} and follow it. Read each stage skill file before using that stage. One approval gate: the plan. Never push. Max 3 verify passes then ask. Task files live in .foreman/engineering/<task-name>/.`,
-    )
-  }
-  if (modes.factory) {
-    blocks.push(
-      `Orchestrator Mode is on. Read ${at(dirs.factoryDir, 'skills/factory/SKILL.md')}. You are the one agent the user talks to: do the work yourself, and hand a part to a helper agent only when it saves context or time; max 3 helpers at once, one build at a time.`,
     )
   }
   return blocks.join('\n\n')

@@ -5,7 +5,7 @@ const row = (box: string, n: number) => `<li>${box} <b>${n}. Title</b></li>`
 const slices = (ticked: number, total: number) => Array.from({ length: total }, (_, i) => row(i < ticked ? '<input type="checkbox" checked>' : '<input type="checkbox">', i + 1)).join('\n')
 const at = (files: string[], html: string | null = null) => taskStages(files, html).map((s) => `${s.key}:${s.state}`).join(' ')
 
-const dirs = { engineeringDir: 'C:\\Data\\engineering\\engineering', factoryDir: 'C:\\Data\\engineering\\factory\\' }
+const dirs = { engineeringDir: 'C:\\Data\\engineering\\engineering' }
 
 describe('taskPlan', () => {
   const files = ['spec.html', 'slices.html']
@@ -100,17 +100,15 @@ describe('buildPreamble', () => {
     expect(t).not.toContain('Factory')
   })
 
-  it('names the orchestrator skill when only Orchestrator Mode is on', () => {
-    const t = buildPreamble({ engineering: false, factory: true }, dirs)
-    expect(t).toContain('Orchestrator Mode is on')
-    expect(t).toContain('C:\\Data\\engineering\\factory/skills/factory/SKILL.md')
-    expect(t).not.toContain('Engineering Mode')
+  it('adds nothing for Orchestration alone: its kit lives in the project', () => {
+    expect(buildPreamble({ engineering: false, factory: true }, dirs)).toBe('')
   })
 
-  it('carries both blocks when both are on, and stays short', () => {
+  it('gives Engineering the same text with Orchestration on or off, and stays short', () => {
     const t = buildPreamble({ engineering: true, factory: true }, dirs)
     expect(t).toContain('Engineering Mode is on')
-    expect(t).toContain('Orchestrator Mode is on')
+    expect(t).not.toContain('Orchestration')
+    expect(t).toBe(buildPreamble({ engineering: true, factory: false }, dirs))
     expect(t.split(/\s+/).length).toBeLessThan(350)
   })
 })

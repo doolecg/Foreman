@@ -60,6 +60,7 @@ import { CapabilityProber, systemProbeDeps, type ProbeDeps } from './capabilitie
 import { ClaudeAgents } from './claude-agents'
 import { hooksConfig, type ModsPaths } from './claude-events'
 import { packStatus, resetPack } from './engineering'
+import { installKit } from './orchestration-kit'
 import { listTasks, readTask, readTaskPlan, watchTasks } from './task-stage'
 import { applyToolPaths, findInDefaults, PROGRAM_BINARY } from './tool-locations'
 import type { InstallId, InstallStatusItem } from '../shared/install'
@@ -531,6 +532,8 @@ export class Foreman extends EventEmitter<PushEvents> {
           next[key] = on
         }
         const updated = store.updateCrew(crewId, next)
+        // Also when the folder moves with Orchestration already on: the new folder has no kit yet.
+        if (updated.factory && ((next.factory && !crew.factory) || (next.folder !== undefined && next.folder !== crew.folder))) this.installOrchestrationKit(updated)
         if (next.folder !== undefined && next.folder !== crew.folder) {
           this.taskWatchers.get(crewId)?.()
           this.taskWatchers.delete(crewId)
@@ -994,16 +997,31 @@ export class Foreman extends EventEmitter<PushEvents> {
   }
 
   // A crew's modes as launch.ts takes them: the preamble for the appended system prompt, the pack folders to load
-  // with --plugin-dir, and whether Factory is on (it sets FOREMAN_FACTORY for the cap hook).
-  private projectModes(crewId: number): Pick<LaunchContext, 'modePreamble' | 'packPlugins' | 'factory'> {
-    const crew = this.engineeringDir ? this.store.getCrew(crewId) : null
-    if (!this.engineeringDir || !crew || (!crew.engineering && !crew.factory)) return {}
-    const engineeringDir = join(this.engineeringDir, 'engineering')
-    const factoryDir = join(this.engineeringDir, 'factory')
+  // with --plugin-dir, and whether Orchestration is on. Orchestration adds no text or plugin here (its kit lives in the
+  // project's .claude); `factory` still sets FOREMAN_FACTORY for the cap hook.
+  private projectModes(crewId: number, install: boolean): Pick<LaunchContext, 'modePreamble' | 'packPlugins' | 'factory' | 'orchestration'> {
+    const crew = this.store.getCrew(crewId)
+    if (!crew || (!crew.engineering && !crew.factory)) return {}
+    // Idempotent: a project opened with Orchestration on (switched on in an older run, or its kit deleted) gets the kit at tile start.
+    if (crew.factory && install) this.installOrchestrationKit(crew)
+    const engineeringDir = this.engineeringDir && crew.engineering ? join(this.engineeringDir, 'engineering') : null
     return {
-      modePreamble: buildPreamble(crew, { engineeringDir, factoryDir }),
-      packPlugins: [...(crew.engineering ? [engineeringDir] : []), ...(crew.factory ? [factoryDir] : [])],
+      ...(engineeringDir ? { modePreamble: buildPreamble(crew, { engineeringDir }), packPlugins: [engineeringDir] } : {}),
       factory: crew.factory,
+      orchestration: crew.factory,
+    }
+  }
+
+  // Turning Orchestration on installs the kit into the project's own .claude. A failure is logged, not thrown: the toggle stays on.
+  private installOrchestrationKit(crew: Crew): void {
+    try {
+      const r = installKit(join(this.pluginDir, 'kit'), crew.folder)
+      // Silent when nothing changed, so a tile start does not add a line each time.
+      if (r.created.length || r.backedUp.length || r.differing.length) {
+        this.log('crew', `Orchestration kit in ${crew.name}: ${r.created.length} added, ${r.skipped.length} already there, ${r.differing.length} differ (kept as they are: ${r.differing.join(', ') || 'none'}), ${r.backedUp.length} backed up to .claude/.foreman-backup`, crew.id)
+      }
+    } catch (e) {
+      this.log('error', `Orchestration kit for ${crew.name} failed: ${e instanceof Error ? e.message : String(e)}`, crew.id)
     }
   }
 
@@ -1405,11 +1423,11 @@ export class Foreman extends EventEmitter<PushEvents> {
   }
 
   // `plain`: the tile runs just its preset, without the project's Engineering and Factory instructions (a role started from the Factory box).
-  private launchContext(crewId: number, crewFolder: string, sessionId: string, plain = false): LaunchContext {
+  private launchContext(crewId: number, crewFolder: string, sessionId: string, plain = false, agent = 'claude'): LaunchContext {
     const platform = this.launch.platform ?? process.platform
     const cliDir = this.launch.cliDir
     const browserUrl = this.settings.browser.aiControl ? (this.browserMcp?.() ?? null) : null
-    const modes: ReturnType<Foreman['projectModes']> = plain ? {} : this.projectModes(crewId)
+    const modes: ReturnType<Foreman['projectModes']> = plain ? {} : this.projectModes(crewId, agent === 'claude')
     return {
       platform,
       shell: shellKind(this.settings.shell.file, platform),
@@ -1489,7 +1507,7 @@ export class Foreman extends EventEmitter<PushEvents> {
       const resume = keep && (scratch.agent !== 'claude' || existsSync(this.transcriptFile(scratch.cwd, sessionId)))
       const row: ScratchTerminal = { ...scratch, sessionId }
       const preset = scratch.presetId != null ? this.store.getPreset(scratch.presetId) : null
-      const ctx = this.launchContext(scratch.crewId, crew?.folder ?? scratch.cwd, sessionId, scratch.presetId != null)
+      const ctx = this.launchContext(scratch.crewId, crew?.folder ?? scratch.cwd, sessionId, scratch.presetId != null, scratch.agent)
       const launch = buildScratchLaunch(row, ctx, { preset, resume })
       this.writeFiles(launch)
       const env = this.sessionEnv(launch.env, scratchId)

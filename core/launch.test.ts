@@ -135,6 +135,18 @@ describe('tile launches', () => {
     expect(() => buildScratchLaunch(tile(), { ...ctx, packPlugins: ['/x\ny'] })).toThrow()
   })
 
+  it('runs an Orchestration tile lean: no Foreman plugin dir, no mod plugins, no browser MCP', () => {
+    const rich = { ...ctx, modPlugins: ['/app/plugin/mods/x'], browserMcp: { url: 'http://127.0.0.1:1/mcp' } }
+    const plain = buildScratchLaunch(tile(), rich)
+    expect(plain.args).toContain('--plugin-dir')
+    expect(plain.args).toContain('--mcp-config')
+    const lean = buildScratchLaunch(tile(), { ...rich, factory: true, orchestration: true })
+    expect(lean.args).not.toContain('--plugin-dir')
+    expect(lean.args).not.toContain('--mcp-config')
+    expect(lean.args).not.toContain('--append-system-prompt-file')
+    expect(lean.env.FOREMAN_FACTORY).toBe('1')
+  })
+
   it('leaves the mode pack off non-Claude tiles', () => {
     const l = buildScratchLaunch(tile({ agent: 'codex' }), { ...ctx, modePreamble: 'x', packPlugins: ['/p'], factory: true })
     expect(l.args).toEqual(['-m', 'claude-sonnet-5-5'])

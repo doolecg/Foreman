@@ -1,3 +1,25 @@
+# Foreman 4.2.0
+
+**Install:** download the file for your system from the assets below. Foreman keeps itself up to date from these releases.
+
+## New
+- **Orchestration mode installs the Model Engine kit into the project.** Its agents, skills and model rules go into the project's own `.claude` folder, so plain `claude` loads them without any Foreman flag. Files the project already has are never overwritten: a different version is kept as it is, and a changed `CLAUDE.md` is backed up to `.claude/.foreman-backup` first. The kit is installed when you switch Orchestration on, when you move the project folder, and when a tile starts.
+- **Orchestration adds no extra tokens to each turn** compared with plain `claude`. Its tiles load the project's own kit and nothing else of Foreman's: no Foreman plugin, no mod plugins, and the browser MCP is off.
+- **The Orchestration graph state comes from Foreman's own event stream.** Each session's state (the main thread, the builder, the reviewer, the council and the helpers) is worked out from the hook events Foreman already receives. The panel that shows it comes in a later release.
+- **Start new project.** A setup dialog with a preset picker (eight presets) suggests agents, MCPs, skills and plugins for your project prompt, and writes the ones you tick into the project folder.
+- **The Orchestrator skill names its helpers,** picks a model for each tier, and uses task cards.
+
+## Changed
+- **Orchestrator Mode is now called Orchestration** in the top bar, the chat chip and Settings.
+- **The name is Foreman.** Operant is now Foreman in the window, the messages and the installers.
+- **Foreman no longer learns on its own,** and no longer installs, starts or sets up Hindsight or CodeGraph. They cost tokens and are yours to manage. Add them as ordinary MCPs if you want them. Old settings and backups still load.
+- **The hooks stay quiet.** The extra hooks for counting recall calls run only for Orchestration, and the kit writes a line to the log only when it changed something.
+
+## Fixed
+- **MCP status marks on Windows.** `claude mcp list` prints a root sign and a times sign there, and the status parser now reads them.
+
+---
+
 # Operant 3.6.1
 
 **Install:** download the file for your system from the assets below. Operant keeps itself up to date from these releases.

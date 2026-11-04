@@ -128,7 +128,7 @@ describe('Foreman: Chat view tiles', () => {
     }
   })
 
-  it('a project with Engineering and Factory on starts its Chat tile with the preamble, both pack folders and FOREMAN_FACTORY; a plain project does not', () => {
+  it('a project with Engineering and Orchestration on starts its Chat tile with the preamble, the engineering pack, no Foreman plugin dir and FOREMAN_FACTORY; a plain project does not', () => {
     const plain = store.createCrew('plain', '/code/plain')
     const t0 = op.handlers['scratch:create']({ crewId: plain.id, title: 'a', agent: 'claude', model: 'claude-sonnet-5-5' }) as { id: number }
     op.startScratch(t0.id)
@@ -145,8 +145,98 @@ describe('Foreman: Chat view tiles', () => {
     op.startScratch(t1.id)
     const on = lastChild().spawn
     expect(on.args.filter((a) => a === '--append-system-prompt-file')).toHaveLength(1)
-    expect(on.args).toEqual(expect.arrayContaining([join('/data/engineering', 'engineering'), join('/data/engineering', 'factory')]))
+    expect(on.args).toContain(join('/data/engineering', 'engineering'))
+    expect(on.args).not.toContain(join('/data/engineering', 'factory'))
+    expect(on.args).not.toContain('/plugin')
     expect(on.env.FOREMAN_FACTORY).toBe('1')
+  })
+
+  // A Foreman whose pluginDir is the real one, so the shipped kit is what gets installed.
+  const kitForeman = () =>
+    new Foreman({
+      store,
+      sessions: new SessionManager((file, _args, opts) => new FakePty(file, opts)),
+      pluginDir: join(__dirname, '..', 'plugin'),
+      engineeringDir: '/data/engineering',
+      transcriptFile: (_cwd, id) => join(bin, `${id}.jsonl`),
+      cliServer: (t) => ((target = t), cli),
+      scheduler,
+      now: () => Date.now(),
+      launch: { platform: 'linux', launchDir: '/data/launch', rolesDir: '/data/roles', cliDir: '/app/cli', foremanNode: '/app/foreman', baseEnv: { PATH: bin }, writer: { mkdir: () => {}, writeFile: () => {} } },
+      chatSpawn: (spec) => {
+        const child = new FakeChatChild()
+        children.push({ spawn: spec, child })
+        return child as unknown as ChatChild
+      },
+    })
+  const tileOf = (o: Foreman, crewId: number, agent: 'claude' | 'shell') => o.handlers['scratch:create']({ crewId, title: 'k', agent, model: 'claude-sonnet-5-5' }) as { id: number }
+
+  it('installs the Orchestration kit when the folder of a project with Orchestration on changes, and at tile start', () => {
+    const root = mkdtempSync(join(tmpdir(), 'foreman-kit-'))
+    try {
+      const real = kitForeman()
+      const a = join(root, 'a')
+      const b = join(root, 'b')
+      const c = join(root, 'c')
+      for (const d of [a, b, c]) mkdirSync(d)
+      const crew = store.createCrew('kit', a)
+      real.handlers['crews:update'](crew.id, { factory: true })
+      expect(existsSync(join(a, '.claude/agents/builder.md'))).toBe(true)
+      expect(existsSync(join(b, '.claude'))).toBe(false)
+      real.handlers['crews:update'](crew.id, { folder: b })
+      expect(existsSync(join(b, '.claude/agents/builder.md'))).toBe(true)
+      real.handlers['crews:update'](crew.id, { name: 'renamed' })
+      real.handlers['crews:update'](crew.id, { folder: c, factory: false })
+      expect(existsSync(join(c, '.claude'))).toBe(false)
+      real.handlers['crews:update'](crew.id, { factory: true })
+      expect(existsSync(join(c, '.claude/agents/builder.md'))).toBe(true)
+      rmSync(join(c, '.claude'), { recursive: true })
+      real.startScratch(tileOf(real, crew.id, 'claude').id)
+      expect(existsSync(join(c, '.claude/agents/builder.md'))).toBe(true)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('leaves shell tiles alone, creates no missing folder, survives a failed install and logs only changes', () => {
+    const root = mkdtempSync(join(tmpdir(), 'foreman-kit-'))
+    try {
+      const real = kitForeman()
+      const lines: string[] = []
+      real.on('event', (e: { kind: string; message: string }) => lines.push(`${e.kind}: ${e.message}`))
+      const kitLines = () => lines.filter((l) => l.includes('Orchestration kit'))
+
+      const dir = join(root, 'p')
+      mkdirSync(dir)
+      const crew = store.createCrew('lean', dir)
+      real.handlers['crews:update'](crew.id, { factory: true })
+      rmSync(join(dir, '.claude'), { recursive: true })
+      lines.length = 0
+      real.startScratch(tileOf(real, crew.id, 'shell').id)
+      expect(existsSync(join(dir, '.claude'))).toBe(false)
+
+      real.startScratch(tileOf(real, crew.id, 'claude').id)
+      expect(kitLines()).toHaveLength(1)
+      real.startScratch(tileOf(real, crew.id, 'claude').id)
+      expect(kitLines()).toHaveLength(1)
+
+      const gone = join(root, 'gone')
+      const missing = store.createCrew('missing', gone)
+      real.handlers['crews:update'](missing.id, { factory: true })
+      expect(existsSync(gone)).toBe(false)
+      expect(kitLines().some((l) => l.startsWith('error') && l.includes('does not exist'))).toBe(true)
+
+      const file = join(root, 'a-file')
+      writeFileSync(file, 'x')
+      const broken = store.createCrew('broken', file)
+      real.handlers['crews:update'](broken.id, { factory: true })
+      const before = children.length
+      expect(() => real.startScratch(tileOf(real, broken.id, 'claude').id)).not.toThrow()
+      expect(kitLines().filter((l) => l.startsWith('error')).length).toBeGreaterThan(1)
+      expect(children.length).toBe(before + 1)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('opens new Claude tiles in the Chat view, other tiles in the Terminal view', () => {
