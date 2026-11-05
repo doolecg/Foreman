@@ -60,7 +60,9 @@ export function hooksConfig(
     hooks.PostToolUse = [entry('Agent')]
   }
   if (factory) {
-    for (const event of ['SubagentStart', 'SubagentStop']) hooks[event] = [entry()]
+    // SessionStart, UserPromptSubmit, Stop and SessionEnd drive the graph's Orchestrator state and the commit link; the hook prints nothing for them.
+    // Cost: two more hook processes per turn (UserPromptSubmit, Stop), plus one each at session start and end.
+    for (const event of ['SessionStart', 'UserPromptSubmit', 'Stop', 'SessionEnd', 'SubagentStart', 'SubagentStop']) hooks[event] = [entry()]
     hooks.PreToolUse = [entry('Agent|Task')]
     // Orchestration also reads the memory and search tools to count recall calls: one more hook process per such call, so only here.
     hooks.PostToolUse = [entry('Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*')]

@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react'
+import { GitCompareArrows } from 'lucide-react'
 import { tileState } from '@shared/claude-chat'
 import type { ScratchView } from '@shared/types'
 import { SlidingThumb } from '@/components/ui/sliding-thumb'
 import { cn } from '@/lib/utils'
 import { ContextButton } from './ContextPopover'
+import { DIFF_STATE_EVENT, openDiffPanel, type DiffStateDetail } from './diffModel'
 import { useChatState } from './useChat'
 
 // The tile header's parts for a Claude tile. TileFrame draws the icon, title, fullscreen and close; these fill the rest.
@@ -73,8 +76,27 @@ export function ViewSwitch({ view, blockedReason, onChange }: { view: ScratchVie
 export function ChatHeaderControls({ scratchId, onView }: { scratchId: number; onView: (v: ScratchView) => void }) {
   const state = useChatState(scratchId)
   const busy = !!state && state.turn.phase !== 'idle' && state.process === 'ready'
+  const [diffOpen, setDiffOpen] = useState(false)
+  useEffect(() => {
+    const onState = (e: Event) => {
+      const d = (e as CustomEvent<DiffStateDetail>).detail
+      if (d.scratchId === scratchId) setDiffOpen(d.open)
+    }
+    window.addEventListener(DIFF_STATE_EVENT, onState)
+    return () => window.removeEventListener(DIFF_STATE_EVENT, onState)
+  }, [scratchId])
   return (
     <>
+      <button
+        type="button"
+        aria-label="Show changes"
+        aria-pressed={diffOpen}
+        title="Show changes"
+        onClick={() => openDiffPanel({ scratchId, toggle: true })}
+        className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md p-1"
+      >
+        <GitCompareArrows className="size-4" />
+      </button>
       <ContextButton scratchId={scratchId} />
       <ViewSwitch view="chat" blockedReason={busy ? 'Switch views when Claude is not working' : null} onChange={onView} />
     </>

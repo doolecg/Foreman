@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Foreman plan: project run scripts (Saturday 7 November 2026)</title>
+<style>
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #e8e4df; background: #2a2523; }
+  h1 { font-size: 1.6rem; } h2 { margin-top: 2rem; font-size: 1.2rem; border-bottom: 1px solid #5a4f49; padding-bottom: .2rem; }
+  .box { background: #352f2c; border-radius: 10px; padding: .8rem 1.1rem; }
+  li { margin: .3rem 0; } code { background: #1f1b19; padding: 0 .3rem; border-radius: 4px; }
+  label { cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Project run scripts (like T3 Code)</h1>
+<p>Planned for Saturday 7 November 2026. Branch: a new <code>dev-4.4.0</code>. Status: plan only, nothing built, waiting for your go.</p>
+
+<div class="box">
+<h2 style="margin-top:0">Read this first</h2>
+<ol>
+  <li>A project gets a list of named scripts (for example "Dev", "Test", "Build"). One click runs one.</li>
+  <li>Scripts live in the project, so each project has only the ones it needs (pillar 1).</li>
+  <li>Nothing runs by itself. Only a click runs a script. Auto-run is left out of version 1.</li>
+  <li>Four decisions for you are in section 6. I have picked a default for each, so you can just say "go".</li>
+</ol>
+</div>
+
+<h2>1. What you get</h2>
+<ul>
+  <li>A "Scripts" button in the chat header with one entry per script, plus a small editor to add, rename, reorder and delete them.</li>
+  <li>Each script has a name, a command, an optional folder (default: the project root) and an optional shortcut key.</li>
+  <li>Running a script shows live output in a panel, with a running mark and a Stop button. Stop ends only the process Foreman started, by its PID.</li>
+  <li>The run configs Foreman already reads from <code>.run/</code> (Main Run, Dev Run) can be imported as a starting list, so you do not retype them.</li>
+</ul>
+
+<h2>2. What T3 Code does (from memory, not checked)</h2>
+<p>As I remember it, T3 Code keeps per-project script buttons in the header, each with a name, an icon, a command and a keybinding, and it can run one automatically when a new worktree is made. I have not looked at it this week. Step 1 below confirms it before we copy anything.</p>
+
+<h2>3. Where the data lives</h2>
+<p>In one project file, <code>.foreman/scripts.json</code>. This follows the rule that setup and project features only write project-level files and never touch global config. Foreman never deletes the file.</p>
+
+<h2>4. Saturday steps (one at a time, each with a check)</h2>
+<ol>
+  <li><label><input type="checkbox"> <b>Map.</b> Recall agent finds the terminal or process code Foreman already has, the <code>.run/</code> reader if any, and how the chat header is built. Check: a short list of files and the seam to use. Also look at T3 Code to confirm section 2.</label></li>
+  <li><label><input type="checkbox"> <b>Shared types and file.</b> A <code>ProjectScript</code> type in <code>shared</code>, and read/write of <code>.foreman/scripts.json</code> in <code>core</code>, with tests (missing file, bad JSON, duplicate names). Check: new unit tests pass.</label></li>
+  <li><label><input type="checkbox"> <b>Runner.</b> Start a script as a child process in the project folder, stream output, keep its PID, stop it by PID, refuse a second copy of the same script while one runs. Check: tests with a short fake command; the process is gone after Stop.</label></li>
+  <li><label><input type="checkbox"> <b>IPC.</b> List, save, run and stop calls between the window and the main process, in <code>shared/ipc.ts</code> and <code>main/ipc.ts</code>. Check: typecheck and a call test.</label></li>
+  <li><label><input type="checkbox"> <b>Scripts button and output panel.</b> The header menu, a running mark, the output panel with Stop. Check: I run it and send you a screenshot.</label></li>
+  <li><label><input type="checkbox"> <b>Editor and import.</b> Add, edit, delete, reorder; shortcut key; "Import from .run" button. Check: screenshot, plus a test for the import.</label></li>
+  <li><label><input type="checkbox"> <b>Council.</b> council-run, council-ui and council-code on the diff, then the reviewer. Max 3 fix passes, then I stop and ask.</label></li>
+  <li><label><input type="checkbox"> <b>Bible.</b> Add the idea to the idea map and change log (the bible file is still the empty template, so I will ask before filling it).</label></li>
+</ol>
+
+<h2>5. How you test it</h2>
+<ol>
+  <li>Open a project and click Scripts, then add "Dev" with command <code>npm run dev</code>.</li>
+  <li>Click it. Output appears, the mark shows running. Click Stop. The mark clears and the process is gone from Task Manager.</li>
+  <li>Click Import from .run. Main Run and Dev Run appear in the list.</li>
+</ol>
+
+<h2>6. Decisions for you (my pick first)</h2>
+<ol>
+  <li><b>Where output shows:</b> a panel beside the chat (my pick), or a tab in the existing terminal.</li>
+  <li><b>Run on new worktree:</b> leave out of version 1 (my pick), or build it now.</li>
+  <li><b>Same script twice:</b> block the second click (my pick), or allow several.</li>
+  <li><b>Icons:</b> a small fixed set to choose from (my pick), or none.</li>
+</ol>
+
+<h2>7. Out of scope</h2>
+<ul>
+  <li>Auto-run on open, on save or on a schedule.</li>
+  <li>Scripts that need secrets. Nothing is read from <code>.env</code>.</li>
+  <li>Running scripts on a remote machine.</li>
+</ul>
+
+<h2>8. Risks</h2>
+<ul>
+  <li>A script can do anything the command does. The project file is plain text, so a cloned repo could carry a harmful script. Mitigation: no auto-run, and the command is shown in full before the first run of any script that came from a file you did not write.</li>
+  <li>Windows process trees: stopping a script must end its children too. Step 3 has a test for this.</li>
+</ul>
+</body>
+</html>

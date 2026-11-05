@@ -91,7 +91,7 @@ describe('hooksConfig Factory Mode', () => {
 
   it('installs the sub-agent events and the Agent|Task PreToolUse hook with no status line when mods are off', () => {
     const cfg = hooksConfig(paths, off, true)!
-    expect(Object.keys(cfg.hooks).sort()).toEqual(['PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SubagentStart', 'SubagentStop'])
+    expect(Object.keys(cfg.hooks).sort()).toEqual(['PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SessionEnd', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'])
     expect(cfg.hooks.PostToolUse).toEqual([{ matcher: 'Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*', hooks: [{ type: 'command', command: expect.any(String) }] }])
     expect(cfg.hooks.PostToolUseFailure).toEqual([{ matcher: 'Agent|Task', hooks: [{ type: 'command', command: expect.any(String) }] }])
     expect(cfg.hooks.PreToolUse).toEqual([{ matcher: 'Agent|Task', hooks: [{ type: 'command', command: expect.stringContaining(' hook ') }] }])
@@ -100,7 +100,7 @@ describe('hooksConfig Factory Mode', () => {
 
   it('is independent of the subagents panel mod, and widens the panel PreToolUse matcher when both are on', () => {
     const noPanel = hooksConfig(paths, { ...off, enabled: true }, true)!
-    expect(Object.keys(noPanel.hooks).sort()).toEqual(['PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SubagentStart', 'SubagentStop'])
+    expect(Object.keys(noPanel.hooks).sort()).toEqual(['PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SessionEnd', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'])
     expect(noPanel.statusLine).toBeDefined()
     const both = hooksConfig(paths, { ...off, enabled: true, mods: mods({ subagents: true }) }, true)!
     expect(both.hooks.PreToolUse).toEqual([{ matcher: 'Agent|Task', hooks: expect.any(Array) }])
@@ -156,6 +156,7 @@ describe('op-event.mjs Factory cap', () => {
         env: { PATH: process.env.PATH ?? '', FOREMAN_SOURCE: 'foreman', FOREMAN_TILE_ID: '7', FOREMAN_FACTORY: '1' },
         encoding: 'utf8',
       })
+    for (const quiet of ['SessionStart', 'UserPromptSubmit', 'Stop', 'SessionEnd']) expect([quiet, send(quiet).stdout]).toEqual([quiet, ''])
     for (let n = 1; n <= 3; n++) {
       const call = send('PreToolUse', { tool_name: 'Agent', tool_input: {} })
       expect([n, call.status, call.stdout]).toEqual([n, 0, ''])

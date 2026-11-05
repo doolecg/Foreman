@@ -57,7 +57,8 @@ import { createNote, deleteNote, getNote, listNotes, updateNote } from './notes'
 import { isNoteColor } from '../shared/notes'
 import { JsonlTail, parseLine, transcriptPath } from './transcripts'
 import { CapabilityProber, systemProbeDeps, type ProbeDeps } from './capabilities'
-import { ClaudeAgents } from './claude-agents'
+import { ClaudeAgents, sameFolder } from './claude-agents'
+import { createGraphPusher } from './graph-push'
 import { hooksConfig, type ModsPaths } from './claude-events'
 import { packStatus, resetPack } from './engineering'
 import { installKit } from './orchestration-kit'
@@ -269,6 +270,8 @@ export class Foreman extends EventEmitter<PushEvents> {
   private readonly launch: LaunchOptions
   private readonly hookPaths: ModsPaths | null
   private readonly claudeAgents: ClaudeAgents | null
+  // At most ~4 graph pushes a second per project, however many hook events arrive.
+  private readonly graphPusher = createGraphPusher({ intervalMs: 250, send: (project) => this.pushGraph(project) })
   private readonly modPluginsDir: string | null
   private readonly engineeringDir: string | null
   // Per project, started when the first stage list is asked for: reports engineering:tasks when its task folders change.
@@ -327,6 +330,7 @@ export class Foreman extends EventEmitter<PushEvents> {
             this.noteTurn(this.modsPhase, state.tileId, state.session.phase)
             this.emit('claudeTile:state', state)
           },
+          onGraph: (project) => this.graphPusher.push(project),
         })
       : null
     applyToolPaths(this.toolPaths())
@@ -962,12 +966,20 @@ export class Foreman extends EventEmitter<PushEvents> {
     return text.slice(0, 20_000)
   }
 
-  private capabilityHandlers(): Group<'capabilities'> & Group<'claudeTile'> & Group<'claude'> {
+  // Sends the graph to every project whose folder is the one the events came from.
+  private pushGraph(project: string): void {
+    for (const crew of this.store.listCrews()) {
+      if (crew.folder && sameFolder(crew.folder, project)) this.emit('graph:state', { crewId: crew.id, graph: this.claudeAgents?.graphFor(crew.folder) ?? null })
+    }
+  }
+
+  private capabilityHandlers(): Group<'capabilities'> & Group<'claudeTile'> & Group<'claude'> & Group<'graph'> {
     return {
       'capabilities:get': (): Promise<CapabilityReport> => this.prober.get(),
       'capabilities:refresh': (): Promise<CapabilityReport> => this.prober.refresh(),
       'claude:doctor': () => this.claudeDoctor(),
       'claudeTile:get': (tileId): ClaudeTileState | null => this.claudeAgents?.get(tileId) ?? null,
+      'graph:get': (crewId) => this.claudeAgents?.graphFor(this.requireCrew(crewId).folder) ?? null,
     }
   }
 
@@ -1282,6 +1294,7 @@ export class Foreman extends EventEmitter<PushEvents> {
   // Quit path: no more timers, every process Foreman started killed by pid, every token revoked, the socket
   // closed. No step can hold the quit for more than shutdownStepMs. Sessions are the caller's.
   async shutdown(): Promise<void> {
+    this.graphPusher.dispose()
     const bounded = async (work: () => Promise<unknown> | unknown): Promise<void> => {
       let timer: ReturnType<typeof setTimeout> | undefined
       const limit = new Promise<void>((resolve) => (timer = setTimeout(resolve, this.shutdownStepMs)))
@@ -1597,7 +1610,7 @@ export class Foreman extends EventEmitter<PushEvents> {
           onWaiting: (w) => (w ? this.claudeAgents?.setWaiting(id, w) : this.claudeAgents?.clearWaiting(id)),
           onExit: (info) => this.onChatExit(id, info),
           effort: scratch.effort || null,
-          bypassAllowed: this.presetOf(scratch)?.permissionMode === 'bypassPermissions',
+          bypassAllowed: true,
           keepWarm: {
             ttlMs: () => this.cacheTtlMs(scratch),
             enabled: () => this.settings.mods.keepWarm,
@@ -1639,7 +1652,8 @@ export class Foreman extends EventEmitter<PushEvents> {
     const scratch = this.store.getScratch(scratchId)
     if (!scratch) return
     this.attachScratch(scratchId, this.transcriptFile(scratch.cwd, sessionId), sessionId)
-    if (this.hooksConfig()) this.claudeAgents?.begin(scratchId, sessionId, scratch.cwd)
+    // An Orchestration project feeds the graph even with mods off, as the terminal path does.
+    if (this.hooksConfig(this.store.getCrew(scratch.crewId)?.factory === true)) this.claudeAgents?.begin(scratchId, sessionId, scratch.cwd)
     this.log('scratch', `Tile ${scratch.title} started (Chat view)`, scratch.crewId)
   }
 

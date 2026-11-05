@@ -11,6 +11,7 @@
 // blocks Claude Code.
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { modelEngineStop } from './model-engine-check.mjs'
 
 const SAFE_ID = /^[A-Za-z0-9_-]{1,128}$/
 const MAX_STRING = 2000
@@ -103,6 +104,10 @@ async function main() {
     const file = join(eventsDir, `${sessionId}.jsonl`)
     appendFileSync(file, `${JSON.stringify({ ts: Date.now(), tile, ...shrink(payload) })}\n`)
     factoryCap(file, payload)
+    if (process.env.FOREMAN_FACTORY === '1') {
+      const block = modelEngineStop(payload)
+      if (block) process.stdout.write(`${JSON.stringify(block)}\n`)
+    }
     return
   }
   const file = join(eventsDir, `status-${sessionId}.json`)

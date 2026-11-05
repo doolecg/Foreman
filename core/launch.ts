@@ -467,7 +467,8 @@ export function buildChatLaunch(scratch: ScratchTerminal, ctx: LaunchContext, op
   add('--include-hook-events')
   add('--forward-subagent-text')
   if (!supported || supported.has('--permission-prompt-tool') || supported.has('--permission-prompts')) stream.push('--permission-prompt-tool', 'stdio')
-  if (opts.preset?.permissionMode === 'bypassPermissions') add('--allow-dangerously-skip-permissions')
+  // Only makes Bypass selectable in the mode picker; the start mode stays whatever the preset says.
+  add('--allow-dangerously-skip-permissions')
   // Chat starts in Auto mode unless a preset sets its own.
   if (!base.args.includes('--permission-mode')) add('--permission-mode', 'auto')
   // File snapshots at each user message: "Edit from here" can then revert the files (claude --rewind-files).

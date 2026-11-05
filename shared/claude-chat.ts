@@ -502,6 +502,8 @@ export interface ChatSendInput {
   text: string
   // Pasted or attached images (base64 without the data: prefix). Other files are inserted into the text as @paths.
   images?: Array<{ mediaType: string; base64: string }>
+  // While a turn runs: send into it now instead of holding the message until the turn ends (it is held if Claude cannot take it yet).
+  steer?: boolean
 }
 
 export type ChatDecision =

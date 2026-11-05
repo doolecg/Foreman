@@ -1,4 +1,5 @@
 import type { GraphSubagent, OrchestrationGraph } from '../shared/orchestration-graph'
+import { roleOf, type Role } from '../shared/orchestration-role'
 import type { ClaudeEvent } from './claude-events'
 
 // Derives the Orchestration graph from one Claude session's hook events (the same events scripts/op-event.mjs writes).
@@ -8,15 +9,6 @@ import type { ClaudeEvent } from './claude-events'
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {})
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v !== '' ? v : undefined)
 
-type Role = 'opus' | 'builder' | 'recall' | 'ui' | 'code' | 'run'
-
-// Same mapping as the Model Engine's who(): council-ui/code/run, reviewer (the Opus gate), recall, builder.
-function roleOf(agentType: string | undefined): Role | null {
-  const a = agentType ?? ''
-  const council = a.match(/council[-_ ]?(ui|code|run)/i)
-  if (council?.[1]) return council[1].toLowerCase() as Role
-  return /reviewer/i.test(a) ? 'opus' : /recall/i.test(a) ? 'recall' : /builder/i.test(a) ? 'builder' : null
-}
 
 // The first word of a reply, when it is one of the verdict words ("pass: 12 tests", "reject - missing test").
 const VERDICT = /^[^a-z]*(approve|reject|pass|note|fail)\b/i

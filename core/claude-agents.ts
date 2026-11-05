@@ -2,6 +2,8 @@ import { mkdirSync, readFileSync, watch } from 'node:fs'
 import { join } from 'node:path'
 import type { ClaudePhase, ClaudeSessionState, ClaudeSessionStatus, ClaudeSubagent, ClaudeTileState, SubagentStatus, SubagentTokens } from '../shared/mods'
 import { isSafeSessionId, parseEventLine, parseStatusFile, type ClaudeEvent } from './claude-events'
+import { applyGraphEvent, createGraphStore, graphForProject } from './orchestration-graph'
+import type { OrchestrationGraph } from '../shared/orchestration-graph'
 import { JsonlTail, parseLine, transcriptProjectDir } from './transcripts'
 
 // Per-tile Claude Code state from the events folder (hooks) and the status file. Nothing polls: the events folder is
@@ -233,6 +235,8 @@ export interface ClaudeAgentsOptions {
   eventsDir: string
   // Receives the tile's state after each change.
   emit: (state: ClaudeTileState) => void
+  // A project's Orchestration graph changed; ask graphFor(project) for it. Called once per batch of events, per project.
+  onGraph?: (project: string) => void
   now?: () => number
   // Test seam for fs.watch: returns a closer. Watch errors are swallowed; the state then updates on the next start.
   watch?: (dir: string, onChange: (file: string | null) => void) => { close(): void }
@@ -244,12 +248,20 @@ const defaultWatch = (dir: string, onChange: (file: string | null) => void): { c
   return w
 }
 
+const dirKey = (p: string): string => {
+  const d = p.replace(/\\/g, '/').replace(/\/+$/, '')
+  return process.platform === 'win32' ? d.toLowerCase() : d
+}
+export const sameFolder = (a: string, b: string): boolean => dirKey(a) === dirKey(b)
+
 const FILE_RE = /^(status-)?(.+)\.(jsonl|json)$/
 
 export class ClaudeAgents {
   private readonly tiles = new Map<number, TileRecord>()
   private readonly sessionTile = new Map<string, number>()
   private readonly tails = new Map<string, JsonlTail>()
+  // The one Orchestration graph store of the app: every tile's events feed it, whichever window shows the graph.
+  private readonly graphs = createGraphStore()
   private watcher: { close(): void } | null = null
   private readonly startedAt: number
   private closed = false
@@ -327,6 +339,13 @@ export class ClaudeAgents {
     return rec ? this.snapshot(rec) : null
   }
 
+  // The newest session's graph for a project folder (compared ignoring case, slash direction and a trailing slash).
+  graphFor(folder: string): OrchestrationGraph | null {
+    let project: string | null = null
+    for (const g of this.graphs.graphs.values()) if (g.project !== null && sameFolder(g.project, folder)) project = g.project
+    return project === null ? null : graphForProject(this.graphs, project)
+  }
+
   // Stops the watcher and forgets every tile (mods were switched off, or the app is quitting). Events that
   // still arrive from running tiles are ignored until the next begin().
   dispose(): void {
@@ -374,6 +393,7 @@ export class ClaudeAgents {
       this.tails.set(sessionId, tail)
     }
     const changed = new Set<TileRecord>()
+    const graphProjects = new Set<string>()
     for (const line of tail.read()) {
       const ev = parseEventLine(line)
       if (!ev) continue
@@ -381,10 +401,15 @@ export class ClaudeAgents {
       if (!rec) continue
       if (reduceEvent(rec.agents, ev)) changed.add(rec)
       if (reduceSession(rec.session, ev)) changed.add(rec)
+      if (applyGraphEvent(this.graphs, ev)) {
+        const project = this.graphs.graphs.get(ev.sessionId)?.project
+        if (project) graphProjects.add(project)
+      }
       if (rec.agents.sessionId === ev.sessionId) this.refreshUsage(rec)
       rec.updatedAt = ev.ts || this.clock
     }
     for (const rec of changed) this.publish(rec)
+    for (const project of graphProjects) this.opts.onGraph?.(project)
   }
 
   // The tile an event belongs to: its FOREMAN_TILE_ID tag, else the tile already mapped to the session.

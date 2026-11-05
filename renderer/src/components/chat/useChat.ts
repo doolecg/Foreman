@@ -123,9 +123,9 @@ export function onComposerRestore(scratchId: number, take: (m: ChatSendInput) =>
 const fail = (e: unknown) => toast(decodeIpcError(e).message, true)
 
 export const chatActions = {
-  async send(id: number, text: string, images: Array<{ mediaType: string; base64: string }> = []): Promise<boolean> {
+  async send(id: number, text: string, images: Array<{ mediaType: string; base64: string }> = [], steer = false): Promise<boolean> {
     try {
-      await bridge().invoke('chat:send', id, { text, ...(images.length ? { images } : {}) })
+      await bridge().invoke('chat:send', id, { text, ...(images.length ? { images } : {}), ...(steer ? { steer } : {}) })
       return true
     } catch (e) {
       fail(e)

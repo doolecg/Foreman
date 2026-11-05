@@ -13,7 +13,7 @@ import { toast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { applySuggestion, currentModel, filterCommands, highlightParts, modeLabel, modeOptions, nextMode, triggerAt, withLocalCommands, type Trigger } from './chatHelpers'
+import { applySuggestion, currentModel, filterCommands, highlightParts, modeLabel, modeOptions, nextMode, triggerAt, withLocalCommands, enterAction, type Trigger } from './chatHelpers'
 import { EffortPopover } from './EffortPopover'
 import { setActivity } from './activityStore'
 import { CommandMenu } from './CommandMenu'
@@ -23,7 +23,7 @@ import { InfoRow } from './InfoRow'
 import { QueueStrip } from './QueueStrip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { chatActions, onComposerRestore } from './useChat'
-import { altEnterTarget, editRefusal, planSteer } from '@shared/chat-queue'
+import { editRefusal, planSteer } from '@shared/chat-queue'
 
 interface Attachment {
   name: string
@@ -34,6 +34,7 @@ interface Attachment {
 
 // The box starts as one line and grows up to this share of the tile's height, then scrolls.
 const MAX_SHARE = 0.4
+const MOD = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform) ? 'Cmd' : 'Ctrl'
 // Kept while the app runs so a chat bar keeps its text (and the last enhanced prompt) across project, and Settings switches.
 const drafts = new Map<number, string>()
 const lastEnhanced = new Map<number, string>()
@@ -257,7 +258,7 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
     setKeepFullNow(keepFull.has(scratchId))
   }
 
-  const submit = async () => {
+  const submit = async (steer = false) => {
     const body = text.trim()
     if ((!body && images.length === 0) || disabled) return
     // A command that runs only on Claude Code's screen opens the Commands menu on it instead of going to Claude.
@@ -271,7 +272,7 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
     }
     // A full context compacts first (Claude Code runs the next message after it) unless the owner chose to keep the history.
     if (compactTokens !== null && !keepFullNow && !body.startsWith('/') && !(await chatActions.send(scratchId, '/compact'))) return
-    const ok = await chatActions.send(scratchId, body, images.map(({ mediaType, base64 }) => ({ mediaType, base64 })))
+    const ok = await chatActions.send(scratchId, body, images.map(({ mediaType, base64 }) => ({ mediaType, base64 })), steer)
     if (!ok) return
     setText('')
     setImages([])
@@ -282,7 +283,7 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
     onSent()
   }
 
-  // The core also refuses while Claude stops or compacts (and says why in a toast).
+  // The core also refuses while Claude stops or compacts (and says why in a chat notice).
   const steerNow = planSteer({ process: state.process, turnRunning: running, stopping: false, compacting: false, runningSubagents: 0 })
   const sendBlocked = steerNow.ok ? null : steerNow.reason
 
@@ -330,13 +331,15 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
       if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) return (e.preventDefault(), accept(sel))
       if (e.key === 'Escape') return (e.preventDefault(), e.stopPropagation(), setDismissed(dismissKey))
     }
-    if (e.key === 'Enter' && e.altKey) {
-      const id = altEnterTarget({ text, images: images.length }, state.queue)
-      if (id) return (e.preventDefault(), chatActions.queueSend(scratchId, id))
-    }
-    if (e.key === 'Enter' && !e.shiftKey) {
+    const act = e.key === 'Enter' ? enterAction(e, { running, emptyBox: !text.trim() && images.length === 0, hasQueue: state.queue.length > 0 }) : null
+    if (act === 'sendQueued') {
       e.preventDefault()
-      void submit()
+      chatActions.queueSend(scratchId, state.queue[0]!.id)
+    } else if (act === 'none') {
+      e.preventDefault()
+    } else if (act === 'send' || act === 'queue' || act === 'steer') {
+      e.preventDefault()
+      void submit(act === 'steer')
     } else if (e.key === 'Tab' && e.shiftKey) {
       e.preventDefault()
       chatActions.setMode(scratchId, nextMode(state))
@@ -412,7 +415,7 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
 
   return (
     <div className="shrink-0 px-4 pt-1.5 pb-3.5" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
-      {state.queue.length > 0 && <QueueStrip queue={state.queue} sendBlocked={sendBlocked} onEdit={(id) => void editQueued(id)} onMove={(id, by) => chatActions.queueMove(scratchId, id, by)} onSend={(id) => chatActions.queueSend(scratchId, id)} onRemove={(id) => chatActions.queueRemove(scratchId, id)} />}
+      {state.queue.length > 0 && <QueueStrip queue={state.queue} sendBlocked={sendBlocked} onEdit={(id) => void editQueued(id)} onMove={(id, by) => chatActions.queueMove(scratchId, id, by)} onSend={(id) => chatActions.queueSend(scratchId, id)} onRemove={(id) => chatActions.queueRemove(scratchId, id)} sendFirstKey={`${MOD}+Shift+Enter`} />}
       <div className="relative mx-auto max-w-[720px]">
         {suggesting && (
           <div role="listbox" aria-label={trigger?.kind === '/' ? 'Commands' : 'Files'} className="bg-popover border-border absolute right-0 bottom-full left-0 z-20 mb-2 max-h-72 overflow-y-auto rounded-[18px] border p-1.5 shadow-[0_10px_30px_rgba(0,0,0,.18)] dark:shadow-[0_10px_30px_rgba(0,0,0,.45)]">
@@ -517,14 +520,14 @@ export function Composer({ scratchId, state, launchEffort, tileModel, disabled, 
               </span>
             )}
             {running ? (
-              <button type="button" aria-label="Stop" title="Stop (Esc)" onClick={() => chatActions.interrupt(scratchId)} className="stop-glow bg-foreground text-background grid size-[30px] shrink-0 place-items-center rounded-full hover:opacity-90">
+              <button type="button" aria-label="Stop" title={`Stop (Esc). Enter queues, ${MOD}+Enter steers`} onClick={() => chatActions.interrupt(scratchId)} className="stop-glow bg-foreground text-background grid size-[30px] shrink-0 place-items-center rounded-full hover:opacity-90">
                 <Square className="size-[9px] fill-current" aria-hidden />
               </button>
             ) : (
               <button
                 type="button"
                 aria-label="Send"
-                title="Send (Enter)"
+                title={`Send (Enter or ${MOD}+Enter)`}
                 disabled={!canSend}
                 onClick={() => void submit()}
                 className={cn('grid size-[30px] shrink-0 place-items-center hover:opacity-90', canSend ? 'bg-primary text-primary-foreground rounded-[10px]' : 'bg-foreground text-background rounded-full opacity-40')}

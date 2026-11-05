@@ -43,8 +43,8 @@ describe('buildChatLaunch', () => {
     const l = buildChatLaunch(tile(), ctx)
     expect(l.file).toBe('claude')
     expect(l.args.slice(0, STREAM.length)).toEqual(STREAM)
-    expect(l.args.slice(STREAM.length)).toEqual(['--permission-mode', 'auto', '--model', 'claude-sonnet-5-5', '--effort', 'high', '--plugin-dir', '/app/plugin', '--session-id', ctx.sessionId])
-    expect(l.args).not.toContain('--allow-dangerously-skip-permissions')
+    expect(l.args.slice(STREAM.length)).toEqual(['--allow-dangerously-skip-permissions', '--permission-mode', 'auto', '--model', 'claude-sonnet-5-5', '--effort', 'high', '--plugin-dir', '/app/plugin', '--session-id', ctx.sessionId])
+    expect(l.args).toContain('--allow-dangerously-skip-permissions')
     expect(l.env.FOREMAN_TILE_ID).toBeUndefined()
     expect(l.cwd).toBe('/code/shop')
   })
@@ -74,10 +74,11 @@ describe('buildChatLaunch', () => {
     expect(buildChatLaunch(tile(), ctx).env.CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING).toBe('1')
   })
 
-  it('adds --allow-dangerously-skip-permissions only for a bypass preset', () => {
-    const preset = { id: 3, permissionMode: 'bypassPermissions', tools: '', allow: [], deny: [], cacheTtl: 'auto', contextCap: 0, roleText: null } as unknown as Preset
-    expect(buildChatLaunch(tile(), ctx, { preset }).args).toContain('--allow-dangerously-skip-permissions')
-    expect(buildChatLaunch(tile(), ctx, { preset: { ...preset, permissionMode: 'plan' } }).args).not.toContain('--allow-dangerously-skip-permissions')
+  it('always adds --allow-dangerously-skip-permissions, and the start mode follows the preset', () => {
+    const preset = { id: 3, permissionMode: 'plan', tools: '', allow: [], deny: [], cacheTtl: 'auto', contextCap: 0, roleText: null } as unknown as Preset
+    const args = buildChatLaunch(tile(), ctx, { preset }).args
+    expect(args).toContain('--allow-dangerously-skip-permissions')
+    expect(args[args.indexOf('--permission-mode') + 1]).toBe('plan')
   })
 
   it('loads only the own MCP servers and project settings of the tile when the preset limits the tools (a user MCP config would load in full without ToolSearch)', () => {

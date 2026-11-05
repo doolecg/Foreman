@@ -689,8 +689,14 @@ export class ChatSession {
     // While a turn runs (or earlier messages still wait) the message is held here, not written: the strip can edit,
     // reorder and remove it until it goes to Claude.
     if (planRequest === null && (this.mapper.turnRunning || this.held.length)) {
-      this.held.push({ id: `q${this.nextId++}`, text, images, at: this.now() })
+      const id = `q${this.nextId++}`
+      this.held.push({ id, text, images, at: this.now() })
       this.publishHeld()
+      // Steer: written now when planSteer allows it; otherwise the message simply stays held.
+      if (input.steer) {
+        if (this.sendHeldNow(id) === null) return
+        this.push(this.mapper.noteNotice({ source: 'info', tone: 'info', text: 'Claude cannot take a steer right now; queued instead' }))
+      }
       this.writeNextHeld()
       return
     }

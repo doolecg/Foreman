@@ -221,6 +221,31 @@ describe('ChatSession: process and protocol', () => {
     expect(h.session.sendHeldNow(first)).toMatch(/no longer queued/)
   })
 
+  it('send with steer writes at once with priority now while a turn runs, and without steer it is held', () => {
+    const h = harness()
+    h.session.start()
+    const c = h.children[0]!
+    c.out(initResponse())
+    h.session.send({ text: 'go' })
+    h.session.send({ text: 'held' })
+    expect(h.session.state.queue.map((q) => q.text)).toEqual(['held'])
+    h.session.send({ text: 'steered', steer: true })
+    expect(c.last()).toMatchObject({ type: 'user', priority: 'now', message: { content: [{ type: 'text', text: 'steered' }] } })
+    expect(h.session.state.queue.map((q) => q.text)).toEqual(['held'])
+  })
+
+  it('a refused steer stays queued and says so in a notice', () => {
+    const h = harness()
+    h.session.start()
+    const c = h.children[0]!
+    c.out(initResponse())
+    h.session.send({ text: 'go' })
+    c.out({ type: 'system', subtype: 'status', status: 'compacting' })
+    h.session.send({ text: 'steered', steer: true })
+    expect(h.session.state.queue.map((q) => q.text)).toEqual(['steered'])
+    expect(h.session.state.items.some((i) => i.kind === 'notice' && i.text === 'Claude cannot take a steer right now; queued instead')).toBe(true)
+  })
+
   it('Send now is refused while Claude Code is not running, compacting or stopping, and the message stays queued', () => {
     const h = harness()
     h.session.start()

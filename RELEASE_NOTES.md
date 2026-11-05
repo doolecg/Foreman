@@ -1,3 +1,25 @@
+# Foreman 4.3.0
+
+**Install:** download the file for your system from the assets below. Foreman keeps itself up to date from these releases.
+
+## New
+- **The Orchestration graph.** The Agents panel has a List | Graph switch. The graph shows the Orchestrator, Brain, Recall, Builder, Council and Freelancers as cards with links between them. Links light up only when something is moving along them, and a running card gets marching dashes round its edge.
+- **Small and Large graph views.** Small is one narrow column. Large is two columns and needs more room, so the side panel can now be dragged wider (up to 900 px, never so wide that the chat is squeezed out). The graph can also pop out into its own window.
+- **Find in thread.** Ctrl+F opens a find bar with "n of N", Enter and Shift+Enter to step, Esc to close.
+- **Diff panel.** "Show changes" opens a side panel with the files Claude changed, a "This turn" or "All changes" switch, Viewed ticks and find in the diffs. "Open diff" on the changed-files card now opens this panel.
+- **Queue or steer while a turn runs.** Enter queues, Ctrl+Enter steers into the running turn, Ctrl+Shift+Enter sends the first queued message now. A refused steer now says so and queues the message.
+- **Plan cards show where they come from.** A plan has a status chip (waiting, approved, denied, expired), and permission, question and plan cards say which agent asked.
+- **The Model Engine stops early "done".** With Orchestration on, a stop hook blocks "done" if files were edited and no council agent ran after the last edit.
+- **Token rules in the kit.** The rules Foreman installs into each project now include short replies, reading only what is needed, and filtering big output.
+
+## Changed
+- **Bypass permissions is always selectable** in the chat mode picker and the Shift+Tab cycle.
+
+## Fixed
+- **The graph in the narrow panel.** The links are drawn between the cards with rounded corners, and the running-card border no longer shows uneven blocks.
+
+---
+
 # Foreman 4.2.0
 
 **Install:** download the file for your system from the assets below. Foreman keeps itself up to date from these releases.

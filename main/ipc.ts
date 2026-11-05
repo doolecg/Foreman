@@ -14,6 +14,7 @@ import { isTrustedSender, type AppOrigin } from './guard'
 import { createMedia } from './media'
 import { isRunnable, resolveAllowedPath } from './openpath'
 import type { TilePopout } from './tile-popout'
+import type { GraphPopout } from './graph-popout'
 import type { createUpdater } from './updater'
 
 type MainHandlers = { [C in MainChannel]: (...a: Parameters<IpcApi[C]>) => ReturnType<IpcApi[C]> | Promise<ReturnType<IpcApi[C]>> }
@@ -23,16 +24,18 @@ export function registerIpc(
   updater: ReturnType<typeof createUpdater>,
   getWindow: () => BrowserWindow | null,
   origin: AppOrigin,
-  hooks: { answerClose: (action: 'shown' | 'quit' | 'stay') => void; turnBusy: (scratchId: number) => boolean; setVisible: (scratchId: number | null) => void; browser: { panels: BrowserPanels; hub: BrowserHub; popout: BrowserPopout }; tiles: TilePopout },
+  hooks: { answerClose: (action: 'shown' | 'quit' | 'stay') => void; turnBusy: (scratchId: number) => boolean; setVisible: (scratchId: number | null) => void; browser: { panels: BrowserPanels; hub: BrowserHub; popout: BrowserPopout }; tiles: TilePopout; graphs: GraphPopout },
 ): void {
   // Only the main window showing the app may call; anything else (a dropped file, a navigated page) is refused.
   // The browser pop-out windows show the same app, so they may call too.
   const { panels, hub, popout } = hooks.browser
   const tiles = hooks.tiles
+  const graphs = hooks.graphs
   const trusted = (e: IpcMainInvokeEvent) =>
     isTrustedSender(e, getWindow()?.webContents.id, origin) ||
     popout.webContentsIds().some((id) => isTrustedSender(e, id, origin)) ||
-    tiles.webContentsIds().some((id) => isTrustedSender(e, id, origin))
+    tiles.webContentsIds().some((id) => isTrustedSender(e, id, origin)) ||
+    graphs.webContentsIds().some((id) => isTrustedSender(e, id, origin))
   const refuse = () => new Error(encodeIpcError('FORBIDDEN', 'Not allowed from this page'))
   for (const channel of CORE_CHANNELS) {
     const handler = foreman.handlers[channel] as (...a: unknown[]) => unknown
@@ -176,6 +179,12 @@ export function registerIpc(
     },
     'tile:popIn': (scratchId) => tiles.close(scratchId),
     'tile:popouts': () => tiles.ids(),
+    'graph:popOut': (crewId) => {
+      if (typeof crewId !== 'number' || !Number.isInteger(crewId) || crewId <= 0) throw new Error(encodeIpcError('BAD_ARGS', 'Not a project'))
+      graphs.open(crewId)
+    },
+    'graph:popIn': (crewId) => graphs.close(crewId),
+    'graph:popouts': () => graphs.ids(),
   }
   for (const [channel, handler] of Object.entries(mainHandlers)) {
     ipcMain.handle(channel, (e, ...args: unknown[]) => {
@@ -211,6 +220,11 @@ export function registerIpc(
   forward('budget')
   forward('settings')
   forward('claudeTile:state')
+  // The graph is pushed to the main window and to the graph pop-outs (not to terminal pop-outs).
+  foreman.on('graph:state', (payload) => {
+    push(getWindow(), 'graph:state', payload)
+    for (const w of graphs.windows()) push(w, 'graph:state', payload)
+  })
   media.on('media:state', (s) => push(getWindow(), 'media:state', s))
   media.on('media:timeline', (t) => push(getWindow(), 'media:timeline', t))
   media.on('media:art', (a) => push(getWindow(), 'media:art', a))

@@ -3,13 +3,14 @@ import { ChevronRight, ChevronsDownUp, ChevronsUpDown, FileText, Folder } from '
 import { buildTree, changedFilesTitle, compactCount, dirIds, initiallyOpen, sumChanges, type FileChange, type TreeNode } from '@shared/chat-changes'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { openDiffPanel } from './diffModel'
 
 // The app opens the project's Git page on Changes when it hears this; `path` is the file whose row was clicked.
 export const OPEN_CHANGES_EVENT = 'foreman:open-changes'
 export interface OpenChangesDetail {
   path?: string
 }
-const openChanges = (path?: string) => window.dispatchEvent(new CustomEvent<OpenChangesDetail>(OPEN_CHANGES_EVENT, { detail: { path } }))
+const openGitChanges = (path?: string) => window.dispatchEvent(new CustomEvent<OpenChangesDetail>(OPEN_CHANGES_EVENT, { detail: { path } }))
 
 function Counts({ added, removed }: { added: number; removed: number }) {
   return (
@@ -23,7 +24,9 @@ function Counts({ added, removed }: { added: number; removed: number }) {
 const row = 'm-press hover:bg-accent flex w-full items-center gap-2 rounded-lg py-1 pr-2 text-left'
 
 // After a finished turn that edited files: the files as a folder tree with +/- line counts and a way to the diff.
-export const ChangedFilesCard = memo(function ChangedFilesCard({ files, small }: { files: FileChange[]; small?: boolean }) {
+// With a `scratchId` the diff opens in that chat's side panel; without one (no chat to show it in) on the Git page.
+export const ChangedFilesCard = memo(function ChangedFilesCard({ files, small, scratchId }: { files: FileChange[]; small?: boolean; scratchId?: number }) {
+  const openChanges = (path?: string) => (scratchId === undefined ? openGitChanges(path) : openDiffPanel({ scratchId, path }))
   const tree = useMemo(() => buildTree(files), [files])
   const total = useMemo(() => sumChanges(files), [files])
   const [open, setOpen] = useState<Set<string>>(() => new Set(initiallyOpen(files.length, tree)))

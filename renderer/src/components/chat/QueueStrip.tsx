@@ -12,6 +12,8 @@ interface Props {
   onMove: (id: string, by: -1 | 1) => void
   onSend: (id: string) => void
   onRemove: (id: string) => void
+  // Shortcut that sends the first queued message now, shown as a hint.
+  sendFirstKey: string
 }
 
 const btn =
@@ -25,27 +27,34 @@ function enter(el: HTMLElement | null): void {
 }
 
 // The messages held until Claude's turn ends, above the chat box: edit, reorder, send now, remove.
-export function QueueStrip({ queue, sendBlocked, onEdit, onMove, onSend, onRemove }: Props) {
+export function QueueStrip({ queue, sendBlocked, onEdit, onMove, onSend, onRemove, sendFirstKey }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLUListElement>(null)
   useFlip(list)
-  const refocus = useRef<{ id: string; act: 'up' | 'down' } | null>(null)
+  const refocus = useRef<{ id: string; act: 'up' | 'down'; after: string } | null>(null)
   // A moved row is re-inserted, which drops keyboard focus: put it back on the same arrow (or the other at the ends).
   useLayoutEffect(() => {
     const f = refocus.current
     if (!f) return
     refocus.current = null
+    // A rejected move leaves the order as it was: do not grab focus for it.
+    if (queue.map((m) => m.id).join() !== f.after) return
     const find = (act: string) => box.current?.querySelector<HTMLButtonElement>(`[data-qid="${f.id}"][data-act="${act}"]`)
     const same = find(f.act)
     ;(same && !same.disabled ? same : find(f.act === 'up' ? 'down' : 'up'))?.focus()
   }, [queue])
   const move = (id: string, act: 'up' | 'down') => {
-    refocus.current = { id, act }
+    const ids = queue.map((m) => m.id)
+    const from = ids.indexOf(id)
+    const to = from + (act === 'up' ? -1 : 1)
+    if (from < 0 || to < 0 || to >= ids.length) return
+    ;[ids[from], ids[to]] = [ids[to]!, ids[from]!]
+    refocus.current = { id, act, after: ids.join() }
     onMove(id, act === 'up' ? -1 : 1)
   }
   return (
     <div ref={box} role="region" aria-label="Queued messages" className="surface mx-auto mb-1.5 max-w-[720px] p-1.5">
-      <div className="text-muted-foreground px-2 pt-0.5 pb-1 text-[13px]">{queue.length} queued</div>
+      <div className="text-muted-foreground px-2 pt-0.5 pb-1 text-[13px]">{queue.length} queued{sendBlocked === null && ` · ${sendFirstKey} sends the first now`}</div>
       <ul ref={list} className="max-h-40 overflow-y-auto">
         {queue.map((m, i) => {
           const n = i + 1

@@ -15,7 +15,7 @@ import { ContextBar } from '@/components/chat/ItemViews'
 import { agentElapsed, agentTitle, agentList, agentRowFor, kTokens, type AgentDot, type AgentRowModel } from '@/components/chat/chatHelpers'
 import { chatActions, useChatState, useNow } from '@/components/chat/useChat'
 import { Critter } from './agents/Critter'
-import { RightNowCard } from './agents/RightNowCard'
+import { GraphSection } from './agents/GraphSection'
 import { useAgentItems } from './agents/useAgentItems'
 import { cardTime, critterFor, effortInfo, loadCleared, loadStatusOpen, mcpSummary, mcpTiles, metricsOf, money, progressOf, saveCleared, saveStatusOpen, sessionRows, shortModel, skillSummary, skillTiles, stopPlan, summarize, viewFor, type AgentView, type EffortTone, type McpTile, type McpTone } from './agents/agentView'
 import { SECTION } from './PanelRow'
@@ -423,7 +423,7 @@ export function SubagentPanel({ tileId, crewId, state, chat, onCollapse }: ModPr
         </button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <RightNowCard tileId={tileId} crewId={crewId} chat={!!chat} />
+        <GraphSection tileId={tileId} crewId={crewId} chat={!!chat} />
         {chat ? <ChatAgents tileId={tileId} /> : <HookAgents tileId={tileId} agents={state?.subagents ?? []} />}
         <StatusSection tileId={tileId} chat={chat} />
       </div>

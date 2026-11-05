@@ -1,5 +1,5 @@
 import { memo, useMemo, useRef } from 'react'
-import { buildRows, type ChatItem, type ChatRow } from '@shared/claude-chat'
+import { buildRows, type ChatItem, type ChatRow, type SubagentItem } from '@shared/claude-chat'
 import { planTurns, type TurnEntry } from '@shared/chat-summary'
 import { collectChanges, type FileChange } from '@shared/chat-changes'
 import { ChangedFilesCard } from './ChangedFilesCard'
@@ -7,6 +7,7 @@ import { AgentsSummary, AssistantText, CommandRow, NoticeRow, SubagentRow, Think
 import { PermissionCard, PlanCard, QuestionCard } from './PromptCards'
 import { cn } from '@/lib/utils'
 import { chatActions } from './useChat'
+import { promptSource } from './chatHelpers'
 
 interface Props {
   scratchId: number
@@ -20,9 +21,11 @@ interface Props {
   // The last turn is still running: it gets a "Working for" heading and its rows stay open.
   live?: boolean
   turnStartedAt?: number | null
+  // Sub-agents of the thread: a prompt from one of them is labelled "from <agent>".
+  agents?: readonly SubagentItem[]
 }
 
-const ItemView = memo(function ItemView({ scratchId, item, onOpenAgent, onTerminal, small, prompts }: Omit<Props, 'items'> & { item: ChatItem }) {
+const ItemView = memo(function ItemView({ scratchId, item, onOpenAgent, onTerminal, small, prompts, agents }: Omit<Props, 'items'> & { item: ChatItem }) {
   switch (item.kind) {
     case 'user':
       return <UserBubble item={item} small={small} {...(prompts !== false && !small && item.parent === null ? { editFrom: scratchId } : {})} />
@@ -35,11 +38,11 @@ const ItemView = memo(function ItemView({ scratchId, item, onOpenAgent, onTermin
     case 'subagent':
       return <SubagentRow item={item} onOpen={onOpenAgent} small={small} />
     case 'permission':
-      return prompts === false ? <Pointer answered={item.answer !== null} /> : <PermissionCard scratchId={scratchId} item={item} />
+      return prompts === false ? <Pointer answered={item.answer !== null} /> : <PermissionCard scratchId={scratchId} item={item} from={promptSource(item.parent, agents ?? [])} />
     case 'question':
-      return prompts === false ? <Pointer answered={item.answers !== null} /> : <QuestionCard scratchId={scratchId} item={item} />
+      return prompts === false ? <Pointer answered={item.answers !== null} /> : <QuestionCard scratchId={scratchId} item={item} from={promptSource(item.parent, agents ?? [])} />
     case 'plan':
-      return prompts === false ? <Pointer answered={item.answer !== null} /> : <PlanCard scratchId={scratchId} item={item} />
+      return prompts === false ? <Pointer answered={item.answer !== null} /> : <PlanCard scratchId={scratchId} item={item} from={promptSource(item.parent, agents ?? [])} />
     case 'command':
       return <CommandRow item={item} />
     case 'notice':
@@ -91,7 +94,7 @@ function toRows(entries: TurnEntry[]): Row[] {
   return out
 }
 
-export const ConversationList = memo(function ConversationList({ scratchId, items, onOpenAgent, onTerminal, small, prompts = true, live = false, turnStartedAt }: Props) {
+export const ConversationList = memo(function ConversationList({ scratchId, items, onOpenAgent, onTerminal, small, prompts = true, live = false, turnStartedAt, agents }: Props) {
   const rows = useMemo(() => toRows(planTurns(items, { live, startedAt: turnStartedAt })), [items, live, turnStartedAt])
   // A row that was ever among the newest keeps rendering in full: turning it lazy later (the turn ending adds rows after it)
   // would collapse its height to the 60px guess for a frame and make the view jump.
@@ -105,7 +108,7 @@ export const ConversationList = memo(function ConversationList({ scratchId, item
       </div>
     ) : (
       <div key={row.item.id} className={cn(cls, row.item.kind === 'user' && 'flex justify-end')} data-item={row.item.kind} data-item-id={row.item.id}>
-        <ItemView scratchId={scratchId} item={row.item} onOpenAgent={onOpenAgent} onTerminal={onTerminal} small={small} prompts={prompts} />
+        <ItemView scratchId={scratchId} item={row.item} onOpenAgent={onOpenAgent} onTerminal={onTerminal} small={small} prompts={prompts} agents={agents} />
       </div>
     )
   return (
@@ -129,7 +132,7 @@ export const ConversationList = memo(function ConversationList({ scratchId, item
         if (row.type === 'changes')
           return (
             <div key={row.id} className={cls}>
-              <ChangedFilesCard files={row.files} small={small} />
+              <ChangedFilesCard files={row.files} small={small} scratchId={scratchId} />
             </div>
           )
         if (row.type === 'agents')

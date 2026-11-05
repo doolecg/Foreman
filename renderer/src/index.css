@@ -451,3 +451,53 @@
 @media (prefers-reduced-motion: reduce) {
   .m-drill-in, .m-drill-out { animation: m-drill-fade var(--m-enter) linear backwards; }
 }
+
+/* Orchestration graph (renderer/src/components/mods/agents/GraphView.tsx): pixel-cell bars, glow and flowing links. The
+   motion classes are only added when the user has not asked for reduced motion, and are also switched off here. */
+.og-track {
+  height: 9px;
+  overflow: hidden;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--muted-foreground) 35%, transparent) 0 3px, transparent 3px 4px);
+}
+.og-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: repeating-linear-gradient(90deg, var(--c) 0 3px, transparent 3px 4px);
+}
+.og-fill[data-fill='full'] { width: 100%; }
+.og-fill[data-fill='run'] { width: 25%; }
+.og-card { border-style: solid; border-color: color-mix(in srgb, var(--c) 38%, transparent); }
+.og-card { position: relative; }
+/* A running card: dashes of its accent colour march round the edge (an svg rect drawn over the card's faint border). */
+.og-march rect { fill: none; stroke: var(--c); stroke-width: 1.5; stroke-dasharray: 6 6; }
+.og-path { fill: none; stroke: var(--muted-foreground); stroke-opacity: 0.45; stroke-width: 1.5; stroke-linejoin: round; }
+.og-path.og-dashed { stroke-dasharray: 3 4; }
+.og-head { fill: var(--muted-foreground); fill-opacity: 0.6; }
+.og-head[data-lit='true'] { fill: var(--c); fill-opacity: 1; }
+.og-dot { width: 7px; height: 7px; border-radius: 9999px; background: var(--c); flex: none; }
+.og-path[data-lit='true'] { stroke: var(--c); stroke-opacity: 1; stroke-dasharray: 5 4; }
+.og-text { fill: var(--muted-foreground); font-size: 10px; paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
+.og-text[data-lit='true'] { fill: var(--c); }
+@media (prefers-reduced-motion: no-preference) {
+  .og-fill.og-sweep { animation: og-sweep 1.4s linear infinite; }
+  .og-march rect { animation: og-march 0.6s linear infinite; }
+  .og-path.og-flow[data-lit='true'] { animation: og-dash 0.5s linear infinite; }
+  .og-blink { animation: og-blink 1.2s infinite; }
+}
+@keyframes og-sweep { from { margin-left: -25%; } to { margin-left: 100%; } }
+@keyframes og-march { to { stroke-dashoffset: -12; } }
+@keyframes og-dash { to { stroke-dashoffset: -9; } }
+@keyframes og-blink { 50% { opacity: 0.25; } }
+
+/* Find in thread and in the diff panel: every hit, and the one the bar is on. */
+::highlight(find-hit),
+::highlight(diff-hit) {
+  background-color: color-mix(in srgb, var(--warning) 35%, transparent);
+  color: inherit;
+}
+::highlight(find-active),
+::highlight(diff-active) {
+  background-color: var(--primary);
+  color: var(--primary-foreground, #fff);
+}

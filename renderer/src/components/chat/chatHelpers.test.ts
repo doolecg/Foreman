@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatCommand, ChatItem, ChatModel, SubagentItem, ToolItem } from '@shared/claude-chat'
-import { agentContext, agentElapsed, agentTitle, agentTldr, agentList, applySuggestion, capItems, contextHeadline, contextTone, currentModel, effortDisabledReason, effortStops, filterCommands, formatDuration, highlightParts, imageFileName, kTokens, tokensSuffix, noticeChipIcon, withLocalCommands, mainThread, modeLabel, modeOptions, nextMode, toolRowParts, triggerAt } from './chatHelpers'
+import { agentContext, agentElapsed, agentTitle, agentTldr, agentList, applySuggestion, capItems, contextHeadline, contextTone, currentModel, effortDisabledReason, effortStops, filterCommands, formatDuration, highlightParts, imageFileName, kTokens, tokensSuffix, noticeChipIcon, withLocalCommands, mainThread, promptSource, planStatus, modeLabel, modeOptions, nextMode, toolRowParts, triggerAt, findMatches, enterAction } from './chatHelpers'
 
 const model = (over: Partial<ChatModel> = {}): ChatModel => ({ value: 'opus', displayName: 'Opus 5.5', description: '', resolvedModel: 'claude-opus-5-5', supportsEffort: true, efforts: ['low', 'medium', 'high', 'xhigh', 'max'], supportsAutoMode: true, ...over })
 
@@ -114,6 +114,20 @@ describe('rows', () => {
     const items = [tool({ parent: 'a1' }), perm(null, 'a1'), perm('once', 'a1'), perm(null, null), tool()]
     expect(mainThread(items).map((i) => i.id)).toEqual(['p-null-a1', 'p-null-null', 't1'])
   })
+  it('labels a sub-agent prompt with the agent type', () => {
+    const agents = [{ id: 'a1', agentType: 'builder', description: 'Build it' }, { id: 'a2', agentType: null, description: 'Scan repo' }]
+    expect(promptSource(null, agents)).toBeNull()
+    expect(promptSource('a1', agents)).toBe('from builder')
+    expect(promptSource('a2', agents)).toBe('from Scan repo')
+    expect(promptSource('zz', agents)).toBe('from a sub-agent')
+  })
+  it('maps a plan answer to a status', () => {
+    expect(planStatus({ requestId: 'r', answer: null })).toBe('waiting')
+    expect(planStatus({ requestId: null, answer: null })).toBe('expired')
+    expect(planStatus({ requestId: 'r', answer: 'approved-edits' })).toBe('approved')
+    expect(planStatus({ requestId: 'r', answer: 'kept' })).toBe('rejected')
+    expect(planStatus({ requestId: 'r', answer: 'expired' })).toBe('expired')
+  })
   it('caps the rendered items', () => {
     expect(capItems([1, 2, 3, 4], 2)).toEqual({ items: [3, 4], hidden: 2 })
     expect(capItems([1], 2)).toEqual({ items: [1], hidden: 0 })
@@ -208,5 +222,61 @@ describe('notice chips', () => {
     expect(noticeChipIcon('info', 'error')).toBe('alert')
     expect(noticeChipIcon('info', 'info')).toBe('info')
     expect(noticeChipIcon('shot', 'info')).toBe('camera')
+  })
+})
+
+describe('find in thread', () => {
+  const user = (id: string, text: string): ChatItem => ({ kind: 'user', id, parent: null, text, images: [], queued: false, at: 0 })
+  const reply = (id: string, md: string): ChatItem => ({ kind: 'text', id, parent: null, md, streaming: false })
+  const tool = (id: string, summary: string, text: string): ToolItem => ({
+    kind: 'tool', id, parent: null, name: 'Read', input: {}, partial: '', summary, status: 'done', result: { text, summary: '', truncated: false, isError: false, images: [] }, diff: null, background: false, startedAt: 0, endedAt: 1,
+  })
+
+  it('is case-insensitive and numbers the hits inside an item', () => {
+    expect(findMatches([reply('a', 'Foo foo FOO')], 'foo')).toEqual([{ id: 'a', index: 0 }, { id: 'a', index: 1 }, { id: 'a', index: 2 }])
+  })
+  it('finds nothing for an empty or blank query, or no hit', () => {
+    const items = [user('u', 'hello')]
+    expect(findMatches(items, '')).toEqual([])
+    expect(findMatches(items, '  ')).toEqual([])
+    expect(findMatches(items, 'zzz')).toEqual([])
+  })
+  it('keeps thread order across items', () => {
+    const items = [user('u', 'a cat'), reply('r', 'cat and cat'), user('v', 'dog')]
+    expect(findMatches(items, 'cat').map((m) => `${m.id}:${m.index}`)).toEqual(['u:0', 'r:0', 'r:1'])
+  })
+  it('searches the tool label but not its output', () => {
+    const items = [tool('t', 'src/needle.ts', 'secret body'), tool('t2', 'x', 'needle in output')]
+    expect(findMatches(items, 'needle').map((m) => m.id)).toEqual(['t'])
+    expect(findMatches(items, 'secret')).toEqual([])
+  })
+})
+
+describe('enterAction', () => {
+  const key = (over: Partial<Parameters<typeof enterAction>[0]> = {}) => ({ shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...over })
+  const idle = { running: false, emptyBox: false, hasQueue: false }
+  const busy = { running: true, emptyBox: false, hasQueue: true }
+
+  it('idle: Enter and Ctrl/Cmd+Enter both send, Shift+Enter is a newline', () => {
+    expect(enterAction(key(), idle)).toBe('send')
+    expect(enterAction(key({ ctrlKey: true }), idle)).toBe('send')
+    expect(enterAction(key({ metaKey: true }), idle)).toBe('send')
+    expect(enterAction(key({ shiftKey: true }), idle)).toBe('newline')
+    expect(enterAction(key({ altKey: true }), { ...idle, emptyBox: true })).toBe('send')
+  })
+  it('running: Enter queues, Ctrl/Cmd+Enter steers', () => {
+    expect(enterAction(key(), busy)).toBe('queue')
+    expect(enterAction(key({ ctrlKey: true }), busy)).toBe('steer')
+    expect(enterAction(key({ metaKey: true }), busy)).toBe('steer')
+    expect(enterAction(key({ shiftKey: true }), busy)).toBe('newline')
+  })
+  it('Ctrl/Cmd+Shift+Enter sends the first queued message, only if one exists', () => {
+    expect(enterAction(key({ ctrlKey: true, shiftKey: true }), busy)).toBe('sendQueued')
+    expect(enterAction(key({ metaKey: true, shiftKey: true }), { ...busy, running: false })).toBe('sendQueued')
+    expect(enterAction(key({ ctrlKey: true, shiftKey: true }), { ...busy, hasQueue: false })).toBe('none')
+  })
+  it('Alt+Enter keeps its job: first queued message from an empty box, otherwise like Enter', () => {
+    expect(enterAction(key({ altKey: true }), { ...busy, emptyBox: true })).toBe('sendQueued')
+    expect(enterAction(key({ altKey: true }), busy)).toBe('queue')
   })
 })

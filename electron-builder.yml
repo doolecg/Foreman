@@ -25,6 +25,8 @@ extraResources:
   # The Claude Code hook and status line script (dependency-free), run by the app binary as Node.
   - from: scripts/op-event.mjs
     to: claude-mods/op-event.mjs
+  - from: scripts/model-engine-check.mjs
+    to: claude-mods/model-engine-check.mjs
   # The window and taskbar icon, loaded at runtime.
   - from: build/icon.png
     to: icon.png
@@ -54,6 +56,8 @@ msi:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Foreman
+  # -sval skips ICE validation, which light.exe cannot run without admin rights (LGHT1105).
+  additionalLightArgs: ["-sval"]
 
 mac:
   target:

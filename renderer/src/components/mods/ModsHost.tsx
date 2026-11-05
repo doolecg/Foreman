@@ -8,12 +8,15 @@ import { FilesPanel } from '@/components/plans/FilesPanel'
 import { PlanPanel } from '@/components/plans/PlanPanel'
 import { cn } from '@/lib/utils'
 import { ModBoundary } from './ModBoundary'
+import { WIDEN_PANEL } from './agents/graphModel'
 import type { ModId } from '@shared/mods'
 import { MODS } from './registry'
 
 const WIDTH_KEY = 'foreman.subagentPanelWidth'
 const TAB_KEY = 'foreman.railTab'
 const DEFAULT_WIDTH = 400
+// The most the panel may take: wide enough for the graph's Large view, but never so wide the chat is squeezed out.
+const maxWidth = (): number => Math.max(560, Math.min(900, window.innerWidth - 480))
 
 type Tab = 'plan' | 'files' | 'agents'
 
@@ -61,6 +64,13 @@ export function ModsHost({ tileId, crewId, chat, engineering }: { tileId: number
   const [width, setWidth] = useState(() => Number(readStored(WIDTH_KEY)) || DEFAULT_WIDTH)
   const [tab, setTab] = useState<Tab | null>(() => (readStored(TAB_KEY) as Tab | null) || null)
   const panel = useRef<HTMLElement>(null)
+  // The cap follows the window, so shrinking the window never leaves the panel squeezing the chat.
+  const [cap, setCap] = useState(maxWidth)
+  useEffect(() => {
+    const on = () => setCap(maxWidth())
+    window.addEventListener('resize', on)
+    return () => window.removeEventListener('resize', on)
+  }, [])
   // Opening an agent from the chat opens the Agents panel.
   const opened = useAgentSelection(tileId).nonce
   const seen = useRef(opened)
@@ -70,6 +80,18 @@ export function ModsHost({ tileId, crewId, chat, engineering }: { tileId: number
     setTab('agents')
     writeStored(TAB_KEY, 'agents')
   }, [opened])
+  // The graph's Large view asks for a wider panel (or Small for the usual one); the width is kept like a drag would.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ tileId: number; width: number | null }>).detail
+      if (d.tileId !== tileId) return
+      const to = Math.round(Math.min(d.width ?? DEFAULT_WIDTH, maxWidth()))
+      setWidth(to)
+      writeStored(WIDTH_KEY, String(to))
+    }
+    window.addEventListener(WIDEN_PANEL, on)
+    return () => window.removeEventListener(WIDEN_PANEL, on)
+  }, [tileId])
   const mod = settings?.mods.enabled ? MODS.find((m) => m.kind === 'panel' && m.component && settings.mods.mods[m.id as ModId]) : undefined
   const tabs: Tab[] = [...(engineering ? (['plan'] as const) : []), ...(crewId !== null ? (['files'] as const) : []), ...(mod?.component ? (['agents'] as const) : [])]
   if (!settings || tabs.length === 0) return null
@@ -92,14 +114,14 @@ export function ModsHost({ tileId, crewId, chat, engineering }: { tileId: number
           aria-label={shown === 'agents' ? `Mods: ${mod?.title} panel` : shown === 'plan' ? 'Plan panel' : 'Files panel'}
           data-testid="subagent-panel"
           className="m-panel surface relative my-1.5 flex min-h-0 shrink-0 flex-col overflow-hidden text-xs"
-          style={{ width }}
+          style={{ width: Math.min(width, cap) }}
         >
           <ResizeHandle
             target={panel}
             axis="x"
             grow={-1}
             min={280}
-            max={560}
+            max={cap}
             label="Resize side panel"
             className="left-0"
             onResize={setWidth}

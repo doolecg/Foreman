@@ -57,6 +57,7 @@ import type { CapabilityReport, ClaudeTileState } from './mods'
 import type { EngineeringStatus, TaskInfo, TaskListItem, TaskPlan } from './engineering'
 import type { RunningCounts } from './notify'
 import type { TilePopoutRequest } from './tile-popout'
+import type { OrchestrationGraph } from './orchestration-graph'
 import { CHAT_CHANNELS, type ChatApi, type ChatEvents, type ChatImage } from './claude-chat'
 
 // Request/response calls: renderer -> main via ipcRenderer.invoke. Every one is validated in core; a
@@ -270,6 +271,8 @@ export interface IpcApi extends ChatApi {
   'engineering:openFolder': () => void
   // A Claude Code tile's sub-agents, status line and events state (null when the tile has none yet).
   'claudeTile:get': (tileId: number) => ClaudeTileState | null
+  // The project's Orchestration graph (its newest session), null when no event has come from the project yet.
+  'graph:get': (crewId: number) => OrchestrationGraph | null
   'settings:get': () => Settings
   'settings:set': (patch: SettingsPatch) => Settings
   // "Reset section to defaults".
@@ -380,6 +383,10 @@ export interface IpcApi extends ChatApi {
   'tile:popOut': (req: TilePopoutRequest) => void
   'tile:popIn': (scratchId: number) => void
   'tile:popouts': () => number[]
+  // The Orchestration graph of a project in its own window (the same live state), and back; the list is the project ids that are out.
+  'graph:popOut': (crewId: number) => void
+  'graph:popIn': (crewId: number) => void
+  'graph:popouts': () => number[]
 }
 
 export type IpcChannel = keyof IpcApi
@@ -457,6 +464,9 @@ export type MainChannel =
   | 'tile:popOut'
   | 'tile:popIn'
   | 'tile:popouts'
+  | 'graph:popOut'
+  | 'graph:popIn'
+  | 'graph:popouts'
 export type CoreChannel = Exclude<IpcChannel, MainChannel>
 
 // Push messages: main -> renderer.
@@ -514,6 +524,10 @@ export interface IpcEvents {
   'browser:bookmarks': { crewId: number; entries: Bookmark[] }
   // The scratch ids of the tiles that are in their own windows changed.
   'tile:popouts': number[]
+  // A project's Orchestration graph changed (throttled to about 4 a second); null when it has none.
+  'graph:state': { crewId: number; graph: OrchestrationGraph | null }
+  // The project ids whose graph is in its own window changed.
+  'graph:popouts': number[]
 }
 
 export type IpcEventName = keyof IpcEvents
@@ -652,6 +666,7 @@ export const CORE_CHANNELS: CoreChannel[] = [
   'engineering:tasks:list',
   'engineering:clearTask',
   'claudeTile:get',
+  'graph:get',
   ...CHAT_CHANNELS,
   'settings:get',
   'settings:set',
@@ -732,6 +747,9 @@ export const MAIN_CHANNELS: MainChannel[] = [
   'tile:popOut',
   'tile:popIn',
   'tile:popouts',
+  'graph:popOut',
+  'graph:popIn',
+  'graph:popouts',
 ]
 
 // What a rejected call carries. Electron only passes an error's message across the bridge, so main encodes

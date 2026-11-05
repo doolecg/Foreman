@@ -1,5 +1,5 @@
 import { claudeContextWindow, modelName } from '@shared/models'
-import { isAgentTool, itemsOf, mcpParts, toolVerb, type ChatCommand, type ChatItem, type ChatModel, type ChatState, type SubagentItem, type ToolItem } from '@shared/claude-chat'
+import { isAgentTool, itemsOf, mcpParts, toolVerb, type ChatCommand, type ChatItem, type ChatModel, type ChatState, type PlanItem, type SubagentItem, type ToolItem } from '@shared/claude-chat'
 import { shellProgram } from '@shared/chat-summary'
 
 // Pure helpers of the Chat view (formatting, menus, suggestions, the agent list). No React here so they can be tested.
@@ -316,6 +316,22 @@ export function mainThread(items: ChatItem[]): ChatItem[] {
   })
 }
 
+// "from builder": which sub-agent a prompt in the main thread belongs to. Null for the main thread's own prompts.
+export function promptSource(parent: string | null, agents: readonly Pick<SubagentItem, 'id' | 'agentType' | 'description'>[]): string | null {
+  if (parent === null) return null
+  const a = agents.find((x) => x.id === parent)
+  return `from ${a?.agentType || a?.description || 'a sub-agent'}`
+}
+
+export type PlanStatus = 'waiting' | 'approved' | 'rejected' | 'expired'
+
+export function planStatus(item: Pick<PlanItem, 'requestId' | 'answer'>): PlanStatus {
+  if (item.answer === 'approved' || item.answer === 'approved-edits') return 'approved'
+  if (item.answer === 'kept') return 'rejected'
+  if (item.answer === 'expired') return 'expired'
+  return item.requestId !== null ? 'waiting' : 'expired'
+}
+
 // Keeps the newest `limit` items; `hidden` is how many were left out.
 export function capItems<T>(items: T[], limit: number): { items: T[]; hidden: number } {
   return items.length > limit ? { items: items.slice(items.length - limit), hidden: items.length - limit } : { items, hidden: 0 }
@@ -408,4 +424,65 @@ export function conversationMarkdown(items: ChatItem[]): string {
     else if (it.kind === 'text') out.push(it.md)
   }
   return out.join('\n\n')
+}
+
+// ---- find in thread
+
+export interface FindMatch {
+  id: string
+  // Which occurrence inside the item's text (0 is the first).
+  index: number
+}
+
+// The text of an item that is on screen without a click: messages, command replies, notices and the one-line tool label.
+// Tool output, diffs and thinking stay out because they only show once opened.
+export function findText(it: ChatItem): string {
+  switch (it.kind) {
+    case 'user':
+      return it.text
+    case 'text':
+      return it.md
+    case 'command':
+      return `/${it.command}\n${it.md}`
+    case 'notice':
+      return it.text
+    case 'tool': {
+      const p = toolRowParts(it)
+      return `${p.verb} ${p.target}`
+    }
+    default:
+      return ''
+  }
+}
+
+// Every case-insensitive, non-overlapping hit of `query` in the items, in thread order.
+export function findMatches(items: ChatItem[], query: string): FindMatch[] {
+  const q = query.toLowerCase()
+  if (!q.trim()) return []
+  const out: FindMatch[] = []
+  for (const it of items) {
+    const text = findText(it).toLowerCase()
+    let at = text.indexOf(q)
+    for (let n = 0; at !== -1; n++) {
+      out.push({ id: it.id, index: n })
+      at = text.indexOf(q, at + q.length)
+    }
+  }
+  return out
+}
+
+export type EnterAction = 'send' | 'queue' | 'steer' | 'sendQueued' | 'newline' | 'none'
+
+// What an Enter key press does. Idle: Enter and Ctrl/Cmd+Enter both send. Running: Enter holds the message (queue),
+// Ctrl/Cmd+Enter sends it into the turn (steer). Ctrl/Cmd+Shift+Enter, or Alt+Enter from an empty box, sends the first queued message now.
+export function enterAction(
+  k: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean },
+  s: { running: boolean; emptyBox: boolean; hasQueue: boolean },
+): EnterAction {
+  const mod = k.ctrlKey || k.metaKey
+  if (mod && k.shiftKey) return s.hasQueue ? 'sendQueued' : 'none'
+  if (k.altKey && s.emptyBox && s.hasQueue) return 'sendQueued'
+  if (k.shiftKey) return 'newline'
+  if (mod && s.running) return 'steer'
+  return s.running ? 'queue' : 'send'
 }

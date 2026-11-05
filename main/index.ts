@@ -21,6 +21,7 @@ import { refreshUserPath } from '../core/userpath'
 import { DEFAULT_CREW_BROWSER, sanitizeCrewBrowser } from '../shared/browser-compat'
 import { DEFAULT_APPEARANCE, windowBackground } from '../shared/themes'
 import { tilePopoutQuery } from '../shared/tile-popout'
+import { graphPopoutQuery, graphPopoutWindowTitle } from '../shared/graph-popout'
 import { BrowserPanels } from './browser'
 import { BrowserPopout } from './browser-popout'
 import { hideAutomationFlag } from './browser-stealth'
@@ -30,6 +31,7 @@ import { attachCloseGuard, type CloseGuard } from './closeGuard'
 import { push, registerIpc } from './ipc'
 import { watchClaudeTurns, type TurnWatch } from './notify'
 import { TilePopout } from './tile-popout'
+import { GraphPopout } from './graph-popout'
 import { createUpdater, updateInstalling } from './updater'
 import { attachWindowSync } from './windowSync'
 
@@ -95,6 +97,7 @@ let browserHub: BrowserHub | null = null
 let browserPanels: BrowserPanels | null = null
 let browserPopout: BrowserPopout | null = null
 let tilePopout: TilePopout | null = null
+let graphPopout: GraphPopout | null = null
 let browserProxy: CdpProxy | null = null
 let browserMcp: McpHost | null = null
 let browserExtras: Extras | null = null
@@ -287,6 +290,7 @@ function createWindow(): void {
     // The pop-out windows go with the app window.
     browserPopout?.closeAll()
     tilePopout?.closeAll()
+    graphPopout?.closeAll()
     guard = null
     win = null
   })
@@ -388,6 +392,25 @@ app.whenReady().then(() => {
     },
   })
   tilePopout = tiles
+  // A project's Orchestration graph can sit in its own window too; the set that are out is pushed to every window.
+  const graphs = new GraphPopout({
+    getMainWindow: () => win,
+    load: (w, crewId) => {
+      const query = graphPopoutQuery(crewId)
+      if (devUrl) void w.loadURL(`${devUrl}?${new URLSearchParams(query).toString()}`)
+      else void w.loadFile(appOrigin.indexFile, { query })
+    },
+    title: () => graphPopoutWindowTitle,
+    webPreferences: windowWebPreferences(),
+    icon: iconFile,
+    background,
+    isAppUrl: (u) => isAppUrl(u, appOrigin),
+    onChange: (ids) => {
+      push(win, 'graph:popouts', ids)
+      for (const w of graphs.windows()) push(w, 'graph:popouts', ids)
+    },
+  })
+  graphPopout = graphs
   const updater = createUpdater({ send: (s) => push(win, 'update', s), getSettings: () => core.currentSettings, beforeInstall: (v) => core.snapshotBeforeUpdate(v) })
   core.on('settings', () => updater.reschedule())
   installing = () => updater.status.state === 'installing'
@@ -397,6 +420,7 @@ app.whenReady().then(() => {
     setVisible: (scratchId) => turns?.setVisible(scratchId),
     browser: { panels: browserPanels!, hub: browserHub!, popout: browserPopout! },
     tiles,
+    graphs,
   })
   updater.start()
   createWindow()
@@ -424,6 +448,7 @@ app.on('before-quit', (e) => {
 app.on('will-quit', () => {
   browserPopout?.closeAll()
   tilePopout?.closeAll()
+  graphPopout?.closeAll()
   browserExtras?.dispose()
   void browserMcp?.close().catch(() => undefined)
   void browserProxy?.close().catch(() => undefined)

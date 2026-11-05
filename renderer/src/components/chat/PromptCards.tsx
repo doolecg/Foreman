@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from '@/lib/utils'
 import { chatActions } from './useChat'
 import { DiffBlock } from './ItemViews'
+import { planStatus } from './chatHelpers'
 
 // The prompt cards are the only bordered element of the conversation: 1 px border, radius 14, page background.
 const card = 'border-border bg-background rounded-[14px] border px-4 py-3.5'
@@ -16,16 +17,21 @@ const textBtn = `${btn} text-muted-foreground hover:text-foreground border-trans
 
 const ANSWER_LABEL = { once: 'Allowed once', always: 'Always allowed', denied: 'Denied', expired: 'Expired' } as const
 
+// "from builder": which sub-agent asked, shown on prompts that surface in the main thread.
+function From({ label }: { label?: string | null }) {
+  return label ? <div className="text-muted-foreground mb-1 text-xs">{label}</div> : null
+}
+
 function Answered({ children }: { children: string }) {
   return <div className="text-muted-foreground text-[13px]">{children}</div>
 }
 
-export const PermissionCard = memo(function PermissionCard({ scratchId, item }: { scratchId: number; item: PermissionItem }) {
+export const PermissionCard = memo(function PermissionCard({ scratchId, item, from }: { scratchId: number; item: PermissionItem; from?: string | null }) {
   const [denying, setDenying] = useState(false)
   const [why, setWhy] = useState('')
   if (item.answer !== null) {
     const extra = item.answer === 'denied' && item.denyMessage ? `: ${item.denyMessage}` : ''
-    return <Answered>{`${ANSWER_LABEL[item.answer]} · ${item.displayName}${item.summary ? ` ${item.summary}` : ''}${extra}`}</Answered>
+    return <Answered>{`${ANSWER_LABEL[item.answer]} · ${item.displayName}${item.summary ? ` ${item.summary}` : ''}${extra}${from ? ` · ${from}` : ''}`}</Answered>
   }
   const send = (d: Parameters<typeof chatActions.permission>[2]) => chatActions.permission(scratchId, item.requestId, d)
   const first = item.options[0]
@@ -37,6 +43,7 @@ export const PermissionCard = memo(function PermissionCard({ scratchId, item }: 
   }
   return (
     <div role="alertdialog" aria-label={`Permission: ${item.displayName}`} data-pending="permission" tabIndex={-1} onKeyDown={onKey} className={cn(card, item.parent && 'ml-5')}>
+      <From label={from} />
       <div className="text-[13px] font-semibold">Claude wants to use {item.displayName}</div>
       {item.description && <div className="text-muted-foreground mt-0.5 text-xs">{item.description}</div>}
       {item.diff ? (
@@ -103,7 +110,7 @@ export const PermissionCard = memo(function PermissionCard({ scratchId, item }: 
   )
 })
 
-export const QuestionCard = memo(function QuestionCard({ scratchId, item }: { scratchId: number; item: QuestionItem }) {
+export const QuestionCard = memo(function QuestionCard({ scratchId, item, from }: { scratchId: number; item: QuestionItem; from?: string | null }) {
   const [picked, setPicked] = useState<Record<number, string[]>>({})
   const [other, setOther] = useState<Record<number, string | null>>({})
   const answered = item.answers !== null
@@ -122,6 +129,7 @@ export const QuestionCard = memo(function QuestionCard({ scratchId, item }: { sc
 
   return (
     <div role="alertdialog" aria-label="Question from Claude" data-pending={locked ? undefined : 'question'} className={cn(card, item.parent && 'ml-5')}>
+      <From label={from} />
       <div className="space-y-4">
         {item.questions.map((q, qi) => {
           const chosen = locked ? (item.answers?.[q.question]?.split(', ') ?? []) : (picked[qi] ?? [])
@@ -191,20 +199,35 @@ export const QuestionCard = memo(function QuestionCard({ scratchId, item }: { sc
   )
 })
 
+const STATUS_STYLE = {
+  waiting: 'bg-accent text-foreground',
+  approved: 'bg-accent text-muted-foreground',
+  rejected: 'bg-accent text-muted-foreground',
+  expired: 'bg-accent text-muted-foreground',
+} as const
+
 const PLAN_LABEL = { approved: 'Plan approved', 'approved-edits': 'Plan approved, edits accepted', kept: 'Plan denied', expired: 'Plan expired' } as const
 
-export const PlanCard = memo(function PlanCard({ scratchId, item }: { scratchId: number; item: PlanItem }) {
+export const PlanCard = memo(function PlanCard({ scratchId, item, from }: { scratchId: number; item: PlanItem; from?: string | null }) {
   const [keeping, setKeeping] = useState(false)
   const [msg, setMsg] = useState('')
   const send = (approve: 'approve' | 'approve-edits' | 'keep', message?: string) =>
     item.requestId && chatActions.permission(scratchId, item.requestId, { kind: 'plan', approve, ...(message ? { message } : {}) })
   const pending = item.answer === null && item.requestId !== null
+  const status = planStatus(item)
   return (
     <div role="alertdialog" aria-label="Plan approval" data-pending={pending ? 'plan' : undefined} className={cn(card, item.parent && 'ml-5')}>
-      <div className="mb-2 text-[13px] font-semibold">Claude has a plan</div>
+      <From label={from} />
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-[13px] font-semibold">Plan</span>
+        <span data-plan-status={status} className={cn('rounded-full px-2 py-px text-xs', STATUS_STYLE[status])}>
+          {status === 'rejected' ? 'denied' : status}
+        </span>
+      </div>
       <div className="max-h-96 overflow-y-auto pr-1">
         <Markdown variant="chat" source={item.plan} className="text-[14px] leading-[1.6]" />
       </div>
+      {pending && <div className="text-muted-foreground mt-2 text-xs">Type a message in the composer to comment on the plan.</div>}
       {pending ? (
         keeping ? (
           <form

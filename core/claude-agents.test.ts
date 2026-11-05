@@ -134,11 +134,13 @@ describe('ClaudeAgents', () => {
     const eventsDir = join(tmp(), 'events')
     const emitted: ClaudeTileState[] = []
     const closed: string[] = []
+    const graphed: string[] = []
     let onChange: ((file: string | null) => void) | null = null
     let t = now
     const agents = new ClaudeAgents({
       eventsDir,
       emit: (s) => emitted.push(s),
+      onGraph: (p) => graphed.push(p),
       now: () => t,
       watch: (dir, cb) => {
         closed.push(`watch:${dir}`)
@@ -146,7 +148,7 @@ describe('ClaudeAgents', () => {
         return { close: () => closed.push('closed') }
       },
     })
-    return { agents, eventsDir, emitted, closed, fire: (f: string | null) => onChange?.(f), setNow: (n: number) => (t = n) }
+    return { agents, eventsDir, emitted, closed, graphed, fire: (f: string | null) => onChange?.(f), setNow: (n: number) => (t = n) }
   }
 
   const write = (dir: string, file: string, obj: Record<string, unknown>) => {
@@ -170,6 +172,21 @@ describe('ClaudeAgents', () => {
     fire(`${SID}.jsonl`)
     s = agents.get(7)!
     expect(s.subagents[0]).toMatchObject({ status: 'completed', endedAt: 700 })
+  })
+
+  it('feeds one Orchestration graph store: graphFor finds the project by folder, onGraph fires once per batch', () => {
+    const { agents, eventsDir, graphed, fire, setNow } = setup()
+    setNow(600)
+    agents.begin(7, SID, '')
+    mkdirIfMissing(eventsDir)
+    write(eventsDir, `${SID}.jsonl`, hook('SessionStart', { cwd: 'C:/Work/App' }))
+    write(eventsDir, `${SID}.jsonl`, hook('SubagentStart', { agent_id: AGENT, agent_type: 'builder', cwd: 'C:/Work/App' }))
+    fire(`${SID}.jsonl`)
+    expect(graphed).toEqual(['C:/Work/App'])
+    // Same folder spelled the way Windows project settings spell it.
+    expect(agents.graphFor('C:\\Work\\App\\')?.builder).toBe('building')
+    expect(agents.graphFor('C:/Work/App')?.builder).toBe('building')
+    expect(agents.graphFor('C:/Other')).toBeNull()
   })
 
   it('reads the status file on its own change, with only the fields it has', () => {
