@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Foreman: next up</title>
+<style>
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #e8e4df; background: #2a2523; }
+  h1 { font-size: 1.6rem; } h2 { margin-top: 2rem; font-size: 1.2rem; border-bottom: 1px solid #5a4f49; padding-bottom: .2rem; }
+  .box { background: #352f2c; border-radius: 10px; padding: .8rem 1.1rem; }
+  li { margin: .4rem 0; } code { background: #1f1b19; padding: 0 .3rem; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>Next up</h1>
+<p>Features waiting, in the order I suggest. Updated 5 November 2026. Branch for all of them: <code>dev-4.4.0</code>.</p>
+
+<div class="box">
+<h2 style="margin-top:0">Read this first</h2>
+<ol>
+  <li>Nothing here is built yet.</li>
+  <li>Each feature is one plan page. Build one at a time, and tick the plan's steps off as they pass their checks.</li>
+  <li>The order is a suggestion. Say if you want it changed.</li>
+</ol>
+</div>
+
+<h2>1. Project run scripts</h2>
+<p>Named scripts per project with a Scripts button and a live output panel. Planned for Saturday 7 November 2026. Plan: <code>plan-run-scripts-sat-2026-11-07.html</code>.</p>
+
+<h2>2. Foreman on your phone</h2>
+<p>Foreman's own screens in a phone browser over Tailscale, paired with a QR code, with an approvals inbox and a phone layout. You asked for this as a must-have, so it comes straight after run scripts. Needs your yes on the security decisions in section 7 of the plan. Plan: <code>plan-phone-remote.html</code>. Design: <code>design-phone-ui.html</code>.</p>
+
+<h2>3. Scheduled tasks</h2>
+<p>Time-based prompts and scripts that run while Foreman is open. Needs run scripts first. Plan: <code>plan-scheduled-tasks.html</code>.</p>
+
+<h2>4. Artifacts tab and in-chat previews</h2>
+<p>Play HTML, video and audio inside the chat, plus an Artifacts tab listing every file Claude made. Click opens it in an in-app modal, right-click goes to the folder. <b>No plan page yet.</b> It needs a design pass first: HTML previews in a sandboxed frame so a generated page cannot touch your files, and local media through a protocol limited to the project folder.</p>
+<p><b>Cancelled:</b> Kimi as a full replacement for Claude (5 November 2026). The plan page is kept as a record: <code>plan-kimi-agent.html</code>.</p>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>CANCELLED - Foreman plan: Kimi as a full replacement for Claude</title>
+<style>
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #e8e4df; background: #2a2523; }
+  h1 { font-size: 1.6rem; } h2 { margin-top: 2rem; font-size: 1.2rem; border-bottom: 1px solid #5a4f49; padding-bottom: .2rem; }
+  .box { background: #352f2c; border-radius: 10px; padding: .8rem 1.1rem; }
+  .warn { background: #4a2f2a; border-radius: 10px; padding: .8rem 1.1rem; }
+  li { margin: .3rem 0; } code { background: #1f1b19; padding: 0 .3rem; border-radius: 4px; }
+  label { cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Kimi as a full replacement for Claude</h1>
+<p style="background:#4a2f2a;border-radius:10px;padding:.6rem 1rem"><b>Cancelled by Dayle on 5 November 2026.</b> Nothing was built. Kept only as a record of the research. Do not build from this page without asking.</p>
+<p>Status: plan only, nothing built. Branch: <code>dev-4.4.0</code>. Rewritten 5 November 2026 after you said Kimi must be able to replace Claude entirely, graph and sub-agents included. Research done the same day.</p>
+
+<div class="box">
+<h2 style="margin-top:0">Read this first</h2>
+<ol>
+  <li>A setting picks the main agent: Claude (the default), Kimi, or OpenCode. When it is Kimi, Claude is not needed at all: chat, the Orchestration graph, sub-agents and the Model Engine kit all run on Kimi Code CLI.</li>
+  <li>The research says this is possible. Kimi Code CLI has sub-agents, a rich set of hook events including <code>SubagentStart</code> and <code>SubagentStop</code>, a standard chat protocol (ACP), skills and project agent files, and, according to the research, an MIT licence that I still have to check myself.</li>
+  <li>The hard part is inside Foreman, not Kimi. Today the chat view, the graph and the sub-agent list all read Claude's own events and files. They need to read one neutral event format, with one reader per agent.</li>
+  <li>This is the largest feature on the list: a spike plus five phases (A to E), probably several sessions. You can stop after any phase and still have something that works.</li>
+  <li>Section 7 has the decisions for you. I have picked a default for each.</li>
+</ol>
+</div>
+
+<h2>1. What we know (research, 5 November 2026)</h2>
+<ul>
+  <li><b>The tool.</b> Kimi Code CLI, repo MoonshotAI/kimi-code, MIT licence (the research agent read the LICENSE file; I have not opened it myself), version 2.5.1. Install by script, Homebrew or <code>npm install -g @moonshot-ai/kimi-code</code>. The research says the older Python <code>kimi-cli</code> is archived (not checked by me).</li>
+  <li><b>Sign-in.</b> <code>/login</code> inside <code>kimi</code>. Kimi keeps its own credentials in <code>~/.kimi-code</code>. Foreman stores no key.</li>
+  <li><b>Chat protocol.</b> <code>kimi acp</code> streams message chunks, tool calls, plans and permission requests (<code>session/request_permission</code>). It lists no thinking stream and no sub-agent nesting. Sessions can be listed, resumed and forked.</li>
+  <li><b>Sub-agents.</b> An <code>Agent</code> tool runs sub-agents (types <code>coder</code>, <code>explore</code>, <code>plan</code>, and custom ones). Custom agents are Markdown files with frontmatter in <code>.kimi-code/agents/</code> or <code>.agents/agents/</code> in the project. Sub-agents cannot start further sub-agents. Each sub-agent writes its state to <code>&lt;session&gt;/agents/&lt;id&gt;/wire.jsonl</code>.</li>
+  <li><b>Models per agent.</b> There is no model field in an agent file. The model is chosen when the <code>Agent</code> tool is called, from a "sub-agent model pool" of two or more models. So a Brain, Builder and Recall tiering is possible, but it is steered by the prompt, not fixed per file. The pool's exact setting is unverified.</li>
+  <li><b>Hooks.</b> JSON arrives on stdin. Events include <code>PreToolUse</code>, <code>PostToolUse</code>, <code>PermissionRequest</code>, <code>Stop</code>, <code>SubagentStart</code>, <code>SubagentStop</code>, <code>TaskStarted</code>, <code>SessionStart</code> and <code>SessionEnd</code>. Only <code>PreToolUse</code>, <code>Stop</code> and <code>UserPromptSubmit</code> can block. The payload has the session id and working folder but, as documented, no transcript path and no agent id.</li>
+  <li><b>Where hooks live.</b> Only in the user's <code>~/.kimi-code/config.toml</code> or from plugins. There is no per-project hook file.</li>
+  <li><b>Project files.</b> <code>AGENTS.md</code> (not CLAUDE.md), skills in <code>.kimi-code/skills/</code> (same <code>SKILL.md</code> form as Claude, but it does not read <code>.claude/skills</code>), agents in <code>.kimi-code/agents/</code>. No documented project MCP file.</li>
+</ul>
+
+<div class="warn">
+<h2 style="margin-top:0">2. The three problems to solve</h2>
+<ol>
+  <li><b>Hooks are global, Foreman's rule is project-only.</b> Foreman's setup rule (in <code>CLAUDE.md</code>) is that setup only writes project-level files and never changes global config. That rule is written for setup, so applying the same idea to hooks is my choice, not a settled rule. Kimi reads hooks only from the user's own config. Options, to be settled in the spike: launch each Kimi tile with <code>KIMI_CODE_HOME</code> pointing at a Foreman-managed folder that holds the hook entries (the sign-in would need to carry over, unverified); or skip hooks and build the graph from ACP plus the <code>wire.jsonl</code> files; or ship the hooks as a Kimi plugin. I will not edit your real <code>~/.kimi-code/config.toml</code>.</li>
+  <li><b>The graph and the council check read Claude files.</b> The graph reads Claude hook events (<code>core/claude-agents.ts</code>, <code>core/orchestration-graph.ts</code>) and the stop check reads Claude's transcript. Kimi gives no transcript path. Because Foreman drives Kimi over ACP, Foreman itself sees every tool call, so the council check can run in Foreman instead of in a hook.</li>
+  <li><b>The kit is Claude-shaped.</b> It writes <code>.claude/agents</code>, <code>.claude/skills</code> and <code>CLAUDE.md</code>. For Kimi it must write <code>.kimi-code/agents</code>, <code>.kimi-code/skills</code> and <code>AGENTS.md</code>, from the same single source of rules.</li>
+</ol>
+</div>
+
+<h2>3. What the code map says</h2>
+<ul>
+  <li>OpenCode is terminal-only in Foreman: a plain <code>opencode</code> tile with no chat driver (<code>core/launch.ts</code>), and a test asserts chat cannot launch for it. The installer text in <code>shared/install.ts</code> still says "OpenCode terminals and chat", which is wrong. It gets fixed in phase A.</li>
+  <li>A search for <code>'opencode'</code> hits about 35 source files, including renderer files such as <code>TileFrame.tsx</code>, the Terminals settings section and <code>core/store.ts</code>. Step A1 starts with the full list.</li>
+  <li>The installer already has a "main CLI" setting (<code>MainCliKind</code> in <code>shared/install.ts</code>) that makes Claude optional when OpenCode is the default. Kimi extends that same mechanism.</li>
+  <li>Claude's chat view reads Claude's own format (<code>core/claude-chat-map.ts</code>). MCP is already handled per command-line tool, so a Kimi MCP adapter follows OpenCode's pattern.</li>
+  <li>Foreman has an OpenCode sub-agent reader (<code>listChildSessions</code> in <code>core/opencode.ts</code>) that nothing calls outside its test, so OpenCode has no graph support today either.</li>
+</ul>
+
+<h2>4. Phases (one at a time, each with a check)</h2>
+
+<h3>Phase 0: spike (a few hours, no Foreman code)</h3>
+<ol>
+  <li><label><input type="checkbox"> <b>Licence and install.</b> Read the LICENSE file myself, install Kimi Code CLI, run <code>kimi -V</code>. Check: licence named and version known. Stop here if it is not open source.</label></li>
+  <li><label><input type="checkbox"> <b>Real transcripts.</b> Capture a short real run of <code>kimi acp</code> (a prompt, a tool call, a permission request, a sub-agent call) and of the hook stdin for each event. Save as test fixtures. Check: fixtures saved; I list what each event really contains.</label></li>
+  <li><label><input type="checkbox"> <b>The hook route.</b> Test whether <code>KIMI_CODE_HOME</code> redirects config and keeps your sign-in, and what <code>wire.jsonl</code> holds. Check: a one-line verdict on each of the three options in section 2, problem 1.</label></li>
+</ol>
+
+<h3>Phase A: Kimi as a main agent, terminal tile</h3>
+<ol>
+  <li><label><input type="checkbox"> <b>Agent kind and setting.</b> Add <code>kimi</code> everywhere the code map names, and extend the main-agent setting to Claude, Kimi or OpenCode. Unknown kinds still refused. Check: a test per file, typecheck passes.</label></li>
+  <li><label><input type="checkbox"> <b>Install and detect.</b> A Kimi row in the installer, a version probe, Claude optional when Kimi is the main agent, and the OpenCode wording fix. Check: tests with fake present and missing commands.</label></li>
+  <li><label><input type="checkbox"> <b>Launch and MCP.</b> A Kimi terminal tile in the project folder, in history and counted by the close guard, with no auto-approve flags. A Kimi MCP adapter in the OpenCode style. Check: launch-command test; I run it and send a screenshot.</label></li>
+</ol>
+
+<h3>Phase B: the neutral event layer and the Kimi chat view</h3>
+<ol>
+  <li><label><input type="checkbox"> <b>Neutral events.</b> Define one event format for chat items, tool calls, permission requests, plans and sub-agent start and stop. Build it as an <b>adapter on top of</b> Claude's existing mapper and reducers, which stay exactly as they are (their tests import them directly, so changing their output would break the tests). Check: every existing chat test passes unchanged, before and after.</label></li>
+  <li><label><input type="checkbox"> <b>ACP client.</b> A small JSON-RPC client over stdio: start <code>kimi acp</code>, create or resume a session, send a prompt, stop by PID. Check: tests against the saved fixtures.</label></li>
+  <li><label><input type="checkbox"> <b>Kimi reader and approvals.</b> Turn ACP messages into the neutral events, and permission requests into the same prompt cards Claude uses (allow once, deny). Check: a test per message type; a screenshot.</label></li>
+  <li><label><input type="checkbox"> <b>Chat launch.</b> A Kimi thread opens in the chat view, and the test that says chat cannot launch for non-Claude agents is updated. Check: tests pass; I run a real turn and send a screenshot.</label></li>
+</ol>
+
+<h3>Phase C: graph and sub-agents on Kimi</h3>
+<ol>
+  <li><label><input type="checkbox"> <b>Event source.</b> Build the chosen route from the spike (per-tile hook config, or ACP plus <code>wire.jsonl</code>) so Foreman gets sub-agent start and stop, permission requests and turn end as neutral events. Check: tests against fixtures.</label></li>
+  <li><label><input type="checkbox"> <b>Graph from neutral events.</b> Let the graph read the neutral events through the same kind of adapter, so Claude and Kimi both light the same cards and the existing Claude path in <code>orchestration-graph.ts</code> is left alone. Check: every existing graph test passes unchanged; a new test with Kimi fixtures lights Builder and Council.</label></li>
+  <li><label><input type="checkbox"> <b>Sub-agent list.</b> The Agents panel lists Kimi's sub-agents with status, timer and open-the-conversation, from the same neutral events. Check: tests and a screenshot.</label></li>
+</ol>
+
+<h3>Phase D: the Model Engine kit for Kimi</h3>
+<ol>
+  <li><label><input type="checkbox"> <b>One source, two outputs.</b> Keep the kit rules and agent definitions in one place and write them as <code>.claude/*</code> for Claude or <code>.kimi-code/agents</code>, <code>.kimi-code/skills</code> and <code>AGENTS.md</code> for Kimi. Existing files are never overwritten, same as today. Check: install tests for both targets.</label></li>
+  <li><label><input type="checkbox"> <b>Model tiers.</b> Set up the sub-agent model pool and word the Brain, Recall, Builder and Council agents so the right model is picked at dispatch. Check: confirmed on a real run which model each sub-agent used.</label></li>
+  <li><label><input type="checkbox"> <b>Council check in Foreman.</b> The "no done without a council run" rule runs inside Foreman for Kimi tiles, because Foreman sees every tool call over ACP. Check: tests mirroring the existing Model Engine check tests.</label></li>
+</ol>
+
+<h3>Phase E: finish</h3>
+<ol>
+  <li><label><input type="checkbox"> <b>Settings and docs.</b> One clear "Main agent" setting with a per-project override, first-run text that does not demand Claude when Kimi is chosen, and the idea added to the bible. Check: screenshot.</label></li>
+  <li><label><input type="checkbox"> <b>Council and review.</b> council-run, council-ui and council-code, then the reviewer, after each phase. Max 3 fix passes, then I stop and ask.</label></li>
+</ol>
+
+<h2>5. How you test it</h2>
+<ol>
+  <li>Install Kimi Code CLI, run <code>kimi</code> once and sign in with <code>/login</code>. I cannot do the sign-in for you.</li>
+  <li>In Foreman set the main agent to Kimi for a project. With Claude uninstalled or not signed in, start a thread: it opens as a chat, not a terminal (after phase B).</li>
+  <li>Switch Orchestration on and ask for a small edit. The graph lights Builder and Council, and the Agents panel lists the sub-agents (after phase C and D).</li>
+  <li>Switch the setting back to Claude. Everything works as it does today.</li>
+</ol>
+
+<h2>6. Risks</h2>
+<ul>
+  <li><b>The refactor is the danger, not Kimi.</b> Moving the chat mapper and the graph onto a neutral format touches the code you use every day. The rule for phase B and C is that every existing test passes unchanged before and after, and the Claude behaviour is checked in the app.</li>
+  <li><b>Weaker model steering.</b> Kimi has no per-agent model field, so the tiering depends on prompt wording. It may be less reliable than Claude's per-agent model.</li>
+  <li><b>Kimi moves fast.</b> Version 2.5.1 came out the same day as this research. Pin the tested version in the installer row and note it.</li>
+  <li><b>Permissions.</b> Foreman never passes <code>--yolo</code> or <code>--auto</code> by default.</li>
+</ul>
+
+<h2>7. Decisions for you (my pick first)</h2>
+<p>Order against the phone plan: the phone page reuses the desktop chat, prompt-card and graph components. Because phases B and C add an adapter and do not change those components, the two plans do not collide, and the phone plan can go first as listed in Next up. If a Kimi step ever has to change a component's inputs, the phone work must follow it.</p>
+<ol>
+  <li><b>Order:</b> spike, then phase A, then the neutral-event refactor (B and C) as its own step, then the kit (D). You can stop after A and still have Kimi tiles (my pick), or go straight to chat.</li>
+  <li><b>Hooks:</b> decided by the spike. My lean is a per-tile <code>KIMI_CODE_HOME</code> if sign-in carries over, otherwise ACP plus <code>wire.jsonl</code>. I will not touch your real Kimi config.</li>
+  <li><b>Default agent:</b> stays Claude. Kimi is chosen per project or in Settings (my pick).</li>
+  <li><b>Sign-in:</b> Kimi keeps its own login and Foreman stores no key (my pick).</li>
+  <li><b>Auto-approve flags:</b> never passed by default (my pick), or an off-by-default switch in Settings that you turn on yourself.</li>
+  <li><b>Other ACP agents later:</b> build the client generally so another agent that speaks ACP could plug in (my pick). I have not checked that Gemini CLI does.</li>
+</ol>
+
+<h2>8. Out of scope</h2>
+<ul>
+  <li>Mixing agents inside one thread (Claude as Brain, Kimi as Builder).</li>
+  <li>Kimi's usage and price figures in Foreman's dashboards.</li>
+  <li>Importing old Python <code>kimi-cli</code> sessions.</li>
+</ul>
+
+<h2>9. Not verified yet</h2>
+<ul>
+  <li>The licence (the research agent read it, I have not), and that the old <code>kimi-cli</code> repo is archived.</li>
+  <li>Whether <code>KIMI_CODE_HOME</code> redirects config and keeps your sign-in, and where sessions are stored.</li>
+  <li>Whether sub-agent hook events carry anything beyond the sub-agent's name, and whether ACP or the session files give enough detail for the graph.</li>
+  <li>The exact setting for the sub-agent model pool.</li>
+  <li>How <code>--yolo</code> and <code>--auto</code> behave in print mode. The docs contradict themselves.</li>
+  <li>That Gemini CLI speaks ACP.</li>
+  <li>Where the new-thread agent picker lives in the renderer. The map's search missed it.</li>
+</ul>
+</body>
+</html>

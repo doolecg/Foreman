@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Foreman plan: scheduled tasks</title>
+<style>
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #e8e4df; background: #2a2523; }
+  h1 { font-size: 1.6rem; } h2 { margin-top: 2rem; font-size: 1.2rem; border-bottom: 1px solid #5a4f49; padding-bottom: .2rem; }
+  .box { background: #352f2c; border-radius: 10px; padding: .8rem 1.1rem; }
+  li { margin: .3rem 0; } code { background: #1f1b19; padding: 0 .3rem; border-radius: 4px; }
+  label { cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Scheduled tasks</h1>
+<p>Status: plan only, nothing built. Builds after the run-scripts plan (<code>plan-run-scripts-sat-2026-11-07.html</code>), because a task can run one of those scripts. Branch: <code>dev-4.4.0</code>.</p>
+
+<div class="box">
+<h2 style="margin-top:0">Read this first</h2>
+<ol>
+  <li>A scheduled task is a name, a time rule, a project and an action: send a prompt to Claude, run a project script, or both in that order.</li>
+  <li>Version 1 runs tasks only while Foreman is open. The Windows Task Scheduler is not in version 1. A task that was due while Foreman was closed is marked "missed" and does not run by itself.</li>
+  <li>An unattended agent is a risk. Scheduled prompts never run in Bypass mode, and anything that needs your approval waits and sends a notification.</li>
+  <li>Section 6 has the choices for you. I have picked a default for each, so "go" is enough.</li>
+</ol>
+</div>
+
+<h2>1. What you get</h2>
+<ul>
+  <li>A "Scheduled" page (or tab) listing every task with its next run, last run, result and an on/off switch.</li>
+  <li>An editor: name, project, time rule, action, and an optional run limit per day.</li>
+  <li>Time rules: once at a date and time, every N minutes or hours, daily at a time, weekly on chosen days.</li>
+  <li>"Run now" on each task, for testing it without waiting.</li>
+  <li>Each run is kept as a normal thread in its project, named after the task, so you can open it and read what happened.</li>
+</ul>
+
+<h2>2. Where the data lives</h2>
+<p>Task definitions in one project file, <code>.foreman/schedules.json</code> (the same folder as run scripts, project-level files only). Note: <code>.foreman/</code> is in this repo's <code>.gitignore</code>, so these files stay out of git here; decide in step 1 whether they should be shared. The last-run times and results live in Foreman's own app data, not in the project, so they never end up in git.</p>
+
+<h2>3. How it runs</h2>
+<ul>
+  <li>A small timer in the main process wakes once a minute, finds the tasks that are due and starts them. It uses no tokens while idle.</li>
+  <li>One scheduled run at a time. A second due task waits in a queue.</li>
+  <li>A prompt task opens a new thread in the project and sends the prompt in plan or default mode, never Bypass. A script task uses the run-scripts runner and stops by PID.</li>
+  <li>The PC asleep or Foreman closed at the due time: the task is marked "missed" with the time it was due.</li>
+  <li>Each task has a daily run cap (default 3) so a bad rule cannot burn your token allowance.</li>
+  <li>A new task starts switched off. You turn it on after checking its time rule and cap.</li>
+</ul>
+
+<h2>4. Steps (one at a time, each with a check)</h2>
+<ol>
+  <li><label><input type="checkbox"> <b>Map.</b> Recall agent finds how threads are started from the main process, where app data is stored, and how notifications are sent. Check: a short file list and the seam to use.</label></li>
+  <li><label><input type="checkbox"> <b>Time rules.</b> A pure function that gives the next run time for each rule type, with tests for month ends, daylight-saving changes, weekly with several days, and "once" in the past. Check: tests pass.</label></li>
+  <li><label><input type="checkbox"> <b>Task file.</b> Read and write <code>.foreman/schedules.json</code> in <code>core</code>, with tests (missing file, bad JSON, duplicate names). Check: tests pass.</label></li>
+  <li><label><input type="checkbox"> <b>Scheduler.</b> The one-minute timer, the queue, the missed rule, the daily cap and the run history. Check: tests with a fake clock; no run when the cap is reached.</label></li>
+  <li><label><input type="checkbox"> <b>Actions.</b> Prompt task (new thread, never Bypass) and script task (run-scripts runner). Check: a test that a prompt task cannot start in Bypass.</label></li>
+  <li><label><input type="checkbox"> <b>IPC and notifications.</b> List, save, run now, switch on or off; a notification when a task finishes, fails, is missed or waits for approval. Check: typecheck and call tests.</label></li>
+  <li><label><input type="checkbox"> <b>The Scheduled page.</b> List, editor, Run now, status marks. Check: I run it and send you a screenshot.</label></li>
+  <li><label><input type="checkbox"> <b>Council,</b> then the reviewer. Max 3 fix passes, then I stop and ask.</label></li>
+</ol>
+
+<h2>5. How you test it</h2>
+<ol>
+  <li>Add a task "Test" in a project: every 1 minute, prompt "say hello".</li>
+  <li>Wait a minute. A new thread named "Test" appears and Claude answers. Switch the task off and it stops.</li>
+  <li>Close Foreman across a due time, then reopen it. The task shows "missed" and has not run.</li>
+</ol>
+
+<h2>6. Decisions for you (my pick first)</h2>
+<ol>
+  <li><b>When tasks run:</b> only while Foreman is open (my pick), or also when it is closed through the Windows Task Scheduler (later, more work).</li>
+  <li><b>What a task does:</b> a prompt, a script, or both (my pick).</li>
+  <li><b>A missed task:</b> mark it missed and do nothing (my pick), or run it once when Foreman opens.</li>
+  <li><b>Daily cap:</b> 3 runs per task per day by default (my pick), or no cap.</li>
+</ol>
+
+<h2>7. Out of scope</h2>
+<ul>
+  <li>Running when Foreman is closed or the PC is asleep.</li>
+  <li>Tasks that run on a trigger (a file change, a git push). Time rules only.</li>
+  <li>Running tasks on another machine.</li>
+</ul>
+
+<h2>8. Risks</h2>
+<ul>
+  <li><b>Token cost.</b> Every prompt task is a real Claude turn. The daily cap and the "off by default" switch limit it, and the editor shows the cap next to the time rule.</li>
+  <li><b>Unattended edits.</b> A scheduled prompt can change files while you are away. Plan or default mode should make edits wait for approval, and the notification tells you. Step 1 confirms how a scheduled run behaves when nobody is there to approve.</li>
+  <li><b>Clock changes.</b> Daylight-saving shifts are the usual bug in schedulers. Step 2 has tests for them.</li>
+</ul>
+</body>
+</html>

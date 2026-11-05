@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Foreman on the phone: design direction</title>
+<style>
+@font-face { font-family: 'Figtree'; src: url('../renderer/src/assets/fonts/Figtree-latin-wght.woff2') format('woff2'); font-weight: 300 900; font-display: swap; }
+/* Tokens copied from renderer/src/index.css (dark scheme). Nothing new except the phone sizes at the bottom. */
+:root {
+  --background: #171717; --foreground: #ececec; --card: #1f1f1f; --popover: #262626;
+  --primary: #d97757; --primary-foreground: #141414; --secondary: #242424; --muted: #262626;
+  --muted-foreground: #9a9a9a; --accent: #2a2a2a; --destructive: #f06a5f; --border: #2f2f2f;
+  --input: #363636; --ring: #d97757; --sidebar: #141414; --success: #8fbf7f; --warning: #e6b85c;
+  --info: #7aa6e3; --working: #f0883e; --agent: #e3b27a; --bubble: #2b2b2b; --code: #1b1b1b;
+  --chart-4: #a98bd6; --chart-5: #5fb3a8; --ctx-skills: #d987b0;
+  --surface: color-mix(in srgb, var(--background) 92%, white);
+  --surface-border: color-mix(in srgb, var(--surface) 86%, white);
+  --surface-line: color-mix(in srgb, var(--surface) 83%, var(--primary));
+  --m-ease: cubic-bezier(.32, .72, 0, 1); --m-select: 170ms; --m-enter: 340ms;
+  --font-sans: 'Figtree', 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+  /* Phone only */
+  --tap: 44px; --tap-big: 52px; --pad: 16px; --tabbar: 64px;
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--sidebar); color: var(--foreground); font: 16px/1.5 var(--font-sans); padding: 48px 32px 96px; }
+.page { max-width: 1680px; margin: 0 auto; }
+h1 { font-size: 40px; line-height: 1.05; letter-spacing: -0.02em; font-weight: 650; max-width: 22ch; }
+.lede { margin-top: 20px; font-size: 19px; max-width: 62ch; }
+h2 { font-size: 26px; letter-spacing: -0.01em; font-weight: 650; margin: 88px 0 16px; }
+.doc p, .doc li { max-width: 72ch; }
+.doc ol, .doc ul { padding-left: 22px; display: grid; gap: 8px; }
+.doc code { font-family: var(--font-mono); font-size: 14px; background: var(--code); padding: 1px 6px; border-radius: 6px; }
+.note { color: var(--muted-foreground); font-size: 15px; }
+
+/* The row of phones */
+.rack { display: flex; flex-wrap: wrap; gap: 40px; margin-top: 56px; align-items: flex-start; }
+.shot { width: 390px; }
+.shot > h3 { font-size: 19px; font-weight: 650; margin-bottom: 4px; }
+.shot > p { color: var(--muted-foreground); font-size: 15px; margin-bottom: 16px; min-height: 45px; }
+.phone { width: 390px; height: 844px; border-radius: 48px; background: var(--background); position: relative; overflow: hidden; display: flex; flex-direction: column; outline: 10px solid #0c0c0c; }
+.sbar { height: 47px; flex: none; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 30px 6px 34px; font-size: 15px; font-weight: 600; }
+.home { height: 34px; flex: none; display: flex; justify-content: center; align-items: center; }
+.home i { width: 134px; height: 5px; border-radius: 3px; background: var(--foreground); opacity: .85; }
+.scroll { flex: 1; overflow: hidden; padding: 0 var(--pad); }
+
+/* Shared bits */
+.big-title { font-size: 28px; font-weight: 650; letter-spacing: -0.015em; padding: 12px 0 14px; }
+.bar-top { height: 52px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px; }
+.icon-btn { width: var(--tap); height: var(--tap); border-radius: 12px; display: grid; place-items: center; color: var(--foreground); background: none; border: 0; font: inherit; }
+.icon-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.muted { color: var(--muted-foreground); }
+.small { font-size: 14px; }
+.meta { font-size: 13px; color: var(--muted-foreground); }
+.surface { background: var(--surface); border: 1px solid var(--surface-border); border-radius: 18px; }
+.btn { height: var(--tap-big); border-radius: 14px; border: 0; font: 600 16px/1 var(--font-sans); padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-primary { background: var(--primary); color: var(--primary-foreground); }
+.btn-quiet { background: var(--accent); color: var(--foreground); }
+.btn-text { background: none; color: var(--foreground); height: var(--tap); padding: 0 12px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Bottom tab bar: a plain bar a tone step lighter than the ground, no blur, no pill. */
+.tabs { flex: none; height: calc(var(--tabbar) + 34px); padding-bottom: 34px; background: var(--card); display: grid; grid-template-columns: repeat(3, 1fr); }
+.tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 13px; font-weight: 600; color: var(--muted-foreground); position: relative; }
+.tab svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tab[aria-current] { color: var(--foreground); }
+.tab[aria-current] svg { stroke: var(--primary); }
+.badge { position: absolute; top: 8px; left: calc(50% + 6px); min-width: 20px; height: 20px; border-radius: 10px; padding: 0 6px; background: var(--primary); color: var(--primary-foreground); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+
+/* 1. Projects */
+.search { height: var(--tap); border-radius: 12px; background: var(--secondary); display: flex; align-items: center; gap: 10px; padding: 0 14px; color: var(--muted-foreground); margin-bottom: 18px; font-size: 16px; }
+.search svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+.proj { margin-bottom: 18px; }
+.proj-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px 8px; }
+.proj-head b { font-size: 17px; font-weight: 650; }
+.thread { display: flex; gap: 12px; align-items: center; min-height: 64px; padding: 10px 14px; }
+.thread + .thread { border-top: 1px solid var(--surface-line); }
+.thread .t-main { flex: 1; min-width: 0; }
+.thread .t-name { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.thread .t-sub { font-size: 14px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.thread .t-side { text-align: right; font-size: 13px; color: var(--muted-foreground); flex: none; }
+.chip-wait { display: inline-block; margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--warning); }
+.fab-row { display: flex; gap: 10px; margin-top: 4px; }
+
+/* 2. Chat */
+.chat-head { flex: none; height: 56px; display: flex; align-items: center; gap: 2px; padding: 0 6px; background: var(--background); }
+.chat-head .h-main { flex: 1; min-width: 0; line-height: 1.2; }
+.chat-head .h-main b { display: block; font-size: 16px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-head .h-main span { font-size: 13px; color: var(--muted-foreground); }
+.waiting-strip { flex: none; margin: 0 var(--pad) 8px; height: var(--tap); border-radius: 12px; background: color-mix(in srgb, var(--warning) 14%, var(--background)); color: var(--warning); display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 14.5px; font-weight: 600; }
+.waiting-strip span:last-child { margin-left: auto; }
+.msgs { flex: 1; overflow-y: auto; padding: 4px var(--pad) 12px; display: flex; flex-direction: column; gap: 14px; }
+.msgs > :first-child { margin-top: auto; }
+.you { align-self: flex-end; max-width: 82%; background: var(--bubble); border-radius: 18px 18px 6px 18px; padding: 10px 14px; font-size: 16px; }
+.ai { font-size: 16px; line-height: 1.55; }
+.tool { display: flex; align-items: center; gap: 10px; min-height: var(--tap); padding: 0 12px; border-radius: 12px; background: var(--card); font-size: 14.5px; }
+.tool code { font-family: var(--font-mono); font-size: 13.5px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.tool .tick { color: var(--success); font-weight: 700; }
+.ask { padding: 14px; }
+.ask h4 { font-size: 16px; font-weight: 650; }
+.ask pre { margin: 10px 0 12px; background: var(--code); border-radius: 10px; padding: 10px 12px; font: 13.5px/1.5 var(--font-mono); white-space: pre-wrap; word-break: break-word; }
+.ask .always { display: block; width: 100%; margin-top: 6px; text-align: center; }
+.plan ol { margin: 10px 0 14px; padding-left: 22px; display: grid; gap: 6px; font-size: 15px; }
+.composer { flex: none; padding: 8px 10px calc(10px + 34px); background: var(--background); }
+.composer .box { display: flex; align-items: flex-end; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 22px; padding: 6px; }
+.composer .field { flex: 1; min-height: var(--tap); padding: 10px 6px; font-size: 16px; color: var(--muted-foreground); }
+.send { width: var(--tap); height: var(--tap); border-radius: 50%; background: var(--primary); display: grid; place-items: center; border: 0; flex: none; }
+.send svg { width: 20px; height: 20px; stroke: var(--primary-foreground); stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.c-meta { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted-foreground); padding: 6px 8px 0; }
+
+/* Offline banner */
+.offline { flex: none; margin: 0 var(--pad) 8px; min-height: var(--tap); border-radius: 12px; background: var(--secondary); display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; font-size: 14.5px; }
+.offline .dot { background: var(--warning); }
+.offline .btn-text { margin-left: auto; color: var(--primary); font-weight: 650; }
+
+/* 3. Agents graph (compact column, same cards as GraphView Compact) */
+.g-head { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 4px 12px; font-size: 14px; }
+.g-col { position: relative; display: flex; flex-direction: column; gap: 22px; padding-left: 22px; }
+.g-col::before { content: ''; position: absolute; left: 7px; top: 18px; bottom: 18px; width: 2px; background: var(--border); border-radius: 1px; }
+.g-col .lit::before { content: ''; position: absolute; left: -16px; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--working); }
+.g-card { position: relative; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--border); }
+.g-card.on { border-color: var(--working); }
+.g-card .g-t { display: flex; align-items: baseline; gap: 8px; }
+.g-card .g-t b { font-size: 15px; font-weight: 650; }
+.g-card .g-t span { font-size: 13px; color: var(--muted-foreground); }
+.g-card .g-t em { margin-left: auto; font-style: normal; font-size: 13px; font-weight: 600; }
+.g-card .g-d { font-size: 14px; color: var(--muted-foreground); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-bar { height: 4px; border-radius: 2px; background: var(--accent); margin-top: 10px; overflow: hidden; }
+.g-bar i { display: block; height: 100%; border-radius: 2px; }
+.g-three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.g-three .g-card { padding: 10px; }
+
+/* 4. Inbox */
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--secondary); border-radius: 12px; padding: 4px; margin-bottom: 16px; }
+.seg span { height: 44px; display: grid; place-items: center; font-size: 14.5px; font-weight: 600; color: var(--muted-foreground); border-radius: 9px; }
+.seg span[aria-current] { background: var(--accent); color: var(--foreground); }
+.inbox-item { padding: 14px; margin-bottom: 12px; }
+.inbox-item .i-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted-foreground); margin-bottom: 4px; }
+.inbox-item h4 { font-size: 16px; font-weight: 650; }
+.inbox-item .i-what { font: 13.5px/1.45 var(--font-mono); color: var(--foreground); background: var(--code); border-radius: 10px; padding: 8px 10px; margin: 8px 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.opt { display: flex; align-items: center; min-height: var(--tap); padding: 0 14px; border-radius: 12px; background: var(--accent); font-size: 15px; margin-bottom: 8px; }
+.opt.sel { background: color-mix(in srgb, var(--primary) 22%, var(--accent)); outline: 2px solid var(--primary); }
+
+/* 5. Lock */
+.lock { flex: 1; display: flex; flex-direction: column; padding: 0 24px; }
+.lock .mark { margin-top: 72px; width: 56px; height: 56px; border-radius: 16px; background: var(--primary); display: grid; place-items: center; color: var(--primary-foreground); font-size: 28px; font-weight: 800; }
+.lock h2 { margin: 28px 0 10px; font-size: 28px; }
+.lock label { display: block; font-size: 15px; font-weight: 600; margin: 32px 0 8px; }
+.input { height: var(--tap-big); border-radius: 14px; background: var(--card); border: 2px solid var(--primary); display: flex; align-items: center; padding: 0 6px 0 16px; font-size: 16px; letter-spacing: 0.02em; }
+.input .btn-text { margin-left: auto; color: var(--primary); font-weight: 650; }
+.check { display: flex; align-items: center; gap: 12px; min-height: var(--tap); margin-top: 12px; font-size: 15px; }
+.box-tick { width: 24px; height: 24px; border-radius: 7px; background: var(--primary); display: grid; place-items: center; }
+.box-tick svg { width: 14px; height: 14px; stroke: var(--primary-foreground); stroke-width: 3; fill: none; }
+.lock .btn { width: 100%; margin-top: auto; }
+.lock .help { font-size: 14px; color: var(--muted-foreground); margin: 14px 0 20px; text-align: center; }
+
+@media (max-width: 500px) { body { padding: 24px 12px 64px; } .shot, .phone { width: 100%; } h1 { font-size: 32px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Foreman on the phone</h1>
+<p class="lede">The same Foreman, opened in the phone's browser over Tailscale. It is built for one thumb: everything you press sits in the bottom half, the buttons that matter are big, and a waiting approval is never more than one tap away.</p>
+<p class="note" style="margin-top:12px">Design direction for 390px phones, 2026-11-05. Mockups are static; numbers in the spec are the ones to build to.</p>
+
+<div class="rack">
+
+<!-- 1. Projects and threads -->
+<section class="shot">
+  <h3>Projects and threads</h3>
+  <p>Home tab. Threads that need you float to the top of each project with the orange "needs you" line.</p>
+  <div class="phone">
+    <div class="sbar"><span>09:41</span><span>5G</span></div>
+    <div class="scroll">
+      <div class="big-title">Projects</div>
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Find a thread</div>
+      <div class="proj">
+        <div class="proj-head"><b>Foreman</b><span class="meta">3 threads</span></div>
+        <div class="surface">
+          <div class="thread"><span class="dot" style="background:var(--working)"></span><div class="t-main"><div class="t-name">Phone access over Tailscale</div><div class="t-sub">Builder is editing main/remote.ts</div><span class="chip-wait">Needs you: 1 permission</span></div><div class="t-side">now</div></div>
+          <div class="thread"><span class="dot" style="background:var(--success)"></span><div class="t-main"><div class="t-name">Agent SDK engine mapping</div><div class="t-sub">Done. 4 files read, plan ready</div></div><div class="t-side">12 min</div></div>
+          <div class="thread"><span class="dot" style="background:var(--border)"></span><div class="t-main"><div class="t-name">Graph popout tidy-up</div><div class="t-sub">You: leave the minimap for now</div></div><div class="t-side">Tue</div></div>
+        </div>
+      </div>
+      <div class="proj">
+        <div class="proj-head"><b>RigApp</b><span class="meta">2 threads</span></div>
+        <div class="surface">
+          <div class="thread"><span class="dot" style="background:var(--warning)"></span><div class="t-main"><div class="t-name">Linux AppImage build</div><div class="t-sub">Asked a question about the icon size</div><span class="chip-wait">Needs you: 1 question</span></div><div class="t-side">8 min</div></div>
+          <div class="thread"><span class="dot" style="background:var(--border)"></span><div class="t-main"><div class="t-name">Seat status colours</div><div class="t-sub">Claude: all four states now match</div></div><div class="t-side">Mon</div></div>
+        </div>
+      </div>
+      <div class="fab-row"><button class="btn btn-quiet" style="flex:1">New thread in Foreman</button></div>
+    </div>
+    <nav class="tabs" aria-label="Main">
+      <a class="tab" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Projects</a>
+      <a class="tab"><span class="badge">3</span><svg viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l1 8v6H4v-6z"/></svg>Inbox</a>
+      <a class="tab"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 8 11 16M16.5 8 13 16"/></svg>Agents</a>
+    </nav>
+  </div>
+</section>
+
+<!-- 2. Chat thread -->
+<section class="shot">
+  <h3>Chat thread</h3>
+  <p>Pushed screen, no tab bar: the composer owns the bottom. Approvals are big and inline; tools stay one line.</p>
+  <div class="phone">
+    <div class="sbar"><span>09:41</span><span>5G</span></div>
+    <div class="chat-head">
+      <button class="icon-btn" aria-label="Back to projects"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></button>
+      <div class="h-main"><b>Phone access over Tailscale</b><span><span class="dot" style="background:var(--working);margin-right:6px"></span>Foreman · working</span></div>
+      <button class="icon-btn" aria-label="Thread options"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></button>
+    </div>
+    <div class="offline" role="status"><span class="dot"></span>Reconnecting to DAYLE-PC. Your message will send when it's back.<button class="btn-text">Retry</button></div>
+    <div class="msgs">
+      <div class="you">Add a token check before the phone can see any thread.</div>
+      <div class="tool"><span class="tick">✓</span>Read<code>main/remote.ts</code></div>
+      <div class="tool"><span class="tick">✓</span>Searched<code>"token" in core/</code></div>
+      <div class="surface ask plan">
+        <h4>Plan ready</h4>
+        <ol><li>Check the token on every request</li><li>Lock screen when the token is wrong</li><li>Forget the phone from desktop settings</li></ol>
+        <div class="row2"><button class="btn btn-quiet">Keep planning</button><button class="btn btn-primary">Approve plan</button></div>
+      </div>
+      <div class="surface ask" role="alertdialog" aria-label="Permission: Edit">
+        <h4>Claude wants to edit a file</h4>
+        <pre>main/remote.ts  +18 −2</pre>
+        <div class="row2"><button class="btn btn-quiet">Deny</button><button class="btn btn-primary">Allow once</button></div>
+        <button class="btn btn-text always">Always allow edits in this project</button>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="box">
+        <button class="icon-btn" aria-label="Add image or command"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="field">Message Claude</div>
+        <button class="send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+      </div>
+      <div class="c-meta"><span>Opus 5.5 · high</span><span>42% context</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Agents graph -->
+<section class="shot">
+  <h3>Agents</h3>
+  <p>The compact graph as one column. The line on the left lights from the card that is working; tap a card to open its thread.</p>
+  <div class="phone">
+    <div class="sbar"><span>09:41</span><span>5G</span></div>
+    <div class="scroll">
+      <div class="big-title">Agents</div>
+      <div class="g-head"><b>Foreman · Phone access</b><span style="color:var(--success);font-weight:600"><span class="dot" style="background:var(--success);margin-right:6px"></span>Live</span></div>
+      <div class="g-col">
+        <div class="g-card"><div class="g-t"><b>Orchestrator</b><span>opus 5.5</span><em style="color:var(--success)">running</em></div><div class="g-d">Handing step 2 to the builder</div></div>
+        <div class="g-card"><div class="g-t"><b>Brain</b><span>opus 5.5</span><em class="muted">approved</em></div><div class="g-d">Plan gated 09:31</div></div>
+        <div class="g-card"><div class="g-t"><b>Memory</b><span>haiku 5.5</span><em class="muted">idle</em></div><div class="g-d">CodeGraph 6 · Hindsight 2</div></div>
+        <div class="g-card on lit"><div class="g-t"><b>Builder</b><span>sonnet 5.5</span><em style="color:var(--working)">editing</em></div><div class="g-d">main/remote.ts: token check</div><div class="g-bar"><i style="width:58%;background:var(--working)"></i></div></div>
+        <div>
+          <div class="g-t" style="display:flex;gap:8px;padding:0 2px 8px"><b style="font-size:15px">Council</b><span class="meta">haiku 5.5</span></div>
+          <div class="g-three">
+            <div class="g-card"><div class="g-t"><b>UI</b></div><div class="g-d">waiting</div></div>
+            <div class="g-card"><div class="g-t"><b>Code</b></div><div class="g-d">waiting</div></div>
+            <div class="g-card"><div class="g-t"><b>Run</b></div><div class="g-d">waiting</div></div>
+          </div>
+        </div>
+        <div class="g-card"><div class="g-t"><b>Freelancers</b><span>none yet</span></div></div>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Main">
+      <a class="tab"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Projects</a>
+      <a class="tab"><span class="badge">3</span><svg viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l1 8v6H4v-6z"/></svg>Inbox</a>
+      <a class="tab" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 8 11 16M16.5 8 13 16"/></svg>Agents</a>
+    </nav>
+  </div>
+</section>
+
+<!-- 4. Inbox -->
+<section class="shot">
+  <h3>Inbox</h3>
+  <p>Everything waiting on you, across every project, oldest first. Answer here without opening the thread.</p>
+  <div class="phone">
+    <div class="sbar"><span>09:41</span><span>5G</span></div>
+    <div class="scroll">
+      <div class="big-title">Inbox</div>
+      <div class="seg" role="tablist"><span aria-current="true">All 3</span><span>Permissions</span><span>Questions</span></div>
+      <div class="surface inbox-item">
+        <div class="i-top"><span>Foreman · Phone access</span><span>2 min</span></div>
+        <h4>Edit a file</h4>
+        <div class="i-what">main/remote.ts  +18 −2</div>
+        <div class="row2"><button class="btn btn-quiet">Deny</button><button class="btn btn-primary">Allow once</button></div>
+      </div>
+      <div class="surface inbox-item">
+        <div class="i-top"><span>RigApp · Linux AppImage</span><span>8 min</span></div>
+        <h4>Which icon size should the AppImage ship?</h4>
+        <div style="margin-top:10px">
+          <div class="opt sel">512 px (recommended)</div>
+          <div class="opt">256 px</div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:4px">Send answer</button>
+      </div>
+      <div class="surface inbox-item">
+        <div class="i-top"><span>Foreman · SDK engine</span><span>12 min</span></div>
+        <h4>Plan waiting: 5 steps</h4>
+        <p class="small muted" style="margin:4px 0 12px">Add the Agent SDK as a second engine beside the CLI driver.</p>
+        <button class="btn btn-quiet" style="width:100%">Read the plan</button>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Main">
+      <a class="tab"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Projects</a>
+      <a class="tab" aria-current="page"><span class="badge">3</span><svg viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l1 8v6H4v-6z"/></svg>Inbox</a>
+      <a class="tab"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 8 11 16M16.5 8 13 16"/></svg>Agents</a>
+    </nav>
+  </div>
+</section>
+
+<!-- 5. Lock -->
+<section class="shot">
+  <h3>Connect and lock</h3>
+  <p>First visit, a wrong token, or a token the desktop has forgotten. Nothing about any project shows before this passes.</p>
+  <div class="phone">
+    <div class="sbar"><span>09:41</span><span>5G</span></div>
+    <div class="lock">
+      <div class="mark" aria-hidden="true">F</div>
+      <h2>Connect to Foreman</h2>
+      <p class="muted">On DAYLE-PC, open Settings, then Phone access, and copy the token shown there.</p>
+      <label for="tok">Phone token</label>
+      <div class="input" id="tok">fm-7Q2k-9xWd-Lr4p<button class="btn-text">Paste</button></div>
+      <div class="check"><span class="box-tick"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span>Remember this phone</div>
+      <button class="btn btn-primary">Connect</button>
+      <p class="help">Only works on your Tailscale network.</p>
+    </div>
+    <div class="home"><i></i></div>
+  </div>
+</section>
+
+</div>
+
+<div class="doc">
+<h2>Tokens reused</h2>
+<p>All colour comes from <code>renderer/src/index.css</code>, dark scheme. The light scheme should work by swapping the same names, so check it once on a phone. One thing to know: the stored theme is a neutral charcoal (<code>--background #171717</code>) with a warm orange accent, not brown. The warmth comes from <code>--primary #d97757</code> and the grain overlay.</p>
+<ul>
+<li>Ground <code>--background</code>, tab bar and tool rows <code>--card</code>, cards <code>.surface</code> (with <code>--surface</code>, <code>--surface-border</code>, <code>--surface-line</code> for rows inside), your bubbles <code>--bubble</code>, code <code>--code</code>, quiet buttons and options <code>--accent</code>, search and segmented control <code>--secondary</code>.</li>
+<li>Text <code>--foreground</code>, secondary text <code>--muted-foreground</code> (6.4:1 on the ground, passes AA).</li>
+<li>One action colour: <code>--primary</code> with <code>--primary-foreground</code> text. It is used only for the main button, the send button, the active tab icon and the inbox badge.</li>
+<li>Status: <code>--working</code> (busy), <code>--success</code> (done, live), <code>--warning</code> (needs you, reconnecting), <code>--destructive</code> (errors only, never for the Deny button).</li>
+<li>Motion: <code>--m-ease</code>, <code>--m-select</code>, <code>--m-enter</code> and the <code>.m-press</code>, <code>.m-enter</code> classes. Their reduced-motion fallbacks already exist.</li>
+<li>Type: <code>--font-sans</code> (Figtree, bundled) everywhere, <code>--font-mono</code> only for file names, commands and diffs.</li>
+<li>New, phone only: <code>--tap 44px</code>, <code>--tap-big 52px</code>, <code>--pad 16px</code>, <code>--tabbar 64px</code>.</li>
+</ul>
+
+<h2>The rules to build to</h2>
+<ol>
+<li><b>Type sizes.</b> Screen titles 28px weight 650. Body, messages and every input 16px (below 16px iOS zooms the page when you tap a field). Secondary lines 14px, meta 13px, nothing smaller. Lines 1.5 high.</li>
+<li><b>Touch targets.</b> Every tap area is 44px or more, rows 64px. Approve, Deny, Allow once, Send answer and Connect are 52px high and at least half the width of the screen. Allow goes on the right, under the thumb; Deny on the left in the quiet style, never red, so a slip reads as a choice and not a warning.</li>
+<li><b>Bottom tab bar.</b> Three tabs: Projects, Inbox, Agents. Icon with a word under it, a plain bar in <code>--card</code> with no blur and no floating pill. The Inbox badge shows the waiting count. The bar hides on pushed screens (a thread, a plan), where the composer takes the bottom.</li>
+<li><b>Safe areas.</b> Set <code>viewport-fit=cover</code>. Pad the top bar with <code>env(safe-area-inset-top)</code>, the tab bar and composer with <code>env(safe-area-inset-bottom)</code>, and the sides with the left and right insets for landscape.</li>
+<li><b>Composer above the keyboard.</b> Use <code>height: 100dvh</code> for the shell and the <code>interactive-widget=resizes-content</code> viewport key for Android. On iOS, listen to <code>visualViewport</code> resize and scroll, and lift the composer by the keyboard height. The text field grows to 6 lines, then scrolls. Model and context sit in one 13px line under it; the plus button opens a bottom sheet for images, slash commands and effort.</li>
+<li><b>Swipe back.</b> Every screen change is a real history entry (<code>pushState</code>), so the browser's own edge swipe and the Android back button both work. Do not build a custom swipe on top, because it fights Safari's. The back arrow in the header does the same thing.</li>
+<li><b>Never swipe to approve.</b> Approvals need a deliberate tap. A swipe in a list is too easy to trigger by accident when you are scrolling with one thumb.</li>
+<li><b>Offline and reconnecting.</b> A banner under the header in <code>--secondary</code> with a <code>--warning</code> dot: "Reconnecting to DAYLE-PC. Your message will send when it's back." with a Retry button. Messages you send while it shows wait in the queue with a "waiting to send" line. Approve buttons are greyed while offline, so an answer is never lost. After 30 seconds the text changes to "Can't reach DAYLE-PC. Is the PC on and Tailscale running?"</li>
+<li><b>Reduced motion.</b> Respect <code>prefers-reduced-motion</code>: no slide on screen changes (an 80ms fade instead), no pulsing dots, no moving graph links. Use the existing <code>useMotionAllowed</code> pattern from GraphView.</li>
+<li><b>Lock screen.</b> No project names, counts or thread titles before the token passes. The token field uses <code>autocomplete="off"</code>, <code>autocapitalize="off"</code>, <code>spellcheck="false"</code>, 16px text and a Paste button. A wrong token shakes nothing; it shows one line under the field: "That token didn't work. Check it on the PC." "Remember this phone" stores the token so the phone skips this screen next time.</li>
+<li><b>Approvals in a thread.</b> When something is waiting and you have scrolled up, a 44px "Needs you" strip in <code>--warning</code> tint sits under the header; tapping it scrolls to the card. Answered cards collapse to one grey line, the same as desktop.</li>
+<li><b>Tool rows.</b> One 44px line each: status, verb, the file in mono, cut off with an ellipsis. Tap to open the full output in a bottom sheet. Runs of five or more tools fold into "Read 6 files" with a count.</li>
+<li><b>Graph on the phone.</b> The Compact layout, cards at full width, the council as three small cards in a row, the link drawn as one line down the left gutter that lights from the working card. Card names are sentence case at 15px, not the desktop's small spaced capitals, because the phone rules ban those. If you want the desktop look kept, that is a one-line change.</li>
+<li><b>States.</b> Empty inbox: "Nothing waiting. Claude will ping the badge when it needs you." Empty project: "No threads yet" with the New thread button. Loading: the list keeps its last data and shows a thin progress line at the top, no grey placeholder bars.</li>
+</ol>
+
+<h2>Components to build, and what to reuse</h2>
+<ol>
+<li><b>PhoneShell</b>: the 100dvh frame, safe-area padding, history-backed routing, tab bar. New. Shown when the window is under 600px wide or opened from the remote address.</li>
+<li><b>TabBar</b>: three tabs and the inbox badge. New, small. The badge count comes from the same pending items <code>ConversationList</code> already finds.</li>
+<li><b>ProjectList</b>: projects with their threads, search, the "needs you" line. Reuse the thread data and status dots from the desktop sidebar; new layout.</li>
+<li><b>PhoneChatView</b>: header, messages, composer. Reuse <code>ConversationList.tsx</code> and <code>ItemViews.tsx</code> for the messages, with a phone class that raises sizes to the rules above. Reuse <code>Composer.tsx</code> logic (send, queue, stop, images, <code>CommandMenu.tsx</code>) inside a new phone layout; the menus become bottom sheets.</li>
+<li><b>Prompt cards</b>: reuse <code>PermissionCard</code>, <code>QuestionCard</code> and <code>PlanCard</code> from <code>PromptCards.tsx</code> and their <code>chatActions.permission</code> calls as they are. Add a phone variant of the button row: two 52px buttons in a grid, Always allow as a full-width text button below. Number keys stay for desktop only.</li>
+<li><b>ToolRow and ToolSheet</b>: reuse the tool item data from <code>ItemViews.tsx</code>; the sheet shows the full output or <code>DiffBlock</code>.</li>
+<li><b>InboxView</b>: all waiting permissions, questions and plans across projects. New list; each item renders the reused prompt cards with a project and age line on top.</li>
+<li><b>AgentsView</b>: <code>GraphAtWidth</code> from <code>mods/agents/GraphView.tsx</code> with <code>size</code> forced to compact. Change only the card text sizes on the phone (15px names, 14px detail) and make each card a 44px+ button that opens its thread.</li>
+<li><b>ConnectionBanner</b>: the reconnecting and offline banner. New. Reuse the toast motion tokens for its entrance.</li>
+<li><b>LockScreen</b>: token entry, paste, remember. New. Needs a desktop side: Settings, then Phone access, showing the token and a "Forget all phones" button.</li>
+<li><b>BottomSheet</b>: one shared sheet for composer extras, tool output and thread options. Reuse the <code>.m-surface</code> motion with <code>data-side="bottom"</code>.</li>
+</ol>
+</div>
+
+</div>
+</body>
+</html>

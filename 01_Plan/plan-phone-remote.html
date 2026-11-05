@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Foreman plan: Foreman on your phone</title>
+<style>
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #e8e4df; background: #2a2523; }
+  h1 { font-size: 1.6rem; } h2 { margin-top: 2rem; font-size: 1.2rem; border-bottom: 1px solid #5a4f49; padding-bottom: .2rem; }
+  .box { background: #352f2c; border-radius: 10px; padding: .8rem 1.1rem; }
+  .warn { background: #4a2f2a; border-radius: 10px; padding: .8rem 1.1rem; }
+  li { margin: .3rem 0; } code { background: #1f1b19; padding: 0 .3rem; border-radius: 4px; }
+  label { cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Foreman on your phone</h1>
+<p>Status: plan only, nothing built. Branch: <code>dev-4.4.0</code>. Design mockup: <code>design-phone-ui.html</code> (same folder). Code map done 5 November 2026.</p>
+
+<div class="box">
+<h2 style="margin-top:0">Read this first</h2>
+<ol>
+  <li>Foreman serves its own screens to your phone's browser. You see your real projects, threads, graph and approvals, not a separate app.</li>
+  <li>It reaches your PC over Tailscale (a private network between your devices). Nothing is opened to the public internet, ever.</li>
+  <li>Your PC must be on and Foreman must be open. It is off until you switch it on in Settings > Phone access.</li>
+  <li>This is the riskiest feature so far, because a phone that can approve things can make your PC run commands. Section 4 is the security design. I want your yes on section 7 before I build.</li>
+</ol>
+</div>
+
+<h2>1. What you get</h2>
+<ul>
+  <li>Open one address on your phone, pair it once with a QR code, and from then on it opens straight in.</li>
+  <li>Five phone screens, designed for one hand: projects and threads, the chat with a composer that sits above the keyboard, the Agents graph in one column, an approvals inbox, and the connect screen.</li>
+  <li>Big Approve and Deny buttons for permission, question and plan cards. Approving always takes a tap, never a swipe.</li>
+  <li>A "reconnecting" banner when the connection drops. Messages you type wait in a queue, and Approve is greyed out until it is back.</li>
+  <li>A desktop page, Settings > Phone access: the on/off switch, the pairing QR, the list of paired phones with a Forget button each, and "Forget all phones".</li>
+</ul>
+
+<h2>2. How it works (from the code map)</h2>
+<ul>
+  <li>The desktop window talks to the main process through a table of handlers (<code>foreman.handlers[channel]</code> in <code>main/ipc.ts</code>). That table does not depend on Electron, so a WebSocket server can call it directly.</li>
+  <li><b>Chat calls need checking.</b> The chat channels (<code>chat:*</code>) are not in the core channel list in <code>shared/ipc.ts</code>, and the desktop wrapper in <code>main/ipc.ts</code> also turns errors into a safe form and closes a tile on <code>scratch:delete</code>. Step 1 finds where the chat handlers are registered, and the phone server must reuse that error handling and not skip it. Step 1 also names the channel that starts a new thread, which the list in section 4 does not name yet.</li>
+  <li>Today the app refuses any page that is not the dev address or a <code>file:</code> page (<code>main/guard.ts</code>). The phone needs its own, separate trust rule tied to its token. The desktop rule stays as it is.</li>
+  <li>The phone page has no <code>window.foreman</code>, so a small shim sends the same calls and the same live updates over the socket. The screens keep using the code they use now.</li>
+  <li>The server serves the built renderer from <code>out/renderer</code>, with a phone layout switched on for narrow screens.</li>
+</ul>
+
+<h2>3. Tailscale in plain words</h2>
+<p>You install Tailscale on the PC and on the phone, signed in to the same account. Each gets a private address. Foreman listens only on the PC itself (<code>127.0.0.1</code>). You run one command, <code>tailscale serve</code>, which puts it on your private network with a proper HTTPS address. Foreman shows you that command and the address in Settings. Your PC never listens on your home network or the internet.</p>
+
+<div class="warn">
+<h2 style="margin-top:0">4. Security design</h2>
+<ul>
+  <li><b>Off by default.</b> Switching it on is a deliberate act in Settings, and it turns off again when Foreman closes.</li>
+  <li><b>Local only.</b> The server binds to <code>127.0.0.1</code>. It never binds to <code>0.0.0.0</code>. Tailscale does the reaching.</li>
+  <li><b>Pairing.</b> The desktop shows a QR with a one-time code that works for 5 minutes and once. The phone swaps it for a long random device token (32 bytes). The desktop keeps only a hash of it. Each phone has a name and can be forgotten on its own.</li>
+  <li><b>Checks on every connection.</b> Token compared in constant time. The Host and Origin headers must be the Tailscale address you set, which stops a web page on another site from using the socket. A few wrong tries in a row lock pairing for a while.</li>
+  <li><b>An allow-list of channel names, not prefixes.</b> Names like <code>app:</code>, <code>shell:</code> and <code>browser:</code> mix safe and dangerous calls, so the phone gets an explicit list. It covers listing and reading projects and threads, sending a chat message, answering a permission, question or plan card, interrupting a turn, and the graph.</li>
+  <li><b>Desktop only, never on the phone:</b> shell and terminal writes, settings changes, opening paths or links, install and update, adding MCPs, setup and import, browser cookies and confirmations, picking folders, deleting projects.</li>
+  <li><b>No Bypass from the phone, checked by value.</b> An allow-list of names cannot enforce this alone, because the mode call (<code>chat:setMode</code>) takes the mode as a value. The server refuses the Bypass value itself, and also refuses to start a thread in it. The phone may change between the other modes only if you say so in section 7.</li>
+  <li><b>Approval answers are checked by value too.</b> A permission answer can mean "always allow", which writes a rule into the project's settings, or "approve and switch to accept-edits", which changes the thread's mode. The phone may only answer allow once or deny. The server refuses the other two answers.</li>
+  <li><b>The weak point is a stolen phone.</b> Anyone holding an unlocked paired phone can approve things. The mitigations are the Forget button, a device list that shows the last time each phone connected, and a note in Settings telling you to keep the phone locked.</li>
+</ul>
+</div>
+
+<h2>5. Steps (one at a time, each with a check)</h2>
+<ol>
+  <li><label><input type="checkbox"> <b>Allow-list and value checks.</b> The explicit list of phone channels in <code>shared</code> (including the mode call and the new-thread call), the value rules (no Bypass, no "always allow", no accept-edits switch), and a test that fails if a desktop-only channel is ever added. Check: tests pass.</label></li>
+  <li><label><input type="checkbox"> <b>Pairing and tokens.</b> One-time code, token creation, hashed storage, forget, rate limit, in <code>core</code>. Check: tests for expiry, reuse, wrong code, lockout, constant-time compare.</label></li>
+  <li><label><input type="checkbox"> <b>The server.</b> Static files plus a WebSocket on <code>127.0.0.1</code>, Host and Origin checks, calls through the handler table with the allow-list, live updates pushed to paired phones. Check: tests with a fake client, including a refused channel and a bad origin.</label></li>
+  <li><label><input type="checkbox"> <b>The phone bridge.</b> The shim that gives the renderer <code>window.foreman</code> over the socket, with reconnect and the message queue. Check: unit tests with a fake socket.</label></li>
+  <li><label><input type="checkbox"> <b>Phone shell.</b> The layout switch for narrow screens, the tab bar, the bottom sheets, the keyboard-aware composer and safe areas, as in the mockup. Check: screenshots at 390px that I send you.</label></li>
+  <li><label><input type="checkbox"> <b>The five screens.</b> Reuse the desktop chat, prompt-card and graph components where the mockup says so. Check: screenshots of each screen.</label></li>
+  <li><label><input type="checkbox"> <b>Settings > Phone access.</b> Switch, QR, devices list, Forget and Forget all, the <code>tailscale serve</code> command and address. Check: screenshot, plus a test that Forget ends a live connection.</label></li>
+  <li><label><input type="checkbox"> <b>Council and security review.</b> council-run, council-ui and council-code, then the reviewer with a security focus. Max 3 fix passes, then I stop and ask.</label></li>
+  <li><label><input type="checkbox"> <b>Real phone test.</b> You install Tailscale on the PC and the phone, pair, send a message, approve a card, drop the connection and come back. I cannot do this step for you.</label></li>
+</ol>
+
+<h2>6. How you test it</h2>
+<ol>
+  <li>Install Tailscale on the PC and on the phone and sign both in to the same account.</li>
+  <li>In Foreman open Settings > Phone access, switch it on and run the <code>tailscale serve</code> command it shows.</li>
+  <li>On the phone scan the QR. Open a thread, send "say hello", then trigger a permission card and tap Allow.</li>
+  <li>Turn the phone's Wi-Fi off and on. The banner appears, then clears, and the queued message sends.</li>
+  <li>In Settings press Forget on the phone. The phone drops to the connect screen.</li>
+</ol>
+
+<h2>7. Decisions for you (my pick first)</h2>
+<ol>
+  <li><b>HTTPS:</b> use <code>tailscale serve</code> for a real HTTPS address (my pick), or plain HTTP on the private address. Plain HTTP works but blocks "add to home screen" and some phone features.</li>
+  <li><b>Phone can start new threads:</b> yes, in a project you already have (my pick), or it can only continue existing threads.</li>
+  <li><b>Bypass from the phone:</b> never (my pick). Other mode changes from the phone (Shift+Tab style): allowed between plan, default and accept-edits (my pick), or none.</li>
+  <li><b>Tailscale:</b> it is free for personal use and its apps are mostly open source, but the service is a company's. If that breaks your "free and open source" rule, the other route is a plain VPN you run yourself (WireGuard), which is more setup.</li>
+</ol>
+
+<h2>8. Out of scope for version 1</h2>
+<ul>
+  <li>Push notifications to the phone (needs more than the browser gives on iPhone). The Inbox tab and its badge show what is waiting while the page is open.</li>
+  <li>Working while Foreman is closed or the PC is asleep.</li>
+  <li>Reaching Foreman over the public internet, or sharing it with anyone else.</li>
+  <li>The terminal view and the file and diff panels on the phone.</li>
+</ul>
+
+<h2>9. Design notes and not verified yet</h2>
+<ul>
+  <li>The mockup reuses Foreman's own colour tokens (a neutral charcoal with an orange accent), so the phone matches the desktop app. The phone graph uses 15px sentence-case card names, not the desktop's small spaced capitals, because the UI rules ban those. Changing it back is one line.</li>
+  <li>Once you approve the mockup, the style gets saved to the design bank so later screens match it.</li>
+</ul>
+<p>Not verified:</p>
+<ul>
+  <li>That a WebSocket passes cleanly through <code>tailscale serve</code> on your setup, and which Host header <code>tailscale serve</code> forwards. The Host and Origin check in section 4 depends on it, so step 3 tests both on a real phone before the check is fixed in code.</li>
+  <li>Where the thread sidebar lives in the code. The map did not find it, so step 6 starts by locating it.</li>
+  <li>The mockup was not rendered in a browser. The chat screen's message stack may clip at the top.</li>
+</ul>
+</body>
+</html>
