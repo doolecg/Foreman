@@ -1,3 +1,12 @@
+# Foreman 4.3.1
+
+**Install:** download the file for your system from the assets below. Foreman keeps itself up to date from these releases.
+
+## Fixed
+- **The 4.3.0 installer was built before the last changes.** This release is built from the final 4.3.0 work: the Small and Large graph views, the wider side panel, rounded graph links, the new Orchestration graph layout in the narrow panel, and the token rules in the kit.
+
+---
+
 # Foreman 4.3.0
 
 **Install:** download the file for your system from the assets below. Foreman keeps itself up to date from these releases.
