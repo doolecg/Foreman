@@ -132,6 +132,9 @@ export interface Settings {
     // Keeps operators on one Claude Code version (DISABLE_AUTOUPDATER=1) so upgrades don't rebuild caches.
     pinClaudeVersion: boolean
   }
+  // Lite sessions start Claude with only these MCP servers (by name) and these Foreman mod or pack plugins (by folder name).
+  // Both empty: no MCP servers, the Foreman plugin only.
+  lite: { mcpServers: string[]; plugins: string[] }
 }
 
 export const KEY_ACTIONS: Array<{ id: KeyAction; label: string }> = [
@@ -235,6 +238,7 @@ export const DEFAULT_SETTINGS: Settings = {
     subagentCacheTtl: '5m',
     pinClaudeVersion: true,
   },
+  lite: { mcpServers: [], plugins: [] },
 }
 
 export type SettingsPatch = {
@@ -246,7 +250,10 @@ const ttl = (v: unknown, fallback: CacheTtl): CacheTtl => (v === 'auto' || v ===
 const num = (v: unknown, fallback: number, min: number, max: number) =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback
 
-const HTTP_URL = /^https?:\/\/[^\s]+$/i
+const nameList = (v: unknown): string[] =>
+  Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string').map((x) => x.trim().slice(0, 100)).filter(Boolean))].slice(0, 100) : []
+
+const HTTP_URL =/^https?:\/\/[^\s]+$/i
 
 // Settings from before the mod registry had one `subagentPanel` switch: it becomes mods.subagents when mods has no value for it.
 export function sanitizeMods(raw: unknown): ModsSettings {
@@ -271,6 +278,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   const updates = r.updates ?? {}
   const keys = r.keybinds ?? {}
   const tokens = r.tokens ?? {}
+  const lite = r.lite ?? {}
   const top = r.topBar ?? {}
   const browser = r.browser ?? {}
   const confirm = r.confirm ?? {}
@@ -375,6 +383,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       subagentCacheTtl: ttl(tokens.subagentCacheTtl, d.tokens.subagentCacheTtl),
       pinClaudeVersion: typeof tokens.pinClaudeVersion === 'boolean' ? tokens.pinClaudeVersion : d.tokens.pinClaudeVersion,
     },
+    lite: { mcpServers: nameList(lite.mcpServers), plugins: nameList(lite.plugins) },
   }
 }
 

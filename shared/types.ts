@@ -190,6 +190,8 @@ export interface ScratchInput {
   view?: ScratchView
   // Default: the crew folder.
   cwd?: string
+  // A Lite session: only the MCP servers and plugins on the Lite allowlist (Settings), to save tokens.
+  lite?: boolean
 }
 
 // Whether a scratch terminal's session is alive right now (a closed tile or an exited one is not).

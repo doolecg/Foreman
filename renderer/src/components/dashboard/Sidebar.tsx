@@ -72,6 +72,7 @@ interface Props {
   onDeleteThread: (row: ScratchTerminal) => void
   onArchiveThread: (row: ScratchTerminal) => void
   onNewThread: () => void
+  onNewLiteThread: () => void
   searchRef: RefObject<HTMLInputElement | null>
 }
 
@@ -151,7 +152,7 @@ const tiny = 'text-muted-foreground hover:text-foreground size-5 shrink-0'
 const headerBtn = 'text-muted-foreground hover:text-foreground hover:bg-foreground/[.08] size-[22px] rounded-md [&_svg]:size-3'
 const ring = 'shadow-[inset_0_0_0_1.5px_var(--primary)]'
 
-export function Sidebar({ crews: allCrews, selected, onSelect, onNewCrew, actions, footer, waiting, onShowTerminal, tabs, active, onOpenThread, onDeleteThread, onArchiveThread, onNewThread, searchRef }: Props) {
+export function Sidebar({ crews: allCrews, selected, onSelect, onNewCrew, actions, footer, waiting, onShowTerminal, tabs, active, onOpenThread, onDeleteThread, onArchiveThread, onNewThread, onNewLiteThread, searchRef }: Props) {
   const [query, setQuery] = useState('')
   // The Playground is pinned above the list; every list below works on the real projects only.
   const playground = allCrews.find((c) => c.kind === 'playground')
@@ -170,8 +171,11 @@ export function Sidebar({ crews: allCrews, selected, onSelect, onNewCrew, action
   const ides = useIdes().data
   const defaultIde = useSettings().data?.ide.default ?? 'code'
   const ideName = ides?.find((i) => i.id === defaultIde)?.name ?? 'IDE'
-  const mainCli = useSettings().data?.mainCli ?? 'claude'
-  const agentBlocked = cliBlocked(useCapabilities().data, mainCli)
+  const settingsMainCli = useSettings().data?.mainCli
+  const mainCli = settingsMainCli ?? 'claude'
+  const capabilities = useCapabilities().data
+  const agentBlocked = cliBlocked(capabilities, mainCli)
+  const claudeBlocked = cliBlocked(capabilities, 'claude')
   const platform = bridge().platform
   const panel = usePanelWidth('sidebarWidth')
   const aside = useRef<HTMLElement>(null)
@@ -613,9 +617,17 @@ export function Sidebar({ crews: allCrews, selected, onSelect, onNewCrew, action
             className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent outline-none"
           />
         </label>
-        <button type="button" onClick={onNewThread} disabled={!!agentBlocked} title={agentBlocked ?? `New ${CLI_SHORT[mainCli]} thread`} className="text-foreground hover:bg-foreground/5 flex h-9 w-full items-center gap-2 rounded-xl px-3 text-[13.5px] font-medium disabled:opacity-50">
-          <Plus className="text-primary size-4" aria-hidden /> New thread
-        </button>
+        <div className="flex gap-1">
+          <button type="button" onClick={onNewThread} disabled={!!agentBlocked} title={agentBlocked ?? `New ${CLI_SHORT[mainCli]} thread`} className="text-foreground hover:bg-foreground/5 flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl px-3 text-[13.5px] font-medium disabled:opacity-50">
+            <Plus className="text-primary size-4" aria-hidden /> New thread
+          </button>
+          {settingsMainCli === 'claude' && (
+            <button type="button" onClick={onNewLiteThread} disabled={!!claudeBlocked} aria-label="New Lite thread" title={claudeBlocked ?? 'New Lite thread: starts with only the MCP servers and plugins set in Settings, Lite sessions'} className="text-foreground hover:bg-foreground/5 flex h-9 shrink-0 items-center gap-2 rounded-xl px-3 text-[13.5px] font-medium whitespace-nowrap disabled:opacity-50">
+              <Plus className="text-primary size-4" aria-hidden /> Lite
+            </button>
+          )}
+        </div>
+
       </div>
       <div data-testid="project-panel-header" className="flex h-8 shrink-0 items-center gap-0.5 pr-1.5 pl-3.5">
         <span className="text-primary mr-auto text-[10.5px] font-semibold tracking-[.09em] uppercase">Projects</span>

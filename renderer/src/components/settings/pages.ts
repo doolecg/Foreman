@@ -19,6 +19,7 @@ export const SETTINGS_SECTION_IDS = [
   'import',
   'shortcuts',
   'browser',
+  'lite',
   'reset',
   'install',
 ] as const
@@ -75,6 +76,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     pages: [
       { id: 'mods', label: 'Mods', description: 'The features of Foreman you can turn off: the Agents panel, info bar, Keep warm, Commands menu and the Claude Code mods.', keywords: 'hooks status line subagent info bar keep warm commands engineering factory mode pack skills reset', subsections: [{ id: 'mods', label: 'Mods' }] },
       { id: 'browser', label: 'Browser', description: 'The browser tile in each project, and whether the AI may drive it.', keywords: 'browser web ai control playwright cookies home page search', subsections: [{ id: 'browser', label: 'Browser' }] },
+      { id: 'lite', label: 'Lite sessions', description: 'The MCP servers and plugins a Lite thread may start with. Nothing else loads.', keywords: 'lite light small cheap tokens mcp plugins allowlist', subsections: [{ id: 'lite', label: 'Lite sessions' }] },
     ],
   },
   {

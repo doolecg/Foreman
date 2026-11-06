@@ -94,6 +94,9 @@ export interface LaunchContext {
   orchestration?: boolean
   // The embedded browser's MCP endpoint. The config file holds no secret: Claude expands ${FOREMAN_TOKEN} from the tile's env.
   browserMcp?: { url: string }
+  // A Lite session: `mcpServers` are the config blocks of the allowlisted servers only (found by the caller in the user's
+  // and the project's Claude config), `plugins` the folder names of the mod and pack plugins that may still load.
+  lite?: { mcpServers: Record<string, unknown>; plugins: string[] }
 }
 
 const MODEL_RE = /^[a-z0-9][a-z0-9.\-[\]]{0,63}$/
@@ -260,6 +263,8 @@ interface ClaudeParts {
   guidance: LaunchFile | null
   resume?: string
   cwd: string
+  // The tile's id: names its Lite MCP file.
+  scratchId?: number
 }
 
 // A Claude Code tile: its settings file, its guidance (a preset's text), the Foreman plugin dir (memory skill)
@@ -304,7 +309,16 @@ function claudeCore(parts: ClaudeParts, ctx: LaunchContext): LaunchResult {
     add('--append-system-prompt-file', parts.guidance.path)
   }
   if (cap) add('--autocompact', capFlag(cap))
-  if (ctx.browserMcp && !ctx.orchestration && (!supported || supported.has('--mcp-config'))) {
+  const lite = ctx.lite
+  if (lite) {
+    // Lite: only the allowlisted servers, no browser MCP. A config file is written even when empty, so strict mode has a
+    // definite answer and none of the user's own servers load.
+    if (!supported || supported.has('--mcp-config')) {
+      const f: LaunchFile = { path: p.join(ctx.launchDir, `lite-${parts.scratchId ?? 'mcp'}.json`), content: stable({ mcpServers: lite.mcpServers }) }
+      files.push(f)
+      add('--mcp-config', f.path)
+    }
+  } else if (ctx.browserMcp && !ctx.orchestration && (!supported || supported.has('--mcp-config'))) {
     const url = checkPath('browserMcp', ctx.browserMcp.url)
     const f: LaunchFile = {
       path: p.join(ctx.launchDir, 'browser-mcp.json'),
@@ -315,12 +329,14 @@ function claudeCore(parts: ClaudeParts, ctx: LaunchContext): LaunchResult {
   }
   // A restricted --tools list drops ToolSearch, so every MCP tool of the user's own config would load in full (about 60k tokens
   // before the first message). The seat only gets the servers added above.
-  if (tools.length) add('--strict-mcp-config')
+  if (tools.length || lite) add('--strict-mcp-config')
   // Helpers are briefed by their lead, so they skip the user's own hooks, plugins, CLAUDE.md and settings (about 9k tokens).
-  if (tools.length) add('--setting-sources', 'project,local')
+  // A Lite session does the same, which also keeps the user's installed plugins out.
+  if (tools.length || lite) add('--setting-sources', 'project,local')
   if (!ctx.orchestration) add('--plugin-dir', ctx.pluginDir)
-  for (const dir of ctx.orchestration ? [] : (ctx.modPlugins ?? [])) add('--plugin-dir', checkPath('modPlugin', dir))
-  for (const dir of ctx.packPlugins ?? []) add('--plugin-dir', checkPath('packPlugin', dir))
+  const keep = (dir: string): boolean => !lite || lite.plugins.includes(dir.split(/[\\/]/).filter(Boolean).pop() ?? '')
+  for (const dir of ctx.orchestration ? [] : (ctx.modPlugins ?? [])) if (keep(dir)) add('--plugin-dir', checkPath('modPlugin', dir))
+  for (const dir of ctx.packPlugins ?? []) if (keep(dir)) add('--plugin-dir', checkPath('packPlugin', dir))
   if (parts.resume) add('--resume', sessionId)
   else add('--session-id', sessionId)
 
@@ -339,6 +355,8 @@ export interface ScratchOptions {
   preset?: Preset | null
   // Reopen the previous conversation instead of starting a new session.
   resume?: boolean
+  // A Lite session (see LaunchContext.lite): set by the caller from the Lite allowlists.
+  lite?: LaunchContext['lite']
 }
 
 // Scratch tiles: a shell has nothing to type; Claude Code and Codex start with the tile's model; OpenCode starts its
@@ -372,7 +390,7 @@ export function buildScratchLaunch(scratch: ScratchTerminal, ctx: LaunchContext,
   const guidanceText = [preset?.roleText?.trim(), ctx.modePreamble?.trim()].filter(Boolean).join('\n\n')
   const guidance = guidanceText ? guidanceFile(preset?.roleText?.trim() ? `p${checkId('presetId', preset.id)}` : 'modes', guidanceText, ctx, pathOf(ctx)) : null
   const resume = opts.resume && scratch.sessionId ? scratch.sessionId : undefined
-  return claudeCore({ settings, settingsName: hasRules || ctx.mods ? `scratch-${scratch.id}` : '', guidance, resume, cwd }, { ...ctx, sessionId: scratch.sessionId ?? ctx.sessionId })
+  return claudeCore({ settings, settingsName: hasRules || ctx.mods ? `scratch-${scratch.id}` : '', guidance, resume, cwd, scratchId: scratch.id }, { ...ctx, sessionId: scratch.sessionId ?? ctx.sessionId, ...(opts.lite ? { lite: opts.lite } : {}) })
 }
 
 // OpenCode's TUI in a tile: its own session tabs are off (OpenCode merges this overlay over the owner's cli.json).

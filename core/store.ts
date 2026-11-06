@@ -1165,6 +1165,8 @@ export class Store {
   // Its usage rows keep their spend (scratch_id becomes NULL).
   deleteScratch(id: number): void {
     this.db.prepare('DELETE FROM scratch WHERE id = ?').run(id)
+    // Scratch ids are reused, so a Lite flag must not outlive its tile.
+    this.db.prepare('DELETE FROM settings WHERE key = ?').run(`lite.${id}`)
   }
 
   // Teams (plain guidance: a name, a description and rules text)

@@ -9,7 +9,7 @@ import type { BrowserPromptAnswer, BrowserPromptsState } from './browser-prompts
 import type { EnhanceContext } from './prompt-enhance'
 import type { ServersResult } from './servers'
 import type { SetupApplyResult, SetupPlanView } from './setup'
-import type { TicketDetail, TicketList } from './tickets'
+import type { TicketDependency, TicketDetail, TicketList, TicketMode, TicketRow, TicketStatus } from './tickets'
 import type {
   AppInfo,
   BudgetConfig,
@@ -60,6 +60,8 @@ import type { RunningCounts } from './notify'
 import type { TilePopoutRequest } from './tile-popout'
 import type { OrchestrationGraph } from './orchestration-graph'
 import { CHAT_CHANNELS, type ChatApi, type ChatEvents, type ChatImage } from './claude-chat'
+
+export type TicketWriteResult = { ok: true; ticket: TicketRow } | { ok: false; error: string }
 
 // Request/response calls: renderer -> main via ipcRenderer.invoke. Every one is validated in core; a
 // refusal rejects with an `IpcError` (code + message the dashboard can show).
@@ -279,6 +281,9 @@ export interface IpcApi extends ChatApi {
   'tickets:get': (crewId: number, id: string) => TicketDetail | null
   // Read only: which Ready tickets may start now, and why the others wait.
   'tickets:next': (crewId: number) => { start: string[]; waiting: Array<{ id: string; reason: string }> }
+  // Board writes. A refusal (illegal move, unreadable board lines, missing title) comes back as { ok: false, error }, never thrown.
+  'tickets:create': (crewId: number, input: { title: string; rd: string; eval: string; mode?: TicketMode; dependsOn?: TicketDependency[] }) => TicketWriteResult
+  'tickets:setStatus': (crewId: number, id: string, status: TicketStatus) => TicketWriteResult
   'settings:get': () => Settings
   'settings:set': (patch: SettingsPatch) => Settings
   // "Reset section to defaults".
@@ -677,6 +682,8 @@ export const CORE_CHANNELS: CoreChannel[] = [
   'tickets:list',
   'tickets:get',
   'tickets:next',
+  'tickets:create',
+  'tickets:setStatus',
   ...CHAT_CHANNELS,
   'settings:get',
   'settings:set',

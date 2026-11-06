@@ -40,6 +40,7 @@ const LABELS: Record<keyof Settings, string> = {
   notify: 'Notifications',
   dictation: 'Dictation',
   tokens: 'Tokens and cache',
+  lite: 'Lite sessions',
   browser: 'Browser',
   setupDone: 'First-start setup',
 }

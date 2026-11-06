@@ -7,6 +7,7 @@ import { BudgetsSection } from "./BudgetsSection";
 import { GeneralSection } from "./GeneralSection";
 import { InstallSection } from "./InstallSection";
 import { ImportExportSection } from "./ImportExportSection";
+import { LiteSection } from "./LiteSection";
 import { McpSection } from "./McpSection";
 import { ModsSection } from "./ModsSection";
 import { PresetsSection } from "./PresetsSection";
@@ -40,6 +41,7 @@ export const SECTION_COMPONENTS: Record<SettingsSectionId, ComponentType> = {
   import: ImportExportSection,
   shortcuts: ShortcutsSection,
   browser: BrowserSection,
+  lite: LiteSection,
   reset: ResetSection,
   install: InstallSection,
 };

@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils'
 
-export type View = 'thread' | 'tiles' | 'board' | 'plans'
+export type View = 'thread' | 'board'
 
-const LABEL: Record<View, string> = { thread: 'Thread', tiles: 'Tiles', board: 'Board', plans: 'Plans' }
+const LABEL: Record<View, string> = { thread: 'Thread', board: 'Board' }
 
 // The views of the open project, as pills in the middle of the top bar.
 export function TopNav({ views, view, onChange }: { views: View[]; view: View | null; onChange: (v: View) => void }) {

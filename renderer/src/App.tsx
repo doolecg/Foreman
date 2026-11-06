@@ -12,8 +12,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { TerminalView } from '@/components/terminal/TerminalView'
 import { TerminalDrawer } from '@/components/terminal/TerminalDrawer'
-import { BoardView } from '@/components/board/BoardView'
-import { PlansView } from '@/components/plans/PlansView'
+import { TicketBoard } from '@/components/board/TicketBoard'
 import { OPEN_SETTINGS_EVENT } from '@/lib/settingsEvent'
 import { ServersPopover } from '@/components/dashboard/ServersPopover'
 import { ProviderLimitBadge } from '@/components/cost/ProviderBadge'
@@ -231,7 +230,7 @@ export function App() {
             {tier < 3 && <span className="text-[14px] font-semibold whitespace-nowrap">Foreman</span>}
           </div>
         </div>
-        <TopNav views={['thread', 'board', 'plans', 'tiles']} view={page === 'dashboard' ? view : null} onChange={(v) => (setView(v), setPage('dashboard'))} />
+        <TopNav views={['thread', 'board']} view={page === 'dashboard' ? view : null} onChange={(v) => (setView(v), setPage('dashboard'))} />
         <div className="flex items-center justify-end gap-2">
           {crew && <ModeToggles crew={crew} tier={tier} />}
           {tb && tier < 6 && <ClockPill format={tb.clockFormat} seconds={tb.clockSeconds} date={tb.clockDate && tier < 2} />}
@@ -263,6 +262,7 @@ export function App() {
             onDeleteThread={(row) => void bridge().invoke('scratch:delete', row.id).then(() => terminals.dropTab(row.id)).catch((e) => toast(decodeIpcError(e).message, true))}
             onArchiveThread={(row) => terminals.closeTab(row.id)}
             onNewThread={() => crew && (setView('thread'), setPage('dashboard'), void terminals.openTab(crew, 'agent'))}
+            onNewLiteThread={() => crew && (setView('thread'), setPage('dashboard'), void terminals.openTab(crew, 'claude', true))}
             footer={
               <>
                 <Tooltip>
@@ -323,9 +323,7 @@ export function App() {
           ) : (
             <div className="min-h-0 flex-1">
               {view === 'board' ? (
-                <BoardView crews={crews.data ?? []} tabs={terminals.tabs} onOpenThread={(row) => (setCrewId(row.crewId), setView('thread'), void terminals.reopenTab(row))} />
-              ) : view === 'plans' ? (
-                <PlansView crews={crews.data ?? []} onOpenProject={(id) => (setCrewId(id), setView('thread'))} />
+                <TicketBoard key={crewId ?? 'none'} crewId={crewId} />
               ) : (
                 crewId != null && (
                 <TerminalView
@@ -334,7 +332,7 @@ export function App() {
                   active={terminals.active}
                   onCloseScratch={closeTile.request}
                   onStart={(kind) => crew && void terminals.openTab(crew, kind)}
-                  mode={view === 'tiles' ? 'tiles' : 'thread'}
+                  mode="thread"
                 />
                 )
               )}

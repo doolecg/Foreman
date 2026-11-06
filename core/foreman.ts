@@ -2,7 +2,8 @@ import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, parse } from 'node:path'
-import type { CoreChannel, IpcApi, IpcEvents } from '../shared/ipc'
+import type { CoreChannel, IpcApi, IpcEvents, TicketWriteResult } from '../shared/ipc'
+import type { TicketRow } from '../shared/tickets'
 import { mergeSettings, sanitizeSettings, type Settings, type SettingsPatch } from '../shared/settings'
 import type {
   BudgetConfig,
@@ -32,7 +33,7 @@ import { BUDGETS_KEY, BudgetMonitor, mergeBudgets, sanitizeBudgets, WINDOW_LABEL
 import type { KeepWarmPersisted } from './keepwarm'
 import { Ops } from './ops'
 import { planNext } from './scheduler'
-import { getTicket, listTickets, readTouches, recoverTickets } from './tickets'
+import { createTicket, getTicket, listTickets, readTouches, recoverTickets, setStatus as setTicketStatus } from './tickets'
 import { deleteSnapshot, loadSnapshot, saveSnapshot } from './graph-snapshot'
 import type { OrchestrationGraph } from '../shared/orchestration-graph'
 import { claudeDir as claudeDirOf } from './paths'
@@ -43,8 +44,8 @@ import { gatherEnhanceContext, recentMessages } from './enhance-context'
 import { claudeEnhanceModel, type EnhanceModel } from './enhance-model'
 import { installedSkills } from './installed-skills'
 import { SETTINGS_SECTIONS, resetSettings } from '../shared/settings'
-import { LaunchError, buildChatLaunch, buildScratchLaunch, commandLine, shellOf, validateLaunchSettings, writeLaunchFiles, SOCKET_PLACEHOLDER, TOKEN_PLACEHOLDER, type LaunchContext, type LaunchResult, type ShellKind } from './launch'
-import { McpError, McpService } from './mcp'
+import { LaunchError, buildChatLaunch, buildScratchLaunch, commandLine, shellOf, validateLaunchSettings, writeLaunchFiles, SOCKET_PLACEHOLDER, TOKEN_PLACEHOLDER, type LaunchContext, type LaunchResult, type ScratchOptions, type ShellKind } from './launch'
+import { McpError, McpService, defaultMcpDeps, stripJsonc } from './mcp'
 import { listModels } from './models'
 import { ProviderMonitor } from './providers'
 import { exportTeams, parseTeamFile } from './team-presets'
@@ -905,6 +906,8 @@ export class Foreman extends EventEmitter<PushEvents> {
           view: input.view === 'chat' || input.view === 'terminal' ? input.view : input.agent === 'claude' ? 'chat' : 'terminal',
           cwd: input.cwd === undefined ? crew.folder : cwd(input.cwd),
         })
+        // Ids can be reused after a delete: always write the flag, so a new tile never inherits an old one.
+        store.setJson(`lite.${scratch.id}`, input.lite === true && input.agent === 'claude')
         this.log('scratch', `Tile ${scratch.title} created`, crew.id)
         this.emit('scratch:changed', { crewId: crew.id, scratchId: scratch.id })
         return scratch
@@ -1058,7 +1061,18 @@ export class Foreman extends EventEmitter<PushEvents> {
     }
   }
 
-  private capabilityHandlers(): Group<'capabilities'> & Group<'claudeTile'> & Group<'claude'> & Group<'graph'> & Group<'tickets'> {
+  // The store throws on a refusal; the renderer gets the text instead.
+  private ticketWrite(crewId: number, write: (folder: string) => TicketRow): TicketWriteResult {
+    const folder = this.store.listCrews().find((c) => c.id === crewId)?.folder
+    if (!folder) return { ok: false, error: 'This project has no folder' }
+    try {
+      return { ok: true, ticket: write(folder) }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+
+  private capabilityHandlers():Group<'capabilities'> & Group<'claudeTile'> & Group<'claude'> & Group<'graph'> & Group<'tickets'> {
     return {
       'capabilities:get': (): Promise<CapabilityReport> => this.prober.get(),
       'capabilities:refresh': (): Promise<CapabilityReport> => this.prober.refresh(),
@@ -1080,6 +1094,8 @@ export class Foreman extends EventEmitter<PushEvents> {
         const touches = Object.fromEntries(tickets.map((t) => [t.id, readTouches(folder, t.id)]))
         return planNext(tickets, { maxWorkers: this.settings.engineMaxWorkers, touches })
       },
+      'tickets:create': (crewId, input) => this.ticketWrite(crewId, (folder) => createTicket(folder, input)),
+      'tickets:setStatus': (crewId, id, status) => this.ticketWrite(crewId, (folder) => setTicketStatus(folder, id, status)),
     }
   }
 
@@ -1588,6 +1604,34 @@ export class Foreman extends EventEmitter<PushEvents> {
     }
   }
 
+  // Lite sessions: whether the tile was created as one, and the config blocks of the allowlisted MCP servers. Servers come
+  // from the same three places Claude reads: the user scope of ~/.claude.json, this project's local scope in it, and the
+  // project's .mcp.json (later wins: user, then project, then local). A name that is on the list but defined nowhere is skipped.
+  private isLite(scratchId: number): boolean {
+    return this.store.getJson(`lite.${scratchId}`) === true
+  }
+
+  private liteOptions(crewFolder: string): NonNullable<ScratchOptions['lite']> {
+    const { mcpServers: wanted, plugins } = this.settings.lite
+    const read = (file: string): Record<string, any> => {
+      try {
+        const v: unknown = JSON.parse(stripJsonc(readFileSync(file, 'utf8').replace(/^﻿/, '')))
+        return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, any>) : {}
+      } catch {
+        return {}
+      }
+    }
+    const servers = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {})
+    const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+    const cfg = read(defaultMcpDeps(this.launch.baseEnv ?? process.env).claudeConfig)
+    const projects = servers(cfg.projects)
+    const key = Object.keys(projects).find((k) => norm(k) === norm(crewFolder))
+    const all = { ...servers(cfg.mcpServers), ...servers(read(join(crewFolder, '.mcp.json')).mcpServers), ...servers(key ? servers(projects[key]).mcpServers : {}) }
+    const mcpServers: Record<string, unknown> = {}
+    for (const name of wanted) if (name in all) mcpServers[name] = all[name]
+    return { mcpServers, plugins }
+  }
+
   private writeFiles(launch: LaunchResult): void {
     writeLaunchFiles(
       launch.files,
@@ -1646,7 +1690,8 @@ export class Foreman extends EventEmitter<PushEvents> {
       const row: ScratchTerminal = { ...scratch, sessionId }
       const preset = scratch.presetId != null ? this.store.getPreset(scratch.presetId) : null
       const ctx = this.launchContext(scratch.crewId, crew?.folder ?? scratch.cwd, sessionId, scratch.presetId != null, scratch.agent)
-      const launch = buildScratchLaunch(row, ctx, { preset, resume })
+      const lite = scratch.agent === 'claude' && this.isLite(scratchId) ? this.liteOptions(ctx.crewFolder) : undefined
+      const launch = buildScratchLaunch(row, ctx, { preset, resume, lite })
       this.writeFiles(launch)
       const env = this.sessionEnv(launch.env, scratchId)
       // A Claude tile tagged with its tile id and Foreman as the source: the hooks write only for these.
@@ -1762,7 +1807,8 @@ export class Foreman extends EventEmitter<PushEvents> {
     if (!scratch) throw notFound(`Scratch terminal ${scratchId} not found`)
     const crew = this.store.getCrew(scratch.crewId)
     const ctx = this.launchContext(scratch.crewId, crew?.folder ?? scratch.cwd, sessionId, scratch.presetId != null)
-    const launch = buildChatLaunch({ ...scratch, sessionId }, ctx, { preset: this.presetOf(scratch), resume })
+    const lite = this.isLite(scratchId) ? this.liteOptions(ctx.crewFolder) : undefined
+    const launch = buildChatLaunch({ ...scratch, sessionId }, ctx, { preset: this.presetOf(scratch), resume, lite })
     this.writeFiles(launch)
     const base = this.launch.baseEnv ?? process.env
     const cli = resolveCli('claude', base, ctx.platform)

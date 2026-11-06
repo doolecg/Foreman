@@ -46,7 +46,7 @@ export function useTerminals(crews: Crew[] | undefined, defaultModel: string, ma
   )
 
   const openTab = useCallback(
-    async (crew: Crew, request: 'shell' | 'agent' | MainCli) => {
+    async (crew: Crew, request: 'shell' | 'agent' | MainCli, lite = false) => {
       const b = bridge()
       const kind: TerminalTab['kind'] = request === 'shell' ? 'shell' : request === 'agent' ? mainCli : request
       let scratchId: number | null = null
@@ -57,11 +57,12 @@ export function useTerminals(crews: Crew[] | undefined, defaultModel: string, ma
           const blocked = cliBlocked(await b.invoke('capabilities:get'), kind)
           if (blocked) return toast(`Could not open the terminal: ${blocked}`, true)
         }
-        const title = kind === 'shell' ? `Shell: ${crew.name}` : `${kind === 'claude' ? 'Claude' : 'OpenCode'}: ${crew.name}`
+        const title = kind === 'shell' ? `Shell: ${crew.name}` : `${kind === 'claude' ? (lite ? 'Claude Lite' : 'Claude') : 'OpenCode'}: ${crew.name}`
         const row = await b.invoke('scratch:create', {
           crewId: crew.id,
           title,
           agent: kind,
+          ...(lite && kind === 'claude' ? { lite: true } : {}),
           ...(kind === 'claude' ? { model: defaultModel, ...(effort ? { effort } : {}) } : {}),
         })
         scratchId = row.id
