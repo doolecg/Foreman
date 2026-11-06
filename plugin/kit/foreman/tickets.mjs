@@ -321,6 +321,17 @@ var COLUMNS = [
 function ticketsDir(folder) {
 	return join(folder, ".foreman", "tickets");
 }
+function alertsPath(folder) {
+	return join(ticketsDir(folder), "alerts.json");
+}
+function readAlerts(folder) {
+	try {
+		const v = JSON.parse(readFileSync(alertsPath(folder), "utf8"));
+		return Array.isArray(v) ? v : [];
+	} catch {
+		return [];
+	}
+}
 function assertId$1(id) {
 	if (typeof id !== "string" || !ID_RE$1.test(id)) throw new Error(`Invalid ticket id: ${String(id)}`);
 }
@@ -1286,7 +1297,7 @@ async function mergeTicket(repo, ticket, opts) {
 }
 //#endregion
 //#region scripts/tickets-cli.ts
-var USAGE = "usage: tickets.mjs [--project <folder>] list | show <id> | next [--max N] | create (JSON on stdin) | status <id> <Status> | claim <id> <worker> | release <id> <worker> | set <id> verification|integration|branch|worktree <value> [--evidence \"<text>\"] | criteria <id> | criterion <id> <n> met|unmet --evidence \"<text>\" --as reviewer|council | handoff <id> <from> <to> --as router | log <id> <text> | test-lock -- <command...> | worktree create|remove <id> [--worktree-root <dir>] | merge <id> --as merger [--protect a,b] [--check \"<command...>\" | --check <program> --check-arg <arg>... | --check -- <command...>]";
+var USAGE = "usage: tickets.mjs [--project <folder>] list | show <id> | next [--max N] | alerts | create (JSON on stdin) | status <id> <Status> | claim <id> <worker> | release <id> <worker> | set <id> verification|integration|branch|worktree <value> [--evidence \"<text>\"] | criteria <id> | criterion <id> <n> met|unmet --evidence \"<text>\" --as reviewer|council | handoff <id> <from> <to> --as router | log <id> <text> | test-lock -- <command...> | worktree create|remove <id> [--worktree-root <dir>] | merge <id> --as merger [--protect a,b] [--check \"<command...>\" | --check <program> --check-arg <arg>... | --check -- <command...>]";
 var print = (value) => {
 	process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 };
@@ -1386,6 +1397,9 @@ async function main(argv) {
 			}));
 			return 0;
 		}
+		case "alerts":
+			print(readAlerts(project));
+			return 0;
 		case "create": {
 			const input = JSON.parse(readFileSync(0, "utf8"));
 			const rd = [input.rd ?? "", input.touches?.length ? `Touches: ${input.touches.join(", ")}` : ""].filter(Boolean).join("\n\n");

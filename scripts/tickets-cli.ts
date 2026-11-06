@@ -3,14 +3,14 @@
 import { appendFileSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { spawnHidden, type HiddenSpawnOptions } from '../core/proc'
-import { claimTicket, createTicket, getTicket, handoffTicket, listTickets, markCriterion, readCriteria, setVerification, readTouches, releaseTicket, setStatus, ticketsDir, updateTicket } from '../core/tickets'
+import { claimTicket, createTicket, getTicket, handoffTicket, listTickets, markCriterion, readAlerts, readCriteria, setVerification, readTouches, releaseTicket, setStatus, ticketsDir, updateTicket } from '../core/tickets'
 import { planNext } from '../core/scheduler'
 import { withTestLock } from '../core/test-lock'
 import { createWorktree, defaultWorktreeRoot, describeRemoval, isGitRepo, mergeTicket, removeWorktree, ticketBranch, ticketWorktree } from '../core/worktrees'
 import type { TicketIntegration, TicketMode, TicketStatus, TicketVerification } from '../shared/tickets'
 
 const USAGE =
-  'usage: tickets.mjs [--project <folder>] list | show <id> | next [--max N] | create (JSON on stdin) | status <id> <Status> | claim <id> <worker> | release <id> <worker> | set <id> verification|integration|branch|worktree <value> [--evidence "<text>"] | criteria <id> | criterion <id> <n> met|unmet --evidence "<text>" --as reviewer|council | handoff <id> <from> <to> --as router | log <id> <text> | test-lock -- <command...> | worktree create|remove <id> [--worktree-root <dir>] | merge <id> --as merger [--protect a,b] [--check "<command...>" | --check <program> --check-arg <arg>... | --check -- <command...>]'
+  'usage: tickets.mjs [--project <folder>] list | show <id> | next [--max N] | alerts | create (JSON on stdin) | status <id> <Status> | claim <id> <worker> | release <id> <worker> | set <id> verification|integration|branch|worktree <value> [--evidence "<text>"] | criteria <id> | criterion <id> <n> met|unmet --evidence "<text>" --as reviewer|council | handoff <id> <from> <to> --as router | log <id> <text> | test-lock -- <command...> | worktree create|remove <id> [--worktree-root <dir>] | merge <id> --as merger [--protect a,b] [--check "<command...>" | --check <program> --check-arg <arg>... | --check -- <command...>]'
 
 const print = (value: unknown): void => {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`)
@@ -117,6 +117,10 @@ async function main(argv: string[]): Promise<number> {
       print(planNext(tickets, { maxWorkers: max === undefined ? 3 : Number(max), touches }))
       return 0
     }
+    case 'alerts':
+      // Read only: the app's Watchdog writes alerts.json; an empty list means nothing to report (or the Watchdog is off).
+      print(readAlerts(project))
+      return 0
     case 'create': {
       const input = JSON.parse(readFileSync(0, 'utf8')) as {
         title: string

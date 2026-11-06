@@ -24,6 +24,20 @@ export function ticketsDir(folder: string): string {
   return join(folder, '.foreman', 'tickets')
 }
 
+// The Watchdog's report of stalled or looping workers; the Router reads it with the CLI's `alerts` command.
+export function alertsPath(folder: string): string {
+  return join(ticketsDir(folder), 'alerts.json')
+}
+
+export function readAlerts(folder: string): unknown[] {
+  try {
+    const v: unknown = JSON.parse(readFileSync(alertsPath(folder), 'utf8'))
+    return Array.isArray(v) ? v : []
+  } catch {
+    return []
+  }
+}
+
 // Ids become folder names, so anything that is not exactly T-<digits> is refused (no separators, no "..").
 function assertId(id: string): void {
   if (typeof id !== 'string' || !ID_RE.test(id)) throw new Error(`Invalid ticket id: ${String(id)}`)
@@ -35,7 +49,7 @@ function ticketPath(folder: string, id: string): string {
 }
 
 // Write to a temp file then rename, so a crash never leaves a half-written file.
-function writeAtomic(path: string, text: string): void {
+export function writeAtomic(path: string, text: string): void {
   const tmp = `${path}.tmp-${process.pid}`
   try {
     writeFileSync(tmp, text, 'utf8')
@@ -47,7 +61,7 @@ function writeAtomic(path: string, text: string): void {
 }
 
 // Append-only event log next to the ticket's other files: one line per event, newest last.
-function logEvent(folder: string, id: string, text: string): void {
+export function logEvent(folder: string, id: string, text: string): void {
   const dir = ticketPath(folder, id)
   mkdirSync(dir, { recursive: true })
   appendFileSync(join(dir, 'log.md'), `${new Date().toISOString()} ${text.replace(/\s+/g, ' ')}`+String.fromCharCode(10), 'utf8')

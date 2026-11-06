@@ -20,6 +20,8 @@ export interface ClaudeEvent {
   payload: Record<string, unknown>
 }
 
+// The tools the Watchdog watches in Orchestration sessions (op-event.mjs shortens their events).
+const WATCHED_TOOLS = 'Read|Edit|Write|MultiEdit|Bash'
 const SAFE_ID = /^[A-Za-z0-9_-]{1,128}$/
 // Characters that would break the quoted command line the hook shell runs.
 const UNSAFE_PATH = /["$`\n\r\0]/
@@ -65,9 +67,11 @@ export function hooksConfig(
     for (const event of ['SessionStart', 'UserPromptSubmit', 'Stop', 'SessionEnd', 'SubagentStart', 'SubagentStop']) hooks[event] = [entry()]
     hooks.PreToolUse = [entry('Agent|Task')]
     // Orchestration also reads the memory and search tools to count recall calls: one more hook process per such call, so only here.
-    hooks.PostToolUse = [entry('Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*')]
+    // Also the file and shell tools, so the Watchdog sees stalls, loops and repeated failures: one more hook process per such call.
+    // op-event.mjs writes only a short summary of those calls, never their full input or output.
+    hooks.PostToolUse = [entry(`Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*|${WATCHED_TOOLS}`)]
     // A hook-denied Agent call never starts a helper; this clears its pending entry.
-    hooks.PostToolUseFailure = [entry('Agent|Task')]
+    hooks.PostToolUseFailure = [entry(`Agent|Task|${WATCHED_TOOLS}`)]
   }
   return { hooks, ...(settings.enabled ? { statusLine: { type: 'command' as const, command: status } } : {}) }
 }

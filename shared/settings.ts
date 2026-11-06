@@ -77,6 +77,14 @@ export interface Settings {
   contextDangerPct: number
   // Model Engine: most tickets that may be In Progress at once (1 to 8).
   engineMaxWorkers: number
+  // Watchdog: reports stalled or looping ticket workers to the Router. Minutes without an event before a worker counts as stalled,
+  // seconds between checks while a worker is claimed, identical calls (or failures) in a row that count as a loop, and minutes a
+  // ticket may wait on unfinished dependencies.
+  watchdogEnabled: boolean
+  watchdogStallMinutes: number
+  watchdogIntervalSeconds: number
+  watchdogLoopRepeats: number
+  watchdogWaitMinutes: number
   // The app's main CLI and its default model and effort: new tasks, MCP servers and seats start on it, and so does the Master Terminal.
   // Empty file means the system default shell.
   shell: { file: string; args: string }
@@ -167,6 +175,11 @@ export const DEFAULT_SETTINGS: Settings = {
   contextWarnPct: 60,
   contextDangerPct: 85,
   engineMaxWorkers: 3,
+  watchdogEnabled: true,
+  watchdogStallMinutes: 10,
+  watchdogIntervalSeconds: 60,
+  watchdogLoopRepeats: 4,
+  watchdogWaitMinutes: 30,
   setupDone: false,
   shell: { file: '', args: '' },
   ide: { default: 'code', custom: '' },
@@ -287,6 +300,11 @@ export function sanitizeSettings(raw: unknown): Settings {
     contextWarnPct: Math.round(num(r.contextWarnPct, d.contextWarnPct, 1, 100)),
     contextDangerPct: Math.round(num(r.contextDangerPct, d.contextDangerPct, 1, 100)),
     engineMaxWorkers: Math.round(num(r.engineMaxWorkers, d.engineMaxWorkers, 1, 8)),
+    watchdogEnabled: flag(r.watchdogEnabled, d.watchdogEnabled),
+    watchdogStallMinutes: Math.round(num(r.watchdogStallMinutes, d.watchdogStallMinutes, 1, 120)),
+    watchdogIntervalSeconds: Math.round(num(r.watchdogIntervalSeconds, d.watchdogIntervalSeconds, 10, 600)),
+    watchdogLoopRepeats: Math.round(num(r.watchdogLoopRepeats, d.watchdogLoopRepeats, 2, 20)),
+    watchdogWaitMinutes: Math.round(num(r.watchdogWaitMinutes, d.watchdogWaitMinutes, 1, 600)),
     shell: { file: str(shell.file, d.shell.file, 500), args: str(shell.args, d.shell.args, 500) },
     ide: {
       default: (IDE_IDS as readonly string[]).includes(ide.default) ? (ide.default as IdeId) : d.ide.default,

@@ -92,8 +92,9 @@ describe('hooksConfig Factory Mode', () => {
   it('installs the sub-agent events and the Agent|Task PreToolUse hook with no status line when mods are off', () => {
     const cfg = hooksConfig(paths, off, true)!
     expect(Object.keys(cfg.hooks).sort()).toEqual(['PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SessionEnd', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'])
-    expect(cfg.hooks.PostToolUse).toEqual([{ matcher: 'Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*', hooks: [{ type: 'command', command: expect.any(String) }] }])
-    expect(cfg.hooks.PostToolUseFailure).toEqual([{ matcher: 'Agent|Task', hooks: [{ type: 'command', command: expect.any(String) }] }])
+    // The file and shell tools are included so the Watchdog sees loops and repeated failures.
+    expect(cfg.hooks.PostToolUse).toEqual([{ matcher: 'Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*|Read|Edit|Write|MultiEdit|Bash', hooks: [{ type: 'command', command: expect.any(String) }] }])
+    expect(cfg.hooks.PostToolUseFailure).toEqual([{ matcher: 'Agent|Task|Read|Edit|Write|MultiEdit|Bash', hooks: [{ type: 'command', command: expect.any(String) }] }])
     expect(cfg.hooks.PreToolUse).toEqual([{ matcher: 'Agent|Task', hooks: [{ type: 'command', command: expect.stringContaining(' hook ') }] }])
     expect(cfg.statusLine).toBeUndefined()
   })
@@ -104,7 +105,30 @@ describe('hooksConfig Factory Mode', () => {
     expect(noPanel.statusLine).toBeDefined()
     const both = hooksConfig(paths, { ...off, enabled: true, mods: mods({ subagents: true }) }, true)!
     expect(both.hooks.PreToolUse).toEqual([{ matcher: 'Agent|Task', hooks: expect.any(Array) }])
-    expect(both.hooks.PostToolUse).toEqual([{ matcher: 'Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*', hooks: expect.any(Array) }])
+    expect(both.hooks.PostToolUse).toEqual([{ matcher: 'Agent|Task|Grep|mcp__codegraph__.*|mcp__hindsight__.*|Read|Edit|Write|MultiEdit|Bash', hooks: expect.any(Array) }])
+  })
+
+  it('leaves sessions without Factory Mode byte-identical to before the Watchdog widening', () => {
+    const cmd = modsCommand(paths, 'hook')!
+    const status = modsCommand(paths, 'status')!
+    const entry = (matcher?: string) => ({ ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command: cmd }] })
+    const expected = {
+      hooks: {
+        SessionStart: [entry()],
+        UserPromptSubmit: [entry()],
+        Notification: [entry()],
+        Stop: [entry()],
+        SessionEnd: [entry()],
+        SubagentStart: [entry()],
+        SubagentStop: [entry()],
+        PreToolUse: [entry('Agent')],
+        PostToolUse: [entry('Agent')],
+      },
+      statusLine: { type: 'command', command: status },
+    }
+    const actual = hooksConfig(paths, { enabled: true, mods: mods({ subagents: true }), keepWarm: true, commandMenu: true }, false)
+    expect(JSON.stringify(actual)).toBe(JSON.stringify(expected))
+    expect(JSON.stringify(hooksConfig(paths, { enabled: true, mods: mods({ subagents: true }), keepWarm: true, commandMenu: true }))).toBe(JSON.stringify(expected))
   })
 
   it('stays null with mods off and Factory off', () => {
@@ -233,5 +257,65 @@ describe('op-event.mjs', () => {
     const bad = run('hook', 'not json')
     expect(bad.res.status).toBe(0)
     expect(existsSync(bad.events)).toBe(false)
+  })
+})
+
+describe('op-event.mjs shortens the Watchdog tools', () => {
+  function write(payload: Record<string, unknown>) {
+    const dir = mkdtempSync(join(tmpdir(), 'op-event-'))
+    dirs.push(dir)
+    const eventsDir = join(dir, 'events')
+    const res = spawnSync(process.execPath, [SCRIPT, 'hook', eventsDir], {
+      input: JSON.stringify({ session_id: SID, ...payload }),
+      env: { PATH: process.env.PATH ?? '', FOREMAN_SOURCE: 'foreman', FOREMAN_TILE_ID: '7' },
+      encoding: 'utf8',
+    })
+    expect(res.status).toBe(0)
+    const text = readFileSync(join(eventsDir, `${SID}.jsonl`), 'utf8')
+    return { text, event: JSON.parse(text.trim()) }
+  }
+
+  it('keeps a huge Bash call and its output out of the events file', () => {
+    const { text, event } = write({
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Bash',
+      agent_id: 'a1',
+      tool_input: { command: `echo ${'x'.repeat(50_000)}`, description: 'd'.repeat(5000) },
+      tool_response: { stdout: 'o'.repeat(200_000), stderr: '', interrupted: false },
+    })
+    expect(text.length).toBeLessThan(1500)
+    expect(event.tool_name).toBe('Bash')
+    expect(event.agent_id).toBe('a1')
+    expect(event.tool_input.command).toBeUndefined()
+    expect(event.tool_input.input_hash).toMatch(/^[0-9a-f]{12}$/)
+    expect(event.tool_input.description).toBeUndefined()
+    expect(event.tool_response).toBeUndefined()
+  })
+
+  it('keeps the path of a Read, not the file content, and tells different calls apart by hash', () => {
+    const read = (offset: number) =>
+      write({ hook_event_name: 'PostToolUse', tool_name: 'Read', tool_input: { file_path: 'C:/p/a.ts', offset }, tool_response: { file: { content: 'c'.repeat(300_000) } } })
+    const a = read(1)
+    expect(a.text.length).toBeLessThan(700)
+    expect(a.event.tool_input.file_path).toBe('C:/p/a.ts')
+    expect(a.event.tool_input.offset).toBeUndefined()
+    expect(read(1).event.tool_input.input_hash).toBe(a.event.tool_input.input_hash)
+    expect(read(2).event.tool_input.input_hash).not.toBe(a.event.tool_input.input_hash)
+  })
+
+  it('keeps only the first line of a failure, for both failure shapes', () => {
+    const failed = write({ hook_event_name: 'PostToolUseFailure', tool_name: 'Edit', tool_input: { file_path: 'a.ts', old_string: 'o'.repeat(9000), new_string: 'n' }, error: `no match\n${'e'.repeat(20_000)}` })
+    expect(failed.event.error).toBe('no match')
+    expect(failed.text.length).toBeLessThan(700)
+    const flagged = write({ hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'x' }, tool_response: { is_error: true, stderr: `boom\n${'s'.repeat(20_000)}` } })
+    expect(flagged.event.tool_response).toEqual({ is_error: true, error: 'boom' })
+  })
+
+  it('leaves other tools and other events as they were', () => {
+    const grep = write({ hook_event_name: 'PostToolUse', tool_name: 'Grep', tool_input: { pattern: 'x' }, tool_response: { numFiles: 1 } })
+    expect(grep.event.tool_input).toEqual({ pattern: 'x' })
+    expect(grep.event.tool_response).toEqual({ numFiles: 1 })
+    const pre = write({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'ls' } })
+    expect(pre.event.tool_input).toEqual({ command: 'ls' })
   })
 })

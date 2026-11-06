@@ -137,6 +137,22 @@ describe('tickets.mjs', { timeout: 60_000 }, () => {
     expect(run(['set', 'T-007', 'verification', 'Passed', '--evidence', 'e', '--as', 'council']).err).toMatch(/unexpected checkbox/)
   })
 
+  it('alerts prints the Watchdog file, an empty list when there is none, and writes nothing', () => {
+    const alone = join(root, 'alerts-project')
+    mkdirSync(alone)
+    const none = runIn(alone, ['alerts'])
+    expect(none.code).toBe(0)
+    expect(JSON.parse(none.out)).toEqual([])
+    expect(readdirSync(alone)).toEqual([])
+    const file = join(project, '.foreman/tickets/alerts.json')
+    const alert = { ticketId: 'T-002', worker: 'w1', kind: 'stalled', since: 1, detail: 'no event' }
+    writeFileSync(file, JSON.stringify([alert]))
+    expect(JSON.parse(run(['alerts']).out)).toEqual([alert])
+    writeFileSync(file, 'not json')
+    expect(JSON.parse(run(['alerts']).out)).toEqual([])
+    rmSync(file)
+  })
+
   it('logs text that contains "--"', () => {
     expect(run(['log', 'T-002', 'a', '--', 'b']).json.logged).toBe('a -- b')
   })

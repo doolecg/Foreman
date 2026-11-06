@@ -237,6 +237,8 @@ export interface ClaudeAgentsOptions {
   emit: (state: ClaudeTileState) => void
   // A project's Orchestration graph changed; ask graphFor(project) for it. Called once per batch of events, per project.
   onGraph?: (project: string) => void
+  // Every hook event of a known tile, once, in order (the Watchdog reads these).
+  onEvent?: (ev: ClaudeEvent) => void
   now?: () => number
   // Test seam for fs.watch: returns a closer. Watch errors are swallowed; the state then updates on the next start.
   watch?: (dir: string, onChange: (file: string | null) => void) => { close(): void }
@@ -402,6 +404,11 @@ export class ClaudeAgents {
       if (!ev) continue
       const rec = this.recordFor(ev)
       if (!rec) continue
+      try {
+        this.opts.onEvent?.(ev)
+      } catch {
+        // A listener's fault must never break the event loop.
+      }
       if (reduceEvent(rec.agents, ev)) changed.add(rec)
       if (reduceSession(rec.session, ev)) changed.add(rec)
       if (applyGraphEvent(this.graphs, ev)) {

@@ -62,6 +62,7 @@ import { isNoteColor } from '../shared/notes'
 import { JsonlTail, parseLine, transcriptPath } from './transcripts'
 import { CapabilityProber, systemProbeDeps, type ProbeDeps } from './capabilities'
 import { ClaudeAgents, sameFolder } from './claude-agents'
+import { Watchdog } from './watchdog'
 import { createGraphPusher } from './graph-push'
 import { hooksConfig, type ModsPaths } from './claude-events'
 import { packStatus, resetPack } from './engineering'
@@ -274,6 +275,7 @@ export class Foreman extends EventEmitter<PushEvents> {
   private readonly launch: LaunchOptions
   private readonly hookPaths: ModsPaths | null
   private readonly claudeAgents: ClaudeAgents | null
+  private readonly watchdog: Watchdog | null
   // At most ~4 graph pushes a second per project, however many hook events arrive.
   private readonly graphPusher = createGraphPusher({ intervalMs: 250, send: (project) => this.pushGraph(project) })
   // Saves the graph of Orchestration projects to disk, at most once every few seconds per project.
@@ -342,6 +344,22 @@ export class Foreman extends EventEmitter<PushEvents> {
             this.graphPusher.push(project)
             this.graphSaver.push(project)
           },
+          onEvent: (ev) => {
+            try {
+              this.watchdog?.feed(ev)
+            } catch (err) {
+              this.warnWatchdog(err)
+            }
+          },
+        })
+      : null
+    this.watchdog = this.claudeAgents
+      ? new Watchdog({
+          settings: () => this.settings,
+          projects: () => this.store.listCrews().filter((c) => c.factory && c.folder).map((c) => c.folder),
+          scheduler: { every: (fn, ms) => this.scheduler.every(fn, ms), cancel: (h) => this.scheduler.cancel(h) },
+          now: this.now,
+          log: (text) => this.log('warn', text),
         })
       : null
     applyToolPaths(this.toolPaths())
@@ -564,6 +582,7 @@ export class Foreman extends EventEmitter<PushEvents> {
           this.taskWatchers.get(crewId)?.()
           this.taskWatchers.delete(crewId)
         }
+        this.watchdog?.evaluate()
         this.log('crew', `Project ${updated.name} updated`, crewId)
         return updated
       },
@@ -1379,9 +1398,11 @@ export class Foreman extends EventEmitter<PushEvents> {
     this.timers.push(this.scheduler.every(() => void this.providers.refresh().catch(() => undefined), PROVIDER_TICK_MS))
     this.checkBudgets()
     this.recoverOrchestration()
+    this.watchdog?.start()
   }
 
   stopTimers(): void {
+    this.watchdog?.stop()
     for (const h of this.timers.splice(0)) this.scheduler.cancel(h)
   }
 
@@ -1448,6 +1469,7 @@ export class Foreman extends EventEmitter<PushEvents> {
     this.sessions.setShell(file ? { file, args: args.split(/\s+/).filter(Boolean) } : null)
     this.sessions.setSoftPrompt(this.settings.terminal.softPrompt && this.hookPaths ? dirname(this.hookPaths.eventsDir) : null)
     if (!this.settings.mods.enabled) this.claudeAgents?.dispose()
+    this.watchdog?.evaluate()
     if (!this.settings.mods.keepWarm) this.chat?.stopAllKeepWarm()
   }
 
@@ -1488,6 +1510,14 @@ export class Foreman extends EventEmitter<PushEvents> {
   // Called by the updater before an install: a snapshot of the settings, presets and teams.
   snapshotBeforeUpdate(toVersion: string): string {
     return this.ops.snapshotBeforeUpdate(toVersion)
+  }
+
+  // The Watchdog never throws; this is the second net, and it logs the first fault only.
+  private watchdogWarned = false
+  private warnWatchdog(err: unknown): void {
+    if (this.watchdogWarned) return
+    this.watchdogWarned = true
+    this.log('warn', `The Watchdog failed (${err instanceof Error ? err.message : 'unexpected error'})`)
   }
 
   private log(kind: string, message: string, crewId: number | null = null): void {

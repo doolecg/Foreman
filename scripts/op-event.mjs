@@ -9,6 +9,7 @@
 //
 // Only tiles Foreman launched (FOREMAN_SOURCE=foreman) write anything. It always exits 0, so a failed write never
 // blocks Claude Code.
+import { createHash } from 'node:crypto'
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { modelEngineStop } from './model-engine-check.mjs'
@@ -24,6 +25,27 @@ function shrink(value, depth = 0) {
   if (Array.isArray(value)) return value.slice(0, MAX_ITEMS).map((item) => shrink(item, depth + 1))
   const out = {}
   for (const [key, item] of Object.entries(value)) if (key !== 'prompt') out[key] = shrink(item, depth + 1)
+  return out
+}
+
+// The Watchdog needs only which tool ran on what, whether it failed, and a fingerprint of the call. For the file and shell
+// tools the event keeps the tool name, the path, a hash of the whole input and the first line
+// of an error; the file content and command output (which can be huge) are never written.
+const WATCHED_TOOLS = new Set(['Read', 'Edit', 'Write', 'MultiEdit', 'Bash'])
+const firstLine = (v, max = 300) => (typeof v === 'string' ? v.split(/\r?\n/, 1)[0].slice(0, max) : undefined)
+
+function slimWatched(payload) {
+  const name = payload.hook_event_name
+  if (!WATCHED_TOOLS.has(payload.tool_name) || (name !== 'PostToolUse' && name !== 'PostToolUseFailure')) return payload
+  const input = payload.tool_input && typeof payload.tool_input === 'object' && !Array.isArray(payload.tool_input) ? payload.tool_input : {}
+  const slim = { input_hash: createHash('sha1').update(JSON.stringify(input)).digest('hex').slice(0, 12) }
+  for (const key of ['file_path', 'notebook_path', 'path']) if (typeof input[key] === 'string') slim[key] = input[key].slice(0, 500)
+  const { tool_response: response, error, ...rest } = payload
+  const out = { ...rest, tool_input: slim }
+  if (response && typeof response === 'object' && !Array.isArray(response) && response.is_error === true) {
+    out.tool_response = { is_error: true, error: firstLine(response.error ?? response.stderr ?? response.content) }
+  }
+  if (typeof error === 'string') out.error = firstLine(error)
   return out
 }
 
@@ -102,7 +124,7 @@ async function main() {
   const tile = process.env.FOREMAN_TILE_ID ?? null
   if (mode === 'hook') {
     const file = join(eventsDir, `${sessionId}.jsonl`)
-    appendFileSync(file, `${JSON.stringify({ ts: Date.now(), tile, ...shrink(payload) })}\n`)
+    appendFileSync(file, `${JSON.stringify({ ts: Date.now(), tile, ...shrink(slimWatched(payload)) })}\n`)
     factoryCap(file, payload)
     if (process.env.FOREMAN_FACTORY === '1') {
       const block = modelEngineStop(payload)

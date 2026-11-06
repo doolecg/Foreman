@@ -105,6 +105,19 @@ describe('settings', () => {
     expect(mergeSettings(DEFAULT_SETTINGS, { engineMaxWorkers: 2 }).engineMaxWorkers).toBe(2)
   })
 
+  it('sanitises the Watchdog settings', () => {
+    const d = sanitizeSettings({})
+    expect([d.watchdogEnabled, d.watchdogStallMinutes, d.watchdogIntervalSeconds, d.watchdogLoopRepeats, d.watchdogWaitMinutes]).toEqual([true, 10, 60, 4, 30])
+    const low = sanitizeSettings({ watchdogStallMinutes: 0, watchdogIntervalSeconds: 1, watchdogLoopRepeats: 1, watchdogWaitMinutes: -5 })
+    expect([low.watchdogStallMinutes, low.watchdogIntervalSeconds, low.watchdogLoopRepeats, low.watchdogWaitMinutes]).toEqual([1, 10, 2, 1])
+    const high = sanitizeSettings({ watchdogStallMinutes: 999, watchdogIntervalSeconds: 9999, watchdogLoopRepeats: 99, watchdogWaitMinutes: 99999 })
+    expect([high.watchdogStallMinutes, high.watchdogIntervalSeconds, high.watchdogLoopRepeats, high.watchdogWaitMinutes]).toEqual([120, 600, 20, 600])
+    expect(sanitizeSettings({ watchdogLoopRepeats: 'x', watchdogStallMinutes: 7.6 })).toMatchObject({ watchdogLoopRepeats: 4, watchdogStallMinutes: 8 })
+    expect(sanitizeSettings({ watchdogEnabled: 'no' }).watchdogEnabled).toBe(true)
+    expect(sanitizeSettings({ watchdogEnabled: false }).watchdogEnabled).toBe(false)
+    expect(mergeSettings(DEFAULT_SETTINGS, { watchdogEnabled: false }).watchdogEnabled).toBe(false)
+  })
+
   it('merges partial layout, terminal and tiles patches and labels every key action', () => {
     const m = mergeSettings(DEFAULT_SETTINGS, { layout: { sidebarHidden: true }, terminal: { fontSize: 16 }, tiles: { layout: 'master' } })
     expect(m.layout).toEqual({ sidebarHidden: true, sidebarWidth: 0, notesOpen: false, notesWidth: 0 })
