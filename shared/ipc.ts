@@ -290,7 +290,8 @@ export interface IpcApi extends ChatApi {
   // Opens the folder with Foreman's LICENSE and the third-party notices that ship with it.
   'app:openLicenses': () => void
   'update:status': () => UpdateStatus
-  'update:check': () => UpdateStatus
+  // force: offer the latest release even when it is the version already running.
+  'update:check': (force?: boolean) => UpdateStatus
   'update:install': () => boolean
   // The background-process console: kept lines (optionally one source), clear (all or one source), running processes, stop one of ours by pid.
   'console:list': (source?: ConsoleSource) => ConsoleLine[]

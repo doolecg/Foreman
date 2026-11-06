@@ -157,7 +157,8 @@ export function createUpdater({
     return file
   }
 
-  async function check(): Promise<void> {
+  // force: offer the latest release even when it is the version already running (a reinstall).
+  async function check(force = false): Promise<void> {
     if (!enabled || busy || installing) return
     busy = true
     report({ state: 'checking' })
@@ -178,7 +179,7 @@ export function createUpdater({
       // The version reaches file names and the install script: only a plain version number is accepted.
       if (!VERSION_RE.test(version)) throw new Error(`unexpected release tag ${rel.tag_name}`)
       info = { ...info, latest: version }
-      if (!newer(version, currentVersion)) {
+      if (!force && !newer(version, currentVersion)) {
         report({ state: 'current' })
         return
       }

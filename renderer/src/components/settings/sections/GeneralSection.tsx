@@ -19,10 +19,10 @@ import { useState } from 'react'
 
 function UpdateRow({ status }: { status?: UpdateStatus }) {
   const [checking, setChecking] = useState(false)
-  const check = async () => {
+  const check = async (force = false) => {
     setChecking(true)
     try {
-      await bridge().invoke('update:check')
+      await bridge().invoke('update:check', force)
     } finally {
       setChecking(false)
     }
@@ -57,6 +57,11 @@ function UpdateRow({ status }: { status?: UpdateStatus }) {
             Release notes
           </Button>
         )}
+        {s?.state === 'current' && (
+          <Button variant="ghost" size="sm" onClick={() => void check(true)} disabled={checking}>
+            Reinstall latest
+          </Button>
+        )}
         {s?.state === 'ready' ? (
           <Button size="sm" onClick={() => void bridge().invoke('update:install')}>
             <Download /> Restart to update
@@ -65,7 +70,7 @@ function UpdateRow({ status }: { status?: UpdateStatus }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={check}
+            onClick={() => void check()}
             disabled={checking || s?.state === 'unsupported' || s?.state === 'checking' || s?.state === 'downloading'}
           >
             {checking || s?.state === 'checking' ? <Loader2 className="animate-spin" /> : <RefreshCw />} Check now

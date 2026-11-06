@@ -100,8 +100,8 @@ export function registerIpc(
       if (failure) throw new Error(encodeIpcError('BAD_ARGS', failure))
     },
     'update:status': () => updater.status,
-    'update:check': async () => {
-      await updater.check()
+    'update:check': async (force) => {
+      await updater.check(force === true)
       return updater.status
     },
     'update:install': () => updater.installNow(),

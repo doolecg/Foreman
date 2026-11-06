@@ -1,3 +1,15 @@
+# Foreman 4.3.2
+
+**Install:** download the file for your system from the assets below. Foreman keeps itself up to date from these releases.
+
+## New
+- **Reinstall latest.** Settings > General has a Reinstall latest button when you are up to date. It downloads the newest release and installs it even if it is the version you already have.
+
+## Fixed
+- **Update loop.** The 4.3.1 installer carried an app that still said 4.3.0, so it kept offering 4.3.1. This release is built from a clean build and reports its own version. If you are on 4.3.1, press Restart to update once more.
+
+---
+
 # Foreman 4.3.1
 
 **Install:** download the file for your system from the assets below. Foreman keeps itself up to date from these releases.
