@@ -323,7 +323,7 @@ export function App() {
           ) : (
             <div className="min-h-0 flex-1">
               {view === 'board' ? (
-                <TicketBoard key={crewId ?? 'none'} crewId={crewId} />
+                <TicketBoard key={crewId ?? 'none'} crewId={crewId} onOpenThread={(row) => (setView('thread'), setPage('dashboard'), terminals.reopenTab(row))} />
               ) : (
                 crewId != null && (
                 <TerminalView

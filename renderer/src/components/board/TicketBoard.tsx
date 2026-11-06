@@ -1,14 +1,15 @@
 import { useState, type DragEvent, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { TICKET_MODES, canTransition, type TicketListItem, type TicketMode, type TicketStatus } from '@shared/tickets'
+import type { ScratchTerminal } from '@shared/types'
 import { call } from '@/lib/queries'
 import { cn } from '@/lib/utils'
-import { blockedBy, groupByStatus, legalMoves } from '@/lib/ticketColumns'
+import { blockedBy, buildLaunchPrompt, canStart, groupByStatus, legalMoves } from '@/lib/ticketColumns'
 
 const ticketsKey = (crewId: number) => ['tickets', crewId]
 const VERIFY_TONE = { Pending: 'text-muted-foreground', Passed: 'text-success', Failed: 'text-destructive' } as const
 
-function TicketCard({ ticket, all, onMove, onDragStart }: { ticket: TicketListItem; all: TicketListItem[]; onMove: (to: TicketStatus) => void; onDragStart: (e: DragEvent) => void }) {
+function TicketCard({ ticket, all, starting, onStart, onMove, onDragStart }: { ticket: TicketListItem; all: TicketListItem[]; starting: boolean; onStart: () => void; onMove: (to: TicketStatus) => void; onDragStart: (e: DragEvent) => void }) {
   const waiting = blockedBy(ticket, all)
   const moves = legalMoves(ticket)
   return (
@@ -21,6 +22,11 @@ function TicketCard({ ticket, all, onMove, onDragStart }: { ticket: TicketListIt
       <h3 title={ticket.title} className="mt-1 text-[14px] font-semibold break-words">{ticket.title}</h3>
       {ticket.worker && <p className="text-muted-foreground mt-1 text-[12px]">Worker: {ticket.worker}</p>}
       {waiting.length > 0 && <p className="text-warning mt-1 text-[12px]">Blocked by {waiting.join(', ')}</p>}
+      {canStart(ticket) && (
+        <button type="button" aria-label={`Start ${ticket.id}`} title={waiting.length > 0 ? `Blocked by ${waiting.join(', ')}` : undefined} disabled={starting || waiting.length > 0} onClick={onStart} className="bg-primary text-primary-foreground focus-visible:ring-primary/60 mt-2.5 h-7 w-full rounded-full px-3 text-[12.5px] outline-none focus-visible:ring-2 disabled:opacity-50 [@media(pointer:coarse)]:min-h-11">
+          {starting ? 'Starting…' : 'Start'}
+        </button>
+      )}
       {moves.length > 0 && (
         <select
           aria-label={`Move ${ticket.id} to`}
@@ -73,10 +79,12 @@ function NewTicket({ crewId, onDone }: { crewId: number; onDone: () => void }) {
 }
 
 // The tickets of the open project as one column per status. Polls, as there is no push event for the ticket files.
-export function TicketBoard({ crewId }: { crewId: number | null }) {
+// onOpenThread starts the saved thread and puts it on screen; it resolves false (after its own toast) if the thread did not start.
+export function TicketBoard({ crewId, onOpenThread }: { crewId: number | null; onOpenThread: (row: ScratchTerminal) => Promise<boolean> }) {
   const qc = useQueryClient()
   const [error, setError] = useState('')
   const [adding, setAdding] = useState(false)
+  const [starting, setStarting] = useState<string | null>(null)
   const list = useQuery({ queryKey: ticketsKey(crewId ?? -1), queryFn: () => call('tickets:list', crewId!), enabled: crewId !== null, refetchInterval: 3000 })
   const tickets = list.data?.tickets ?? []
   const skipped = list.data?.skipped ?? []
@@ -86,6 +94,26 @@ export function TicketBoard({ crewId }: { crewId: number | null }) {
     const res = await call('tickets:setStatus', crewId, t.id, to).catch((err: unknown) => ({ ok: false as const, error: String(err) }))
     setError(res.ok ? '' : `${t.id}: ${res.error}`)
     void qc.invalidateQueries({ queryKey: ticketsKey(crewId) })
+  }
+  // A new chat thread for the ticket; the thread itself claims it through the tickets CLI.
+  const startTicket = async (t: TicketListItem) => {
+    if (crewId === null || starting !== null || !canStart(t)) return
+    setStarting(t.id)
+    try {
+      if (t.status === 'Draft') {
+        const res = await call('tickets:setStatus', crewId, t.id, 'Ready')
+        if (!res.ok) throw new Error(res.error)
+      }
+      const row = await call('scratch:create', { crewId, title: `${t.id}: ${t.title}`, agent: 'claude' })
+      if (!(await onOpenThread(row))) throw new Error('the thread did not start')
+      await call('chat:send', row.id, { text: buildLaunchPrompt(t) })
+      setError('')
+    } catch (err) {
+      setError(`${t.id}: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setStarting(null)
+      void qc.invalidateQueries({ queryKey: ticketsKey(crewId) })
+    }
   }
   const drop = (e: DragEvent, to: TicketStatus) => {
     e.preventDefault()
@@ -119,7 +147,7 @@ export function TicketBoard({ crewId }: { crewId: number | null }) {
               <h3 className="text-muted-foreground mb-2 shrink-0 text-[13px]">{col.status} {col.tickets.length}</h3>
               <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto">
                 {col.tickets.map((t) => (
-                  <TicketCard key={t.id} ticket={t} all={tickets} onMove={(to) => void move(t, to)} onDragStart={(e) => e.dataTransfer.setData('text/plain', t.id)} />
+                  <TicketCard key={t.id} ticket={t} all={tickets} starting={starting === t.id} onStart={() => void startTicket(t)} onMove={(to) => void move(t, to)} onDragStart={(e) => e.dataTransfer.setData('text/plain', t.id)} />
                 ))}
               </div>
             </div>

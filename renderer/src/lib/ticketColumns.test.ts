@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { TICKET_STATUSES, type TicketListItem } from '@shared/tickets'
-import { blockedBy, groupByStatus, legalMoves } from './ticketColumns'
+import { blockedBy, buildLaunchPrompt, canStart, groupByStatus, legalMoves } from './ticketColumns'
 
 const t = (id: string, status: TicketListItem['status'], deps: string[] = []): TicketListItem => ({
   id, title: id, status, mode: 'Solo', dependsOn: deps.map((d) => ({ id: d, reason: '' })), worker: '', branch: '', worktree: '', verification: 'Pending', integration: 'Pending', hasRd: true, hasEval: true,
@@ -12,6 +12,15 @@ describe('ticketColumns', () => {
     expect(g.map((c) => c.status)).toEqual([...TICKET_STATUSES])
     expect(g.find((c) => c.status === 'Ready')!.tickets.map((x) => x.id)).toEqual(['T2', 'T1'])
     expect(g.find((c) => c.status === 'Failed')!.tickets).toEqual([])
+  })
+
+  it('starts only Draft and Ready tickets, with a prompt that names the CLI steps', () => {
+    expect(['Draft', 'Ready', 'In Progress', 'Done'].map((s) => canStart({ status: s as TicketListItem['status'], worker: '' }))).toEqual([true, true, false, false])
+    expect(canStart({ status: 'Ready', worker: 'builder:T-1' })).toBe(false)
+    const p = buildLaunchPrompt({ id: 'T-007', title: 'Fix it' })
+    expect(p).toContain('tickets.mjs show T-007')
+    expect(p).toContain('tickets.mjs claim T-007 claude:T-007')
+    expect(p).toContain('tickets.mjs worktree create T-007')
   })
 
   it('offers only legal moves', () => {

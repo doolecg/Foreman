@@ -104,15 +104,17 @@ export function useTerminals(crews: Crew[] | undefined, defaultModel: string, ma
   // Opens a thread that is already saved: a closed chat resumes its session, an open one just comes to the front.
   const reopenTab = useCallback(
     async (row: ScratchTerminal) => {
-      if (tabs.some((t) => t.scratchId === row.id)) return setActive(row.id)
-      if (row.agent !== 'claude' && row.agent !== 'opencode') return
+      if (tabs.some((t) => t.scratchId === row.id)) return setActive(row.id), true
+      if (row.agent !== 'claude' && row.agent !== 'opencode') return false
       try {
         await bridge().invoke('scratch:start', row.id, true)
         setTabs((t) => (t.some((x) => x.scratchId === row.id) ? t : [...t, { scratchId: row.id, crewId: row.crewId, title: row.title, kind: row.agent as MainCli, exited: false }]))
         setActive(row.id)
         setOpen(true)
+        return true
       } catch (e) {
         toast(`Could not open the thread: ${decodeIpcError(e).message}`, true)
+        return false
       }
     },
     [tabs],
