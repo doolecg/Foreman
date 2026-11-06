@@ -13,3 +13,5 @@ Never edit. Reply with exactly one line:
 - `pass`
 - `note: <one-line issue>` for something worth fixing that does not block
 - `fail: <one-line reason>` for something that must be fixed
+
+Contract: if the card names a ticket, its `.foreman/tickets/<id>/eval.md` is the contract. Report criterion by criterion: `<n> pass|fail: <evidence>`.

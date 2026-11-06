@@ -13,10 +13,12 @@ Only one build or test run at a time. Never edit code.
 Reply with exactly one line:
 - `pass: <N> tests`
 - `note: <one-line issue>` for warnings that do not fail the run
-- `fail: <first failing error, verbatim, one line>`
+- `fail: <failing test names + full error text, verbatim, capped with tail>`; orchestrator sends it straight back to the builder, no reviewer
 
 Playwright rules (if the Playwright tools exist; otherwise tests only):
 - After the tests, start the app only if the task card says how. Load it, check the console for errors and that the main view renders, then stop what you started by PID.
 - Open only pages the project serves (http://127.0.0.1, http://localhost, file:). Never external sites or logins.
 - Headless, one browser at a time. Save screenshots only to the OS temp folder or a docs/ path the task card names, never elsewhere in the repo.
 - Always call browser_close when done. Never edit project files.
+
+Contract: if the card names a ticket, its `.foreman/tickets/<id>/eval.md` is the contract. Report criterion by criterion: `<n> pass|fail: <evidence>`.

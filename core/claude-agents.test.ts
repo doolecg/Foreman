@@ -189,6 +189,29 @@ describe('ClaudeAgents', () => {
     expect(agents.graphFor('C:/Other')).toBeNull()
   })
 
+  it('picks the graph of the viewed tile\'s session, and never one from another folder', () => {
+    const { agents, eventsDir, fire, setNow } = setup()
+    const S2 = '22222222-2222-4333-8444-555555555555'
+    const S3 = '33333333-2222-4333-8444-555555555555'
+    setNow(600)
+    agents.begin(11, SID, 'C:/Work/App')
+    agents.begin(13, S2, 'C:/Work/App')
+    agents.begin(12, S3, 'C:/Work/Other')
+    mkdirIfMissing(eventsDir)
+    write(eventsDir, `${SID}.jsonl`, hook('SubagentStart', { tile: '11', cwd: 'C:/Work/App', agent_id: AGENT, agent_type: 'builder' }, 700))
+    write(eventsDir, `${S2}.jsonl`, hook('UserPromptSubmit', { tile: '13', session_id: S2, cwd: 'C:/Work/App' }, 800))
+    write(eventsDir, `${S3}.jsonl`, hook('SubagentStart', { tile: '12', session_id: S3, cwd: 'C:/Work/Other', agent_id: 'd1', agent_type: 'designer' }, 900))
+    for (const id of [SID, S2, S3]) fire(`${id}.jsonl`)
+    // No tile: the folder's most recently active session (tile 13), which is not the one building.
+    expect(agents.graphFor('C:/Work/App')?.sessionId).toBe(S2)
+    // The viewed tile's own session.
+    expect(agents.graphFor('C:/Work/App', 11)?.builder).toBe('building')
+    // A tile whose session works in another folder is ignored for this folder.
+    expect(agents.graphFor('C:/Work/App', 12)?.sessionId).toBe(S2)
+    expect(agents.graphFor('C:/Work/App', 12)?.subagents.some((a) => a.name === 'designer')).toBe(false)
+    expect(agents.graphFor('C:/Work/Other')?.subagents.map((a) => a.name)).toEqual(['designer'])
+  })
+
   it('reads the status file on its own change, with only the fields it has', () => {
     const { agents, eventsDir, fire, setNow } = setup()
     setNow(600)

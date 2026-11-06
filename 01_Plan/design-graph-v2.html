@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchestration graph v2: design proposal</title>
+<style>
+@font-face { font-family: 'Figtree'; src: url('../renderer/src/assets/fonts/Figtree-latin-wght.woff2') format('woff2'); font-weight: 300 900; font-display: swap; }
+/* Tokens copied from renderer/src/index.css (dark scheme). Light values are a neutral paper set for this proposal;
+   the app's light theme supplies its own at runtime through the same names. */
+:root {
+  --background: #171717; --foreground: #ececec; --card: #1f1f1f; --popover: #262626;
+  --primary: #d97757; --primary-foreground: #141414; --secondary: #242424; --muted: #262626;
+  --muted-foreground: #9a9a9a; --accent: #2a2a2a; --destructive: #f06a5f; --border: #2f2f2f;
+  --sidebar: #141414; --success: #8fbf7f; --warning: #e6b85c; --code: #1b1b1b;
+  --surface: color-mix(in srgb, var(--background) 92%, white);
+  --surface-border: color-mix(in srgb, var(--surface) 86%, white);
+  --edge-dim: #4a4a4a;
+  --m-ease: cubic-bezier(.32, .72, 0, 1);
+  --font-sans: 'Figtree', 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+}
+.light {
+  --background: #f4f4f3; --foreground: #1a1a1a; --card: #ffffff; --popover: #ffffff;
+  --primary: #b4532f; --primary-foreground: #ffffff; --secondary: #eaeae8; --muted: #ececea;
+  --muted-foreground: #5c5c5c; --accent: #e6e6e3; --destructive: #b42318; --border: #d9d9d6;
+  --sidebar: #ececea; --success: #2f6b2a; --warning: #8a5a00; --code: #ececea;
+  --surface: color-mix(in srgb, var(--background) 96%, black);
+  --surface-border: color-mix(in srgb, var(--surface) 88%, black);
+  --edge-dim: #b5b5b2;
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--sidebar); color: var(--foreground); font: 16px/1.5 var(--font-sans); padding: 48px 32px 120px; }
+.page { max-width: 1320px; margin: 0 auto; }
+h1 { font-size: 40px; line-height: 1.05; letter-spacing: -0.02em; font-weight: 650; max-width: 24ch; }
+.lede { margin-top: 20px; font-size: 19px; max-width: 64ch; }
+h2 { font-size: 26px; letter-spacing: -0.01em; font-weight: 650; margin: 96px 0 16px; }
+h3 { font-size: 19px; font-weight: 650; margin: 32px 0 8px; }
+.doc p, .doc li { max-width: 74ch; }
+.doc p + p { margin-top: 12px; }
+.doc ol, .doc ul { padding-left: 22px; display: grid; gap: 8px; }
+code { font-family: var(--font-mono); font-size: 14px; background: var(--code); padding: 1px 6px; border-radius: 6px; }
+.note { color: var(--muted-foreground); font-size: 15px; margin-top: 12px; max-width: 74ch; }
+.first { margin-top: 40px; background: var(--card); border-radius: 18px; padding: 24px 28px; max-width: 900px; }
+.first h2 { margin: 0 0 12px; font-size: 21px; }
+.first ol { padding-left: 22px; display: grid; gap: 6px; }
+.toggle { margin-top: 24px; height: 40px; padding: 0 16px; border-radius: 10px; border: 0; background: var(--accent); color: var(--foreground); font: 600 15px var(--font-sans); cursor: pointer; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ---------- the graph panel ---------- */
+.panel { background: var(--background); color: var(--foreground); border-radius: 18px; padding: 16px; margin-top: 24px; }
+.scroll-x { overflow-x: auto; }
+.bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; padding: 2px 4px 12px; font-size: 14px; }
+.bar .title { font-size: 16px; font-weight: 650; margin-right: auto; }
+.bar .live { color: var(--foreground); }
+.bar .live i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-right: 6px; }
+.bar b { font-weight: 650; font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted-foreground); }
+.sample { font-size: 13px; color: var(--muted-foreground); }
+
+/* the single loud thing */
+.needs { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; background: color-mix(in srgb, var(--primary) 16%, var(--card)); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; font-size: 15px; }
+.needs .what { flex: 1; min-width: 260px; }
+.needs .what b { font-weight: 650; }
+.btn { height: 36px; padding: 0 14px; border-radius: 9px; border: 0; font: 600 14px var(--font-sans); cursor: pointer; }
+.btn-primary { background: var(--primary); color: var(--primary-foreground); }
+.btn-quiet { background: var(--accent); color: var(--foreground); }
+
+.stage { position: relative; width: 1200px; height: 820px; }
+.stage svg.edges { position: absolute; inset: 0; width: 1200px; height: 820px; pointer-events: none; }
+.edges path { fill: none; stroke: var(--edge-dim); stroke-width: 1.5; }
+.edges .wait { stroke-dasharray: 5 5; }
+.edges .hot { stroke: var(--primary); stroke-width: 2; }
+.edges .sat { stroke-width: 1; }
+.lane { position: absolute; top: 176px; font-size: 13px; color: var(--muted-foreground); }
+
+.node { position: absolute; background: var(--card); border: 1.5px solid var(--surface-border); border-radius: 10px; padding: 9px 12px 10px; font-size: 13px; line-height: 1.4; }
+.node[data-hot] { border-color: var(--primary); }
+.node[data-fail] { border-color: var(--destructive); }
+.node .h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.node .name { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node .id { color: var(--muted-foreground); font-weight: 600; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.node .sub { color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node .num { font-variant-numeric: tabular-nums; }
+.st { white-space: nowrap; font-weight: 600; font-size: 13px; }
+.st i { font-style: normal; margin-right: 4px; }
+.st.run { color: var(--primary); }
+.st.blk { color: var(--warning); }
+.st.bad { color: var(--destructive); }
+.st.calm { color: var(--muted-foreground); }
+.row { position: absolute; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; background: var(--card); border-radius: 10px; font-size: 13px; color: var(--muted-foreground); }
+.row b { color: var(--foreground); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.meter { height: 4px; border-radius: 2px; background: var(--accent); margin: 7px 0 5px; overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 2px; background: color-mix(in srgb, var(--foreground) 55%, transparent); }
+.meter.hot i { background: var(--warning); }
+.kv { display: flex; justify-content: space-between; gap: 8px; color: var(--muted-foreground); }
+.kv b { color: var(--foreground); font-weight: 600; }
+.alert { display: inline-block; margin-top: 4px; color: var(--warning); font-weight: 600; }
+.cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+.cells > div { background: var(--secondary); border-radius: 7px; padding: 5px 8px; }
+.cells > div b { display: block; font-weight: 600; }
+.sat { position: absolute; background: var(--secondary); border-radius: 8px; padding: 4px 9px; font-size: 12.5px; white-space: nowrap; }
+.sat b { font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) {
+  .node[data-hot] .meter i { animation: breathe 2.4s var(--m-ease) infinite alternate; }
+}
+@keyframes breathe { from { opacity: .7; } to { opacity: 1; } }
+
+/* ---------- compact ---------- */
+.pair { display: flex; flex-wrap: wrap; gap: 40px; margin-top: 24px; align-items: flex-start; }
+.compact { width: 340px; background: var(--background); color: var(--foreground); border-radius: 18px; padding: 12px; font-size: 13px; }
+.compact .top { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 4px 8px; }
+.compact .top b { font-size: 15px; font-weight: 650; }
+.compact .needs { font-size: 13px; padding: 10px 12px; margin-bottom: 10px; }
+.compact .needs .what { min-width: 0; flex-basis: 100%; }
+.compact .needs .btn { height: 32px; font-size: 13px; }
+.compact .router { background: var(--card); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; border: 1.5px solid var(--primary); }
+.compact h4 { font-size: 13px; font-weight: 600; color: var(--muted-foreground); margin: 12px 4px 6px; }
+.compact ul { list-style: none; padding: 0; display: grid; gap: 4px; }
+.compact li { background: var(--card); border-radius: 9px; padding: 7px 10px; }
+.compact li .h { display: flex; justify-content: space-between; gap: 8px; }
+.compact li .h span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.compact .meter { margin: 5px 0 2px; }
+.compact .roles { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+.compact .roles span { background: var(--secondary); border-radius: 7px; padding: 3px 8px; font-size: 12.5px; }
+.compact .roles span.on { color: var(--primary); font-weight: 600; }
+.caption { font-size: 15px; color: var(--muted-foreground); margin-bottom: 10px; max-width: 340px; }
+
+/* ---------- drill-down ---------- */
+.drawer { background: var(--background); border-radius: 18px; padding: 20px 24px 24px; margin-top: 24px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px 40px; font-size: 14px; }
+.drawer header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 24px; }
+.drawer header .t { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.drawer h4 { font-size: 15px; font-weight: 650; margin-bottom: 8px; }
+.drawer .box { background: var(--card); border-radius: 12px; padding: 12px 14px; }
+.drawer .box + h4 { margin-top: 20px; }
+.checks { list-style: none; padding: 0; display: grid; gap: 6px; }
+.checks li { display: grid; grid-template-columns: 22px 1fr auto; gap: 6px; align-items: baseline; }
+.checks .ok { color: var(--success); }
+.checks .no { color: var(--destructive); }
+.checks .wait { color: var(--muted-foreground); }
+.log { list-style: none; padding: 0; display: grid; gap: 5px; font-variant-numeric: tabular-nums; }
+.log li { display: grid; grid-template-columns: 52px 1fr; gap: 8px; }
+.log time { color: var(--muted-foreground); }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; }
+.facts dt { color: var(--muted-foreground); }
+
+/* ---------- states ---------- */
+.states { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 24px; }
+.state { background: var(--background); border-radius: 18px; padding: 14px; font-size: 14px; min-height: 230px; display: flex; flex-direction: column; }
+.state .top { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted-foreground); padding: 0 2px 10px; }
+.state .top b { color: var(--foreground); font-size: 15px; font-weight: 650; }
+.state .body { flex: 1; background: var(--card); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+.ghost { border: 1.5px dashed var(--edge-dim); border-radius: 10px; height: 38px; display: flex; align-items: center; padding: 0 12px; color: var(--muted-foreground); font-size: 13px; }
+.err { color: var(--destructive); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page doc" id="root">
+
+<h1>Orchestration graph v2: tickets at the centre</h1>
+<p class="lede">The graph now draws the Model Engine as it really runs: the Router at the top, one worker per ticket in a dependency map, and the helper roles round the edge. One colour means "working now", and only one thing on screen ever shouts.</p>
+
+<section class="first" aria-labelledby="rtf">
+  <h2 id="rtf">Read this first</h2>
+  <ol>
+    <li>Everything below is a static mockup. All names, numbers and costs are sample data.</li>
+    <li>Section 1 is the full graph. Section 2 is the narrow panel and pop-out. Section 3 is one ticket opened up.</li>
+    <li>Section 5 has the three decisions to approve or reject. Nothing gets built until you answer them.</li>
+    <li>The button below swaps the whole page between dark and light.</li>
+  </ol>
+</section>
+<button class="toggle" type="button" id="scheme" aria-pressed="false">Show light scheme</button>
+
+<!-- ================= 1 ================= -->
+<h2>1. The main graph</h2>
+<p>Read it left to right: tickets on the left must finish before the ones to their right can start. Solid lines are met dependencies, dashed lines are still waiting. The orange lines show the Router talking to a worker or a ticket going to the council right now.</p>
+
+<div class="panel" role="region" aria-label="Orchestration graph, sample data">
+  <div class="bar">
+    <span class="title">Orchestration</span>
+    <span class="live"><i aria-hidden="true"></i>Live</span>
+    <span>Workers <b>2 of 3</b></span>
+    <span>Tickets <b>9</b>, done <b>2</b></span>
+    <span>Tokens <b>412k</b></span>
+    <span>Cost <b>£3.18</b> <span class="muted">estimate</span></span>
+    <span class="sample">Sample data</span>
+  </div>
+
+  <div class="needs" role="alert">
+    <span class="what"><b>Needs you:</b> T-109 can't merge. It conflicts with T-102 in <code>core/foreman.ts</code>.</span>
+    <button class="btn btn-quiet" type="button">Open the diff</button>
+    <button class="btn btn-quiet" type="button">Drop the ticket</button>
+    <button class="btn btn-primary" type="button">Rebase and retry</button>
+  </div>
+
+  <div class="scroll-x">
+  <div class="stage">
+    <svg class="edges" viewBox="0 0 1200 820" aria-hidden="true">
+      <!-- Router to the two running workers -->
+      <path class="hot" d="M560 132 C560 170 480 160 480 200"/>
+      <path class="hot" d="M640 132 C640 170 660 170 660 250 L660 420 C660 440 650 444 630 444"/>
+      <!-- Reviewer and Recall to Router -->
+      <path d="M280 72 L440 72"/>
+      <path d="M760 72 L900 72"/>
+      <!-- Recall satellites -->
+      <path class="sat" d="M934 124 L934 146"/>
+      <path class="sat" d="M1040 124 L1040 146"/>
+      <path class="sat" d="M1140 124 L1140 146"/>
+      <!-- dependencies met -->
+      <path d="M250 220 C290 220 290 270 330 270"/>
+      <path d="M250 270 C300 270 290 444 330 444"/>
+      <path d="M250 270 C310 270 280 578 330 578"/>
+      <!-- dependencies still waiting -->
+      <path class="wait" d="M630 275 C670 275 670 278 710 278"/>
+      <path class="wait" d="M630 450 C670 450 670 505 710 505"/>
+      <path class="wait" d="M630 578 C670 578 670 535 710 535"/>
+      <!-- ready-for-merge into the Merger -->
+      <path class="wait" d="M940 278 C970 278 960 350 990 350"/>
+      <path class="wait" d="M940 520 C970 520 960 400 990 400"/>
+      <!-- T-106 in review, out to the council -->
+      <path class="hot" d="M420 628 C420 660 230 650 230 690"/>
+      <!-- Merger to main -->
+      <path d="M1085 420 L1085 460"/>
+    </svg>
+
+    <!-- top band: roles that serve the Router -->
+    <div class="node" style="left:20px;top:20px;width:260px" role="group" aria-label="Reviewer, Opus 5.5: idle. 4 calls, last verdict approve">
+      <div class="h"><span class="name">Reviewer</span><span class="st calm"><i aria-hidden="true">○</i>Idle</span></div>
+      <div class="sub">Opus 5.5 · the Brain</div>
+      <div class="kv" style="margin-top:6px"><span>Calls <b class="num">4</b></span><span>Last verdict <b>approve</b></span></div>
+    </div>
+
+    <div class="node" data-hot style="left:440px;top:12px;width:320px" role="group" aria-label="Router, main agent: routing T-106 to the council. Never writes code">
+      <div class="h"><span class="name" style="font-size:16px">Router</span><span class="st run"><i aria-hidden="true">◐</i>Routing</span></div>
+      <div class="sub">Opus 5.5 · main chat · never writes code</div>
+      <div style="margin-top:6px">Sending T-106 to the council</div>
+      <div class="kv"><span>Context <b class="num">22%</b></span><span><b class="num">96k</b> tokens · <b class="num">£0.74</b></span></div>
+    </div>
+
+    <div class="node" style="left:900px;top:20px;width:280px" role="group" aria-label="Recall, Haiku 5.5: searching for T-104">
+      <div class="h"><span class="name">Recall</span><span class="st run"><i aria-hidden="true">◐</i>Searching</span></div>
+      <div class="sub">Haiku 5.5 · for T-104</div>
+      <div class="kv" style="margin-top:6px"><span>Calls <b class="num">7</b></span><span><b class="num">18k</b> tokens</span></div>
+    </div>
+    <span class="sat" style="left:884px;top:146px;width:100px" aria-label="Hindsight: 3 reads, 1 save">Hindsight <b class="num">3·1</b></span>
+    <span class="sat" style="left:990px;top:146px;width:100px" aria-label="CodeGraph: 12 reads">CodeGraph <b class="num">12</b></span>
+    <span class="sat" style="left:1096px;top:146px;width:100px" aria-label="memory.md: 2 reads, 1 save">memory.md <b class="num">2·1</b></span>
+
+    <span class="lane" style="left:20px">Start first</span>
+    <span class="lane" style="left:330px">Running and in review</span>
+    <span class="lane" style="left:710px">Waiting</span>
+    <span class="lane" style="left:990px">Merge</span>
+
+    <!-- column 0 -->
+    <div class="row" style="left:20px;top:200px;width:230px" role="group" aria-label="T-101 Ticket board parser: done, merged, 6 of 6 checks">
+      <span aria-hidden="true">✓</span><b>T-101 Board parser</b><span style="margin-left:auto">merged</span>
+    </div>
+    <div class="row" style="left:20px;top:250px;width:230px" role="group" aria-label="T-102 Ticket IPC routes: done, merged, 5 of 5 checks">
+      <span aria-hidden="true">✓</span><b>T-102 Ticket IPC</b><span style="margin-left:auto">merged</span>
+    </div>
+    <div class="node" data-fail style="left:20px;top:310px;width:230px" role="group" aria-label="T-109 Remove learn loop leftovers: failed, merge conflict, needs you. 5 of 5 checks">
+      <div class="h"><span class="name"><span class="id">T-109</span>Learn loop leftovers</span></div>
+      <div class="st bad" style="margin-top:2px"><i aria-hidden="true">✕</i>Failed · merge conflict</div>
+      <div class="sub">Sonnet 5.5 · medium · tk/109-learn-loop</div>
+      <div class="kv" style="margin-top:4px"><span>Checks <b class="num">5 of 5</b></span><span><b class="num">£0.22</b></span></div>
+      <div style="margin-top:4px;font-weight:600">Needs you, see above</div>
+    </div>
+    <div class="row" style="left:20px;top:460px;width:230px" role="group" aria-label="T-108 Release notes for 4.4.0: draft">
+      <span aria-hidden="true">◌</span><b>T-108 Release notes</b><span style="margin-left:auto">draft</span>
+    </div>
+
+    <!-- column 1 -->
+    <div class="node" data-hot style="left:330px;top:200px;width:300px" role="group" aria-label="T-103 Worker worktree spawn: in progress. Sonnet 5.5 high. Context 38 percent. 2 of 7 checks">
+      <div class="h"><span class="name"><span class="id">T-103</span>Worktree spawn</span><span class="st run"><i aria-hidden="true">◐</i>In progress</span></div>
+      <div class="sub">Sonnet 5.5 · high · tk/103-worktree-spawn</div>
+      <div class="meter" role="img" aria-label="Context used 38 percent"><i style="width:38%"></i></div>
+      <div class="kv"><span>Context <b class="num">38%</b></span><span>Checks <b class="num">2 of 7</b></span></div>
+      <div class="kv"><span>Writing <code style="font-size:12px">core/worktree.ts</code></span><span><b class="num">84k</b> · <b class="num">£0.61</b></span></div>
+    </div>
+    <div class="node" data-hot style="left:330px;top:370px;width:300px" role="group" aria-label="T-104 Graph state for tickets: in progress. Sonnet 5.5 medium. Context 71 percent. 1 of 6 checks. Watchdog: looping for 3 minutes">
+      <div class="h"><span class="name"><span class="id">T-104</span>Ticket graph state</span><span class="st run"><i aria-hidden="true">◐</i>In progress</span></div>
+      <div class="sub">Sonnet 5.5 · medium · tk/104-graph-state</div>
+      <div class="meter" role="img" aria-label="Context used 71 percent"><i style="width:71%"></i></div>
+      <div class="kv"><span>Context <b class="num">71%</b></span><span>Checks <b class="num">1 of 6</b></span></div>
+      <div class="kv"><span class="alert" style="margin:0">Looping 3 min</span><span><b class="num">131k</b> · <b class="num">£0.93</b></span></div>
+    </div>
+    <div class="node" style="left:330px;top:540px;width:300px" role="group" aria-label="T-106 Ticket drawer UI: in review. 7 of 7 checks. Council running">
+      <div class="h"><span class="name"><span class="id">T-106</span>Ticket drawer UI</span><span class="st"><i aria-hidden="true">◎</i>Review</span></div>
+      <div class="sub">Sonnet 5.5 · medium · tk/106-ticket-drawer</div>
+      <div class="kv" style="margin-top:4px"><span>Checks <b class="num">7 of 7</b></span><span><b class="num">58k</b> · <b class="num">£0.41</b></span></div>
+    </div>
+
+    <!-- column 2 -->
+    <div class="node" style="left:710px;top:230px;width:230px" role="group" aria-label="T-105 Merger conflict handling: blocked by T-103">
+      <div class="h"><span class="name"><span class="id">T-105</span>Merger conflicts</span></div>
+      <div class="st blk" style="margin-top:2px"><i aria-hidden="true">⊘</i>Blocked by T-103</div>
+      <div class="sub">Waits for the worktree code</div>
+    </div>
+    <div class="node" style="left:710px;top:470px;width:230px" role="group" aria-label="T-107 Graph v2 render: ready, waits on T-104 and T-106">
+      <div class="h"><span class="name"><span class="id">T-107</span>Graph v2 render</span></div>
+      <div class="st calm" style="margin-top:2px"><i aria-hidden="true">○</i>Ready, waits on 2</div>
+      <div class="sub">Starts after T-104 and T-106</div>
+    </div>
+
+    <!-- column 3 -->
+    <div class="node" style="left:990px;top:300px;width:190px" role="group" aria-label="Merger: idle. 2 merged, 1 conflict, 2 queued">
+      <div class="h"><span class="name">Merger</span><span class="st calm"><i aria-hidden="true">○</i>Idle</span></div>
+      <div class="kv" style="margin-top:6px"><span>Merged</span><b class="num">2</b></div>
+      <div class="kv"><span>Conflict</span><b class="num" style="color:var(--destructive)">1</b></div>
+      <div class="kv"><span>Queued</span><b class="num">2</b></div>
+    </div>
+    <div class="row" style="left:1010px;top:460px;width:150px;justify-content:center" aria-label="Target branch dev-4.4.0"><b>dev-4.4.0</b></div>
+
+    <!-- bottom band: checking roles -->
+    <div class="node" data-hot style="left:20px;top:690px;width:420px" role="group" aria-label="Council for T-106: run running, code pass, UI note">
+      <div class="h"><span class="name">Council</span><span class="sub">Haiku 5.5 · checking T-106</span></div>
+      <div class="cells">
+        <div><b>Run</b><span class="st run"><i aria-hidden="true">◐</i>Running</span></div>
+        <div><b>Code</b><span class="st calm"><i aria-hidden="true">✓</i>Pass</span></div>
+        <div><b>UI</b><span class="st blk"><i aria-hidden="true">!</i>Note</span></div>
+      </div>
+    </div>
+    <div class="node" style="left:470px;top:690px;width:220px" role="group" aria-label="Reproducer: idle. Last reproduced a bug for T-109, 6 minutes ago">
+      <div class="h"><span class="name">Reproducer</span><span class="st calm"><i aria-hidden="true">○</i>Idle</span></div>
+      <div class="sub" style="margin-top:4px">Last: T-109, 6 min ago</div>
+      <div class="sub">Repro test failed, then passed</div>
+    </div>
+    <div class="node" style="left:720px;top:690px;width:220px" role="group" aria-label="Watchdog: watching 2 workers, 1 alert">
+      <div class="h"><span class="name">Watchdog</span><span class="st calm"><i aria-hidden="true">◐</i>Watching 2</span></div>
+      <div class="sub" style="margin-top:4px">1 alert: T-104 looping</div>
+      <div class="sub">Next check in 40 s</div>
+    </div>
+    <div class="node" style="left:970px;top:690px;width:210px" role="group" aria-label="Totals: 412 thousand tokens, 3 pounds 18 estimate">
+      <div class="h"><span class="name">Spend</span><span class="sub">this run</span></div>
+      <div class="kv" style="margin-top:4px"><span>Tokens</span><b class="num">412k</b></div>
+      <div class="kv"><span>Cost</span><b class="num">£3.18</b></div>
+      <div class="kv"><span>Busiest</span><b>T-104</b></div>
+    </div>
+  </div>
+  </div>
+</div>
+<p class="note">Status words always come with a shape (◌ draft, ○ ready or idle, ◐ working, ⊘ blocked, ◎ review, ✓ done, ✕ failed), so nothing depends on colour alone. Done tickets fold to one line. Satellites show reads·saves (Hindsight 3·1 means 3 reads, 1 save). Hindsight and CodeGraph satellites only appear when the project has them installed and the run has called them. The UI cell in the council only appears when the ticket changed UI files.</p>
+
+<!-- ================= 2 ================= -->
+<h2>2. Narrow panel and pop-out</h2>
+<p>Below about 640px wide, the map turns into a list grouped by what needs attention. The order is: needs you, then running, then waiting, then done (folded). The pop-out window uses the full map from section 1 once it is wider than 640px, and this list when it is narrower.</p>
+
+<div class="pair">
+  <div>
+    <p class="caption">Dark, side panel at 340px.</p>
+    <div class="compact" role="region" aria-label="Orchestration, compact, sample data">
+      <div class="top"><b>Orchestration</b><span class="muted">2 of 3 · £3.18</span></div>
+      <div class="needs" role="alert">
+        <span class="what"><b>Needs you:</b> T-109 conflicts with T-102.</span>
+        <button class="btn btn-primary" type="button">Decide</button>
+      </div>
+      <div class="router"><div class="h" style="display:flex;justify-content:space-between"><b>Router</b><span class="st run"><i aria-hidden="true">◐</i>Routing</span></div><span class="muted">Sending T-106 to the council</span></div>
+      <h4>Running</h4>
+      <ul>
+        <li><div class="h"><span>T-103 Worker worktree spawn</span><span class="muted num">2/7</span></div><div class="meter" role="img" aria-label="Context 38 percent"><i style="width:38%"></i></div><span class="muted">Sonnet high · 38% · £0.61</span></li>
+        <li><div class="h"><span>T-104 Graph state for tickets</span><span class="muted num">1/6</span></div><div class="meter" role="img" aria-label="Context 71 percent"><i style="width:71%"></i></div><span class="muted">Sonnet medium · 71% · </span><span class="alert" style="margin:0">Looping</span></li>
+        <li><div class="h"><span>T-106 Ticket drawer UI</span><span class="st">◎ Review</span></div><span class="muted">Council: run ◐ code ✓ ui !</span></li>
+      </ul>
+      <h4>Waiting</h4>
+      <ul>
+        <li><div class="h"><span>T-105 Merger conflicts</span><span class="st blk">⊘ T-103</span></div></li>
+        <li><div class="h"><span>T-107 Graph v2 render</span><span class="muted">○ waits on 2</span></div></li>
+        <li><div class="h"><span>T-108 Release notes</span><span class="muted">◌ draft</span></div></li>
+      </ul>
+      <h4>Done 2, failed 1</h4>
+      <div class="roles" aria-label="Roles">
+        <span>Reviewer idle</span><span class="on">Recall ◐</span><span class="on">Council ◐</span><span>Merger idle</span><span>Watchdog 1</span><span>Hindsight 3·1</span><span>CodeGraph 12</span>
+      </div>
+    </div>
+  </div>
+  <div>
+    <p class="caption">Light, same panel. Light uses a darker orange (#b4532f) so the text passes AA on white.</p>
+    <div class="compact light" role="region" aria-label="Orchestration, compact, light, sample data">
+      <div class="top"><b>Orchestration</b><span class="muted">2 of 3 · £3.18</span></div>
+      <div class="needs" role="alert">
+        <span class="what"><b>Needs you:</b> T-109 conflicts with T-102.</span>
+        <button class="btn btn-primary" type="button">Decide</button>
+      </div>
+      <div class="router"><div class="h" style="display:flex;justify-content:space-between"><b>Router</b><span class="st run"><i aria-hidden="true">◐</i>Routing</span></div><span class="muted">Sending T-106 to the council</span></div>
+      <h4>Running</h4>
+      <ul>
+        <li><div class="h"><span>T-103 Worker worktree spawn</span><span class="muted num">2/7</span></div><div class="meter" role="img" aria-label="Context 38 percent"><i style="width:38%"></i></div><span class="muted">Sonnet high · 38% · £0.61</span></li>
+        <li><div class="h"><span>T-104 Graph state for tickets</span><span class="muted num">1/6</span></div><div class="meter" role="img" aria-label="Context 71 percent"><i style="width:71%"></i></div><span class="muted">Sonnet medium · 71% · </span><span class="alert" style="margin:0">Looping</span></li>
+        <li><div class="h"><span>T-106 Ticket drawer UI</span><span class="st">◎ Review</span></div><span class="muted">Council: run ◐ code ✓ ui !</span></li>
+      </ul>
+      <h4>Waiting</h4>
+      <ul>
+        <li><div class="h"><span>T-105 Merger conflicts</span><span class="st blk">⊘ T-103</span></div></li>
+        <li><div class="h"><span>T-107 Graph v2 render</span><span class="muted">○ waits on 2</span></div></li>
+      </ul>
+      <h4>Done 2, failed 1</h4>
+    </div>
+  </div>
+</div>
+<p class="note">The pop-out keeps today's thin top bar (size switch, "Pop back in"). Small, Large and Auto sizes stay; Small forces this list, Large forces the map with a horizontal scroll.</p>
+
+<!-- ================= 3 ================= -->
+<h2>3. One ticket, opened</h2>
+<p>Clicking a ticket, or pressing Enter on it, opens this in the side panel. It shows the brief from rd.md, the checks from eval.md, what the worker has done, and the test results. Esc closes it and puts focus back on the ticket.</p>
+
+<div class="drawer" role="dialog" aria-label="Ticket T-104, sample data">
+  <header>
+    <span class="t">T-104 Graph state for tickets</span>
+    <span><span class="st run"><i aria-hidden="true">◐</i>In progress</span> <span class="muted">· Sonnet 5.5 medium · 71% context · 131k tokens · £0.93</span></span>
+  </header>
+  <div>
+    <h4>Brief (rd.md)</h4>
+    <div class="box"><p>Add the tickets, workers and roles to the graph state so the panel can draw them. Read the board from <code>.foreman/tickets/board.md</code>. Keep the old fields so the 4.3 panel still works until T-107 lands.</p></div>
+    <h4>Checks (eval.md): 1 of 6 passed</h4>
+    <div class="box">
+      <ul class="checks">
+        <li><span class="ok" aria-hidden="true">✓</span><span>Graph state lists every ticket on the board</span><span class="muted">passed</span></li>
+        <li><span class="no" aria-hidden="true">✕</span><span>Dependency ids that are not on the board are reported, not dropped</span><span class="muted">failed</span></li>
+        <li><span class="wait" aria-hidden="true">○</span><span>Context used comes from the worker's own session</span><span class="muted">not run</span></li>
+        <li><span class="wait" aria-hidden="true">○</span><span>Cost is counted per worker and in total</span><span class="muted">not run</span></li>
+        <li><span class="wait" aria-hidden="true">○</span><span>Old 4.3 fields still filled</span><span class="muted">not run</span></li>
+        <li><span class="wait" aria-hidden="true">○</span><span>Typecheck and unit tests pass</span><span class="muted">not run</span></li>
+      </ul>
+    </div>
+  </div>
+  <div>
+    <h4>Worker activity</h4>
+    <div class="box">
+      <ol class="log" aria-label="Activity, newest last">
+        <li><time>14:02</time><span>Started in worktree <code>.foreman/wt/104</code></span></li>
+        <li><time>14:04</time><span>Recall: 2 CodeGraph reads, 1 Hindsight read</span></li>
+        <li><time>14:09</time><span>Edited <code>shared/orchestration-graph.ts</code> +42 −3</span></li>
+        <li><time>14:13</time><span>Ran <code>vitest core/orchestration-graph</code>, 1 failed</span></li>
+        <li><time>14:15</time><span>Edited the same lines again</span></li>
+        <li><time>14:18</time><span>Ran the same test, same failure</span></li>
+        <li><time>14:18</time><span class="alert" style="margin:0">Watchdog: looping, same edit and test 3 times</span></li>
+      </ol>
+    </div>
+    <h4>Validation</h4>
+    <div class="box">
+      <dl class="facts">
+        <dt>Typecheck</dt><dd>Passed</dd>
+        <dt>Unit tests</dt><dd>41 passed, 1 failed (<code>graph rejects unknown deps</code>)</dd>
+        <dt>Council</dt><dd>Not called yet</dd>
+        <dt>Integration</dt><dd>Pending, merges after T-102 (done)</dd>
+        <dt>Branch</dt><dd>tk/104-graph-state, 3 commits ahead</dd>
+      </dl>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-quiet" type="button">Open rd.md</button>
+      <button class="btn btn-quiet" type="button">Open eval.md</button>
+      <button class="btn btn-quiet" type="button">Stop worker</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 4 ================= -->
+<h2>4. Empty, loading, error, off</h2>
+<p>A graph that is not there yet must never look like an idle one. Each state says what it is in words.</p>
+<div class="states">
+  <div class="state">
+    <div class="top"><b>Orchestration</b><span>Idle</span></div>
+    <div class="body">
+      <p><b>No tickets yet.</b></p>
+      <p class="muted">The Router writes tickets when you give it a job. They will appear here as it plans.</p>
+      <div class="ghost">Router · waiting for a job</div>
+    </div>
+  </div>
+  <div class="state">
+    <div class="top"><b>Orchestration</b><span>Loading</span></div>
+    <div class="body" aria-busy="true">
+      <p role="status">Reading the ticket board…</p>
+      <div class="ghost">Router</div>
+      <div class="ghost">Tickets</div>
+    </div>
+  </div>
+  <div class="state">
+    <div class="top"><b>Orchestration</b><span>Error</span></div>
+    <div class="body">
+      <p class="err" role="alert">Couldn't read the ticket board.</p>
+      <p class="muted"><code>.foreman/tickets/board.md</code> line 14 has no status. The other 8 tickets are shown; this one is skipped until it is fixed.</p>
+      <div style="display:flex;gap:8px"><button class="btn btn-quiet" type="button">Open the board</button><button class="btn btn-quiet" type="button">Try again</button></div>
+    </div>
+  </div>
+  <div class="state">
+    <div class="top"><b>Agents</b><span>Orchestration off</span></div>
+    <div class="body">
+      <p><b>No graph.</b> With Orchestration mode off, the Agents panel shows the plain sub-agent list and there is no List or Graph switch.</p>
+      <p class="muted">A Lite session never shows the graph or the switch, and Foreman does not collect graph state for it.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 5 ================= -->
+<h2>5. Why this look, and three decisions</h2>
+<p>Today's graph draws a fixed pipeline of roles, each with its own colour (green, purple, amber, teal, pink), in small capital letters, with marching borders on anything running. That worked with one builder. With several workers and a dependency map it becomes a rainbow, and the eye can't find the one thing that matters. This proposal keeps what works: the card shape, the Figtree type, the theme tokens, the context bar, the size switch and the pop-out. It changes three things. You can approve or reject each one on its own.</p>
+<ol>
+  <li><b>One colour for "working now".</b> The five role colours go. Foreman's own orange marks only what is active right now: a running card's edge and the lines that carry work. Amber means blocked or a watchdog alert, red means failed. Everything else, including Done, is plain ink or grey. You tell roles apart by where they sit and by their names. If you reject this, the role colours stay but become a small dot only, not borders.</li>
+  <li><b>Tickets are the graph.</b> The map is the tickets' dependency order, left to right, ending at the Merger. The Router sits at the top and the helper roles sit round the edge. Done tickets fold to one line so the running work gets the room. If you reject this, the graph keeps today's role pipeline and tickets go in a list under it.</li>
+  <li><b>Only "Needs you" is loud.</b> A decision you must make is the only filled bar, with the only filled button, above the map. Watchdog alerts are short amber text on the worker. Marching borders become a still orange edge, and only the context bar breathes slowly (none with reduced motion). Capital letter labels become sentence case. If you reject this, alerts get their own banner too and the marching edge stays.</li>
+</ol>
+
+<h3>Notes for the builder</h3>
+<ul>
+  <li><b>Data.</b> <code>OrchestrationGraph</code> needs, per ticket: the <code>TicketRow</code> fields from <code>shared/tickets.ts</code>, plus checks passed and total, context percent, tokens, cost, current file and watchdog alert. Per role: state and calls. Run totals: tokens, cost, workers busy and the cap. Memory: reads and saves for Hindsight, CodeGraph and memory.md, each null when not installed. Never fake a number: a missing one shows as a dash.</li>
+  <li><b>Layout.</b> Column = dependency depth (a ticket with no dependencies is column 0). Inside a column, order is needs you, running, review, blocked, ready, draft, done. The Merger is always the last column. Lines are drawn after layout, from the right edge of a ticket to the left edge of the one that waits on it.</li>
+  <li><b>Sizes.</b> Nothing under 12px. Numbers use tabular figures. Text is 13 to 14px on cards, 16px for the Router name.</li>
+  <li><b>Keyboard.</b> Tab moves into the graph once, then arrow keys move between tickets (left and right follow dependencies, up and down move within a column). Enter opens the ticket, Esc closes it and returns focus. The "Needs you" buttons come first in tab order.</li>
+  <li><b>Screen readers.</b> Each card is a group with a full sentence label (as in this page's markup). The lines are hidden from readers; the same facts are in the labels ("blocked by T-103"). Status changes go to a polite live region, one sentence each, at most one every 5 seconds. Only "Needs you" uses an alert.</li>
+  <li><b>Light and dark.</b> Same token names; light swaps in a darker orange so text passes WCAG AA. Check both before calling it done.</li>
+</ul>
+<p class="note">Sample data only. Ticket names, costs and timings are made up to show a full board.</p>
+
+</div>
+<script>
+// Swaps the whole page between the dark and light token sets.
+const b = document.getElementById('scheme')
+b.addEventListener('click', () => {
+  const on = document.body.classList.toggle('light')
+  b.setAttribute('aria-pressed', String(on))
+  b.textContent = on ? 'Show dark scheme' : 'Show light scheme'
+})
+</script>
+</body>
+</html>

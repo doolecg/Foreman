@@ -339,8 +339,11 @@ export class ClaudeAgents {
     return rec ? this.snapshot(rec) : null
   }
 
-  // The newest session's graph for a project folder (compared ignoring case, slash direction and a trailing slash).
-  graphFor(folder: string): OrchestrationGraph | null {
+  // The graph of the session that owns `tileId`, when that session works in `folder`; otherwise the newest session's graph
+  // for the folder (compared ignoring case, slash direction and a trailing slash). A session from another folder never counts.
+  graphFor(folder: string, tileId?: number | null): OrchestrationGraph | null {
+    const owned = tileId == null ? undefined : this.graphs.graphs.get(this.tiles.get(tileId)?.sessionId ?? '')
+    if (owned?.project && sameFolder(owned.project, folder)) return owned
     let project: string | null = null
     for (const g of this.graphs.graphs.values()) if (g.project !== null && sameFolder(g.project, folder)) project = g.project
     return project === null ? null : graphForProject(this.graphs, project)

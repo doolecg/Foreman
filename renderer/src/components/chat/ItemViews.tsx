@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from 'react'
+import { memo, useMemo, useState, type ReactNode } from 'react'
 import { AlertCircle, Bot, Box, BrainCircuit, Camera, ChevronRight, Copy, FileText, Gauge, Globe, Info, ListChecks, Minimize2, Network, Pencil, Plug, Search, Sparkles, Square, SquareTerminal, Webhook, Wrench, type LucideIcon } from 'lucide-react'
 import {
   partialTarget,
@@ -18,7 +18,8 @@ import { PixelBar, meterTone } from '@/components/ui/pixel-bar'
 import { Critter } from '@/components/mods/agents/Critter'
 import { critterFor } from '@/components/mods/agents/agentView'
 import { cn } from '@/lib/utils'
-import { agentRowFor, agentTitle, agentTldr, firstLines, formatDuration, isToolRunning, kTokens, noticeChipIcon, toolIconKey, tokensSuffix, toolRowParts, type AgentDot, type ChipIcon, type ToolIconKey } from './chatHelpers'
+import { previewText } from '@/lib/previewText'
+import { agentRowFor, agentTitle, agentTldr, formatDuration, isToolRunning, kTokens, noticeChipIcon, toolIconKey, tokensSuffix, toolRowParts, type AgentDot, type ChipIcon, type ToolIconKey } from './chatHelpers'
 import { useClock } from './clock'
 import { ImageChip } from './ImageChip'
 import { ImageModal } from './ImageModal'
@@ -82,7 +83,7 @@ export function DiffBlock({ diff }: { diff: DiffFile }) {
         </div>
       </div>
       {rows.length > shown.length && (
-        <button type="button" onClick={() => setAll(true)} className="text-muted-foreground hover:text-foreground px-3 pt-1 text-xs">
+        <button type="button" onClick={() => setAll(true)} className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mx-2 min-h-6 rounded-md px-1 pt-1 text-xs focus-visible:ring-2 focus-visible:outline-none">
           Show all {rows.length} lines
         </button>
       )}
@@ -95,6 +96,32 @@ function Pre({ text, className }: { text: string; className?: string }) {
     <pre tabIndex={0} className={cn('bg-code max-h-80 overflow-auto rounded-[10px] px-3.5 py-3 font-mono text-[12.5px] leading-[1.65] whitespace-pre-wrap break-words', className)}>
       {text}
     </pre>
+  )
+}
+
+// Long text folded to a few lines with a Show more / Show less toggle. Display only; the full text is what gets copied.
+function PreviewPre({ text, maxLines, className }: { text: string; maxLines: number; className?: string }) {
+  const [open, setOpen] = useState(false)
+  const p = useMemo(() => previewText(text, maxLines), [text, maxLines])
+  const foldable = p.hidden > 0 || p.clipped
+  if (!foldable) return <Pre text={text} className={className} />
+  return (
+    <div>
+      {open ? (
+        <Pre text={text} className={cn('max-h-80', className)} />
+      ) : (
+        <pre className={cn('bg-code overflow-hidden rounded-[10px] px-3.5 py-3 font-mono text-[12.5px] leading-[1.65] whitespace-pre', className)}>
+          {p.lines.map((l, i) => (
+            <div key={i} className="truncate">
+              {l || ' '}
+            </div>
+          ))}
+        </pre>
+      )}
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-1 min-h-6 rounded-md px-1 text-xs focus-visible:ring-2 focus-visible:outline-none">
+        {open ? 'Show less' : p.hidden > 0 ? `Show more (${p.hidden} more ${p.hidden === 1 ? 'line' : 'lines'})` : 'Show more'}
+      </button>
+    </div>
   )
 }
 
@@ -189,26 +216,21 @@ export const ThinkingRow = memo(function ThinkingRow({ item }: { item: ThinkingI
 })
 
 function ToolDetails({ t }: { t: ToolItem }) {
-  const [all, setAll] = useState(false)
   const [shownImage, setShownImage] = useState<number | null>(null)
   const resultImages = t.result?.images ?? []
   const input = t.input && typeof t.input === 'object' ? (t.input as Record<string, unknown>) : {}
   const command = typeof input.command === 'string' ? input.command : null
+  const description = typeof input.description === 'string' ? input.description.trim() : ''
   const text = t.result?.text ?? ''
-  const shown = all ? { text, more: false } : firstLines(text, 40)
   return (
     <div className="mt-1 mb-1 ml-5 space-y-1.5">
       {t.blockedByHook && <p className="text-destructive text-[13px]">Blocked by a hook: {t.blockedByHook}</p>}
-      {t.diff ? <DiffBlock diff={t.diff} /> : command ? <Pre text={command} className="max-h-40" /> : null}
+      {description && !t.diff && command && <p className="text-foreground text-[13px] [overflow-wrap:anywhere]">{description}</p>}
+      {t.diff ? <DiffBlock diff={t.diff} /> : command ? <PreviewPre text={command} maxLines={3} /> : null}
       {!t.diff && text && (
         <div className="group/res relative">
-          <Pre text={shown.text} className={t.result?.isError ? 'text-destructive' : undefined} />
+          <PreviewPre text={text} maxLines={12} className={t.result?.isError ? 'text-destructive' : undefined} />
           <CopyTextButton text={text} ariaLabel="Copy result" className="text-muted-foreground absolute top-1.5 right-2 opacity-0 group-focus-within/res:opacity-100 group-hover/res:opacity-100" />
-          {shown.more && (
-            <button type="button" onClick={() => setAll(true)} className="text-muted-foreground hover:text-foreground mt-1 text-xs">
-              Show all
-            </button>
-          )}
         </div>
       )}
       {resultImages.map((src, i) => (

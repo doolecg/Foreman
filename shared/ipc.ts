@@ -9,6 +9,7 @@ import type { BrowserPromptAnswer, BrowserPromptsState } from './browser-prompts
 import type { EnhanceContext } from './prompt-enhance'
 import type { ServersResult } from './servers'
 import type { SetupApplyResult, SetupPlanView } from './setup'
+import type { TicketDetail, TicketList } from './tickets'
 import type {
   AppInfo,
   BudgetConfig,
@@ -273,6 +274,11 @@ export interface IpcApi extends ChatApi {
   'claudeTile:get': (tileId: number) => ClaudeTileState | null
   // The project's Orchestration graph (its newest session), null when no event has come from the project yet.
   'graph:get': (crewId: number) => OrchestrationGraph | null
+  // The Model Engine tickets of the project (board.md joined with rd/eval presence), read only. An unknown project or one without a folder gives an empty list / null.
+  'tickets:list': (crewId: number) => TicketList
+  'tickets:get': (crewId: number, id: string) => TicketDetail | null
+  // Read only: which Ready tickets may start now, and why the others wait.
+  'tickets:next': (crewId: number) => { start: string[]; waiting: Array<{ id: string; reason: string }> }
   'settings:get': () => Settings
   'settings:set': (patch: SettingsPatch) => Settings
   // "Reset section to defaults".
@@ -668,6 +674,9 @@ export const CORE_CHANNELS: CoreChannel[] = [
   'engineering:clearTask',
   'claudeTile:get',
   'graph:get',
+  'tickets:list',
+  'tickets:get',
+  'tickets:next',
   ...CHAT_CHANNELS,
   'settings:get',
   'settings:set',

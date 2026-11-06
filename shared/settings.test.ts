@@ -96,6 +96,15 @@ describe('settings', () => {
     expect(mergeSettings(DEFAULT_SETTINGS, { mainCli: 'opencode' }).mainCli).toBe('opencode')
   })
 
+  it('sanitises the engine worker cap to 1..8', () => {
+    expect(sanitizeSettings({}).engineMaxWorkers).toBe(3)
+    expect(sanitizeSettings({ engineMaxWorkers: 0 }).engineMaxWorkers).toBe(1)
+    expect(sanitizeSettings({ engineMaxWorkers: 99 }).engineMaxWorkers).toBe(8)
+    expect(sanitizeSettings({ engineMaxWorkers: 4.6 }).engineMaxWorkers).toBe(5)
+    expect(sanitizeSettings({ engineMaxWorkers: 'x' }).engineMaxWorkers).toBe(3)
+    expect(mergeSettings(DEFAULT_SETTINGS, { engineMaxWorkers: 2 }).engineMaxWorkers).toBe(2)
+  })
+
   it('merges partial layout, terminal and tiles patches and labels every key action', () => {
     const m = mergeSettings(DEFAULT_SETTINGS, { layout: { sidebarHidden: true }, terminal: { fontSize: 16 }, tiles: { layout: 'master' } })
     expect(m.layout).toEqual({ sidebarHidden: true, sidebarWidth: 0, notesOpen: false, notesWidth: 0 })

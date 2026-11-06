@@ -19,3 +19,5 @@ Playwright rules (if the Playwright tools exist; otherwise review the diff only)
 - Headless, one browser at a time. Check layout, states and console errors at 1440x900 and at 390x844 (browser_resize).
 - Save screenshots only to the OS temp folder or a docs/ path the task card names, never elsewhere in the repo.
 - Always call browser_close when done. Never edit project files.
+
+Contract: if the card names a ticket, its `.foreman/tickets/<id>/eval.md` is the contract. Report criterion by criterion: `<n> pass|fail: <evidence>`.

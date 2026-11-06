@@ -19,6 +19,7 @@ const LABELS: Record<keyof Settings, string> = {
   infoBar: 'Info bar',
   contextWarnPct: 'Context warning level',
   contextDangerPct: 'Context danger level',
+  engineMaxWorkers: 'Engine worker cap',
   shell: 'Shell',
   ide: 'IDE',
   updates: 'Updates',

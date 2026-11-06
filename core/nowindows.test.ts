@@ -16,7 +16,8 @@ function sources(dir: string): string[] {
   })
 }
 
-const files = [...sources(join(root, 'core')), ...sources(join(root, 'main'))]
+// scripts/tickets-cli.ts is bundled into the kit's tickets.mjs, which agents run on Windows too.
+const files = [...sources(join(root, 'core')), ...sources(join(root, 'main')), join(root, 'scripts', 'tickets-cli.ts')]
 const rel = (f: string) => f.slice(root.length + 1).replaceAll(String.fromCharCode(92), '/')
 
 describe('background processes never open a console window', () => {

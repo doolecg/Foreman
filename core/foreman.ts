@@ -31,6 +31,10 @@ import { ProjectActions } from './actions'
 import { BUDGETS_KEY, BudgetMonitor, mergeBudgets, sanitizeBudgets, WINDOW_LABEL, type BudgetDecision } from './usage-budgets'
 import type { KeepWarmPersisted } from './keepwarm'
 import { Ops } from './ops'
+import { planNext } from './scheduler'
+import { getTicket, listTickets, readTouches, recoverTickets } from './tickets'
+import { deleteSnapshot, loadSnapshot, saveSnapshot } from './graph-snapshot'
+import type { OrchestrationGraph } from '../shared/orchestration-graph'
 import { claudeDir as claudeDirOf } from './paths'
 import { applySetup, planView, setupLibraryDir } from './setup-service'
 import { Installer, systemInstallDeps } from './install'
@@ -61,7 +65,7 @@ import { ClaudeAgents, sameFolder } from './claude-agents'
 import { createGraphPusher } from './graph-push'
 import { hooksConfig, type ModsPaths } from './claude-events'
 import { packStatus, resetPack } from './engineering'
-import { installKit } from './orchestration-kit'
+import { installKit, uninstallKit } from './orchestration-kit'
 import { listTasks, readTask, readTaskPlan, watchTasks } from './task-stage'
 import { applyToolPaths, findInDefaults, PROGRAM_BINARY } from './tool-locations'
 import type { InstallId, InstallStatusItem } from '../shared/install'
@@ -272,6 +276,10 @@ export class Foreman extends EventEmitter<PushEvents> {
   private readonly claudeAgents: ClaudeAgents | null
   // At most ~4 graph pushes a second per project, however many hook events arrive.
   private readonly graphPusher = createGraphPusher({ intervalMs: 250, send: (project) => this.pushGraph(project) })
+  // Saves the graph of Orchestration projects to disk, at most once every few seconds per project.
+  private readonly graphSaver = createGraphPusher({ intervalMs: 5000, send: (project) => this.saveGraphSnapshots(project) })
+  // Graphs loaded from disk at startup, shown until a live session of that project sends events. Keyed by crew id.
+  private readonly savedGraphs = new Map<number, OrchestrationGraph>()
   private readonly modPluginsDir: string | null
   private readonly engineeringDir: string | null
   // Per project, started when the first stage list is asked for: reports engineering:tasks when its task folders change.
@@ -330,7 +338,10 @@ export class Foreman extends EventEmitter<PushEvents> {
             this.noteTurn(this.modsPhase, state.tileId, state.session.phase)
             this.emit('claudeTile:state', state)
           },
-          onGraph: (project) => this.graphPusher.push(project),
+          onGraph: (project) => {
+            this.graphPusher.push(project)
+            this.graphSaver.push(project)
+          },
         })
       : null
     applyToolPaths(this.toolPaths())
@@ -538,6 +549,17 @@ export class Foreman extends EventEmitter<PushEvents> {
         const updated = store.updateCrew(crewId, next)
         // Also when the folder moves with Orchestration already on: the new folder has no kit yet.
         if (updated.factory && ((next.factory && !crew.factory) || (next.folder !== undefined && next.folder !== crew.folder))) this.installOrchestrationKit(updated)
+        // Turning it off moves the kit out of the project's .claude so it stops loading. Uses the folder from before the patch.
+        if (!updated.factory && next.factory === false && crew.factory) {
+          this.removeOrchestrationKit(updated, crew.folder)
+          // The saved graph is Foreman's own file; with Orchestration off there is nothing to restore.
+          this.savedGraphs.delete(crewId)
+          try {
+            deleteSnapshot(this.graphSnapshotDir(), crewId)
+          } catch (err) {
+            this.log('error', `The saved Orchestration graph could not be deleted (${err instanceof Error ? err.message : 'unexpected error'})`, crewId)
+          }
+        }
         if (next.folder !== undefined && next.folder !== crew.folder) {
           this.taskWatchers.get(crewId)?.()
           this.taskWatchers.delete(crewId)
@@ -560,6 +582,12 @@ export class Foreman extends EventEmitter<PushEvents> {
         this.taskWatchers.get(crewId)?.()
         this.taskWatchers.delete(crewId)
         store.deleteCrew(crewId)
+        this.savedGraphs.delete(crewId)
+        try {
+          deleteSnapshot(this.graphSnapshotDir(), crewId)
+        } catch (err) {
+          this.log('error', `The saved Orchestration graph could not be deleted (${err instanceof Error ? err.message : 'unexpected error'})`, crewId)
+        }
         this.log('crew', `Project ${crew.name} deleted`)
         try {
           this.onCrewDeleted?.(crewId)
@@ -966,20 +994,73 @@ export class Foreman extends EventEmitter<PushEvents> {
     return text.slice(0, 20_000)
   }
 
-  // Sends the graph to every project whose folder is the one the events came from.
-  private pushGraph(project: string): void {
+  // The live graph, else the one saved before the last restart (Orchestration projects only).
+  private graphOf(crew: { id: number; folder: string }): OrchestrationGraph | null {
+    return this.claudeAgents?.graphFor(crew.folder) ?? this.savedGraphs.get(crew.id) ?? null
+  }
+
+  private graphSnapshotDir(): string {
+    return join(dirname(this.launch.launchDir ?? join(tmpdir(), 'foreman', 'launch')), 'graph')
+  }
+
+  private saveGraphSnapshots(project: string): void {
     for (const crew of this.store.listCrews()) {
-      if (crew.folder && sameFolder(crew.folder, project)) this.emit('graph:state', { crewId: crew.id, graph: this.claudeAgents?.graphFor(crew.folder) ?? null })
+      if (!crew.factory || !crew.folder || !sameFolder(crew.folder, project)) continue
+      const graph = this.claudeAgents?.graphFor(crew.folder)
+      if (!graph) continue
+      try {
+        saveSnapshot(this.graphSnapshotDir(), crew.id, crew.folder, graph)
+      } catch (err) {
+        this.log('error', `The Orchestration graph could not be saved (${err instanceof Error ? err.message : 'unexpected error'})`, crew.id)
+      }
     }
   }
 
-  private capabilityHandlers(): Group<'capabilities'> & Group<'claudeTile'> & Group<'claude'> & Group<'graph'> {
+  // Startup for Orchestration projects: no worker survives a restart, so In Progress tickets go back to Ready,
+  // and the saved graph is loaded so the view is not blank. Nothing here throws.
+  private recoverOrchestration(): void {
+    for (const crew of this.store.listCrews()) {
+      if (!crew.factory || !crew.folder) continue
+      try {
+        const recovered = recoverTickets(crew.folder, new Set())
+        if (recovered.length) this.log('crew', `Tickets ${recovered.join(', ')} were interrupted by the restart and are Ready again`, crew.id)
+      } catch (err) {
+        this.log('error', `Tickets could not be recovered (${err instanceof Error ? err.message : 'unexpected error'})`, crew.id)
+      }
+      const saved = loadSnapshot(this.graphSnapshotDir(), crew.id, crew.folder)
+      if (saved) this.savedGraphs.set(crew.id, saved)
+    }
+  }
+
+  // Sends the graph to every project whose folder is the one the events came from.
+  private pushGraph(project: string): void {
+    for (const crew of this.store.listCrews()) {
+      if (crew.folder && sameFolder(crew.folder, project)) this.emit('graph:state', { crewId: crew.id, graph: this.graphOf(crew) })
+    }
+  }
+
+  private capabilityHandlers(): Group<'capabilities'> & Group<'claudeTile'> & Group<'claude'> & Group<'graph'> & Group<'tickets'> {
     return {
       'capabilities:get': (): Promise<CapabilityReport> => this.prober.get(),
       'capabilities:refresh': (): Promise<CapabilityReport> => this.prober.refresh(),
       'claude:doctor': () => this.claudeDoctor(),
       'claudeTile:get': (tileId): ClaudeTileState | null => this.claudeAgents?.get(tileId) ?? null,
-      'graph:get': (crewId) => this.claudeAgents?.graphFor(this.requireCrew(crewId).folder) ?? null,
+      'graph:get': (crewId) => this.graphOf(this.requireCrew(crewId)),
+      'tickets:list': (crewId) => {
+        const folder = this.store.listCrews().find((c) => c.id === crewId)?.folder
+        return folder ? listTickets(folder) : { tickets: [], skipped: [] }
+      },
+      'tickets:get': (crewId, id) => {
+        const folder = this.store.listCrews().find((c) => c.id === crewId)?.folder
+        return folder ? getTicket(folder, id) : null
+      },
+      'tickets:next': (crewId) => {
+        const folder = this.store.listCrews().find((c) => c.id === crewId)?.folder
+        if (!folder) return { start: [], waiting: [] }
+        const { tickets } = listTickets(folder)
+        const touches = Object.fromEntries(tickets.map((t) => [t.id, readTouches(folder, t.id)]))
+        return planNext(tickets, { maxWorkers: this.settings.engineMaxWorkers, touches })
+      },
     }
   }
 
@@ -1034,6 +1115,18 @@ export class Foreman extends EventEmitter<PushEvents> {
       }
     } catch (e) {
       this.log('error', `Orchestration kit for ${crew.name} failed: ${e instanceof Error ? e.message : String(e)}`, crew.id)
+    }
+  }
+
+  // Turning Orchestration off moves the kit to .claude/.foreman-backup. A failure is logged, not thrown: the toggle stays off.
+  private removeOrchestrationKit(crew: Crew, folder: string): void {
+    try {
+      const r = uninstallKit(join(this.pluginDir, 'kit'), folder)
+      if (r.moved.length || r.kept.length) {
+        this.log('crew', `Orchestration kit out of ${crew.name}: ${r.moved.length} moved to .claude/.foreman-backup, ${r.kept.length} edited and kept (${r.kept.join(', ') || 'none'})`, crew.id)
+      }
+    } catch (e) {
+      this.log('error', `Removing the Orchestration kit from ${crew.name} failed: ${e instanceof Error ? e.message : String(e)}`, crew.id)
     }
   }
 
@@ -1285,6 +1378,7 @@ export class Foreman extends EventEmitter<PushEvents> {
     this.timers.push(this.scheduler.every(() => this.pollUsage(), USAGE_POLL_MS))
     this.timers.push(this.scheduler.every(() => void this.providers.refresh().catch(() => undefined), PROVIDER_TICK_MS))
     this.checkBudgets()
+    this.recoverOrchestration()
   }
 
   stopTimers(): void {
@@ -1295,6 +1389,7 @@ export class Foreman extends EventEmitter<PushEvents> {
   // closed. No step can hold the quit for more than shutdownStepMs. Sessions are the caller's.
   async shutdown(): Promise<void> {
     this.graphPusher.dispose()
+    this.graphSaver.dispose()
     const bounded = async (work: () => Promise<unknown> | unknown): Promise<void> => {
       let timer: ReturnType<typeof setTimeout> | undefined
       const limit = new Promise<void>((resolve) => (timer = setTimeout(resolve, this.shutdownStepMs)))

@@ -121,6 +121,14 @@ export function runHiddenSync(cmd: string, args: string[], opts: { timeoutMs?: n
   }
 }
 
+// A blocking run that returns exit code and output (code is null when the program could not start). Not logged or tracked:
+// the tickets CLI uses it for git, and it must work without the app.
+export function execHiddenSync(cmd: string, args: string[], opts: { cwd?: string } = {}): RunResult {
+  const rest = { cwd: opts.cwd, encoding: 'utf8' as const }
+  const r = spawnSync(cmd, args, { ...rest, windowsHide: true })
+  return { code: r.status, stdout: r.stdout ?? '', stderr: r.error ? r.error.message : (r.stderr ?? '') }
+}
+
 // Where a command on PATH runs from: a native executable is started directly, a .cmd or .bat (an npm install, a test
 // fixture) needs the shell. Null when it is not on PATH.
 export function resolveCli(

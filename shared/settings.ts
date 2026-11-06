@@ -75,6 +75,8 @@ export interface Settings {
   // Context-window use at which the info bar's bar turns warn-coloured, and danger-coloured (percent).
   contextWarnPct: number
   contextDangerPct: number
+  // Model Engine: most tickets that may be In Progress at once (1 to 8).
+  engineMaxWorkers: number
   // The app's main CLI and its default model and effort: new tasks, MCP servers and seats start on it, and so does the Master Terminal.
   // Empty file means the system default shell.
   shell: { file: string; args: string }
@@ -164,6 +166,7 @@ export const DEFAULT_SETTINGS: Settings = {
   infoBar: true,
   contextWarnPct: 60,
   contextDangerPct: 85,
+  engineMaxWorkers: 3,
   setupDone: false,
   shell: { file: '', args: '' },
   ide: { default: 'code', custom: '' },
@@ -283,6 +286,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     infoBar: flag(r.infoBar, d.infoBar),
     contextWarnPct: Math.round(num(r.contextWarnPct, d.contextWarnPct, 1, 100)),
     contextDangerPct: Math.round(num(r.contextDangerPct, d.contextDangerPct, 1, 100)),
+    engineMaxWorkers: Math.round(num(r.engineMaxWorkers, d.engineMaxWorkers, 1, 8)),
     shell: { file: str(shell.file, d.shell.file, 500), args: str(shell.args, d.shell.args, 500) },
     ide: {
       default: (IDE_IDS as readonly string[]).includes(ide.default) ? (ide.default as IdeId) : d.ide.default,

@@ -298,12 +298,6 @@ export function toolIconKey(name: string): ToolIconKey {
 
 export const isToolRunning = (t: ToolItem): boolean => t.status === 'preparing' || t.status === 'running'
 
-// The first `lines` lines of a text and whether more exist.
-export function firstLines(text: string, lines = 40): { text: string; more: boolean } {
-  const all = text.split('\n')
-  return all.length > lines ? { text: all.slice(0, lines).join('\n'), more: true } : { text, more: false }
-}
-
 // The items of the main thread: its own items, plus the unanswered prompts of sub-agents (they need an answer here).
 export function mainThread(items: ChatItem[]): ChatItem[] {
   return items.filter((it) => {

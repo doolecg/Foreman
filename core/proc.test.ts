@@ -74,6 +74,11 @@ describe('no visible console windows', () => {
     expect(offenders).toEqual([])
   })
 
+  it('the tickets CLI script does not touch node:child_process either', () => {
+    const src = readFileSync(join(here, '..', 'scripts', 'tickets-cli.ts'), 'utf8')
+    expect(/from ['"](node:)?child_process['"]|require\(['"](node:)?child_process['"]\)/.test(src)).toBe(false)
+  })
+
   it('every spawn in proc.ts sets windowsHide: true after the caller options, so they cannot override it', () => {
     const src = readFileSync(join(here, 'proc.ts'), 'utf8')
     const calls = [...src.matchAll(/(?<![\w.])(spawn|execFile|exec|fork|spawnSync|execFileSync)\(/g)].filter((m) => !/function\s+$/.test(src.slice(Math.max(0, m.index! - 9), m.index)))
