@@ -1,3 +1,18 @@
+# Foreman 4.4.0
+
+**Install:** download the file for your system from the assets below. Foreman keeps itself up to date from these releases.
+
+## New
+- **Lite sessions.** A Lite button beside New thread starts Claude with only the MCP servers and plugins you allow in Settings > Lite sessions. It also skips your user hooks and settings.
+- **Ticket board.** The Board is now a kanban of tickets, with a column for each status. Drag a ticket to move it, or use Move to. A New ticket form adds tickets. If the board file has unreadable lines, Foreman shows a warning.
+- **Ticket-driven Model Engine.** Work is split into tickets, kept in a ticket store, and run by a scheduler. It comes with a tickets CLI, worktrees and a Merger, and a watchdog.
+- **Tool calls collapse in chat.** Long runs of tool calls fold into one line, so the chat is easier to read.
+
+## Changed
+- **Tiles and Plans are gone from the top nav.** The Engineering task list has no replacement for now.
+
+---
+
 # Foreman 4.3.2
 
 **Install:** download the file for your system from the assets below. Foreman keeps itself up to date from these releases.
